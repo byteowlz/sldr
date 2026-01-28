@@ -1,0 +1,23 @@
+[package]
+name = "sldr-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core library for sldr - markdown presentation manager"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml_ng = "0.10"
+toml = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+dirs = { workspace = true }
+walkdir = { workspace = true }
+shellexpand = { workspace = true }
+fuzzy-matcher = { workspace = true }
+tracing = { workspace = true }

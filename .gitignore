@@ -1,0 +1,27 @@
+# Node/Slidev
+node_modules
+.DS_Store
+dist
+*.local
+.vite-inspect
+.remote-assets
+components.d.ts
+
+# Rust
+target/
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test files
+input/
+browser-tools/
+frontend/
+node_modules/
+target/
+Cargo.lock
+tmp/

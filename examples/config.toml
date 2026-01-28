@@ -1,0 +1,50 @@
+# sldr configuration file
+# Location: ~/.config/sldr/config.toml
+#
+# This file is automatically created on first run with default values.
+# All paths support ~ expansion and environment variables like $HOME.
+
+[config]
+# Directory containing slide templates
+template_dir = "~/.config/sldr/templates"
+
+# Directory containing flavors (themes/styles)
+flavor_dir = "~/.config/sldr/flavors"
+
+# Default flavor to use when none is specified
+default_flavor = "default"
+
+# Port for slidev server
+slidev_port = "3030"
+
+# Preferred AI agent for slide generation
+# Possible values: "opencode", "claude code", "codex"
+agent = "opencode"
+
+[presentations]
+# Directory containing individual slide markdown files
+slide_dir = "~/sldr/slides"
+
+# Directory for generated/built presentations
+output_dir = "~/sldr/presentations"
+
+# Directory containing presentation skeletons
+skeleton_dir = "~/sldr/skeletons"
+
+[matching]
+# Order in which to try resolution methods when finding slides
+# Options: "anchor", "exact", "fuzzy", "index", "interactive"
+resolution_order = [
+    "anchor",
+    "exact",
+    "fuzzy",
+    "index",
+    "interactive",
+]
+
+# Minimum fuzzy match score (0-100)
+# Lower values are more lenient, higher values require closer matches
+threshold = 50.0
+
+# Maximum number of suggestions to show for ambiguous matches
+max_suggestions = 6
