@@ -1,0 +1,26 @@
+[package]
+name = "sldr-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CLI for sldr - markdown presentation manager"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "sldr"
+path = "src/main.rs"
+
+[dependencies]
+sldr-core = { workspace = true }
+clap = { workspace = true }
+colored = { workspace = true }
+dialoguer = { workspace = true }
+console = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
