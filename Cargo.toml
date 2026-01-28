@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["byteowlz"]
 license = "MIT"
@@ -36,9 +36,16 @@ shellexpand = "3.1"
 # Async (for future slidev integration)
 tokio = { version = "1.0", features = ["full"] }
 
+# Web framework
+axum = { version = "0.8", features = ["macros"] }
+
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Process + file watching
+notify = "8.2"
+tempfile = "3"
 
 # Internal crates
 sldr-core = { path = "crates/sldr-core" }

@@ -1,0 +1,27 @@
+[package]
+name = "sldr-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+description = "HTTP API for sldr"
+
+[[bin]]
+name = "sldr-server"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+axum = { workspace = true, features = ["macros"] }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng = "0.10"
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid = { version = "1.19", features = ["v4", "serde"] }
+notify = "8.2"
+tempfile = "3"
+
+sldr-core.workspace = true
