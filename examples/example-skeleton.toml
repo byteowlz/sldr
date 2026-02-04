@@ -1,0 +1,53 @@
+# Example presentation skeleton for sldr
+#
+# Skeletons define which slides to include in a presentation and
+# default settings for the presentation.
+#
+# Place this file in: ~/sldr/skeletons/<skeleton-name>.toml
+
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.skeleton.schema.json"
+
+# Name of the skeleton/presentation
+name = "example-talk"
+
+# Optional title for the presentation
+title = "Example Presentation"
+
+# Optional description
+description = "An example presentation skeleton"
+
+# List of slides to include (names or paths)
+# Slides can be:
+# - Simple names: "intro", "conclusion"
+# - Paths with directories: "ai/transformers", "projects/mlops"
+slides = [
+    "intro",
+    "getting-started",
+    "conclusion",
+]
+
+# Default flavor to use for styling
+flavor = "default"
+
+# Slidev configuration overrides
+[slidev_config]
+# Theme to use (slidev theme name)
+theme = "default"
+
+# Enable/disable drawing feature
+drawings = true
+
+# Transition effect between slides
+transition = "slide-left"
+
+# Aspect ratio (e.g., "16/9", "4/3")
+aspect_ratio = "16/9"
+
+# Canvas width in pixels
+canvas_width = 1280
+
+# Enable dark mode
+dark_mode = false
+
+# Enable slide recording
+record = false

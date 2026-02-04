@@ -7,9 +7,11 @@ use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
+use schemars::JsonSchema;
 
 /// Main configuration structure
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(title = "sldr config schema", description = "Configuration schema for sldr (main config.toml)")]
 pub struct Config {
     #[serde(default)]
     pub config: CoreConfig,
@@ -22,7 +24,7 @@ pub struct Config {
 }
 
 /// Core application settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CoreConfig {
     /// Directory containing slide templates
     #[serde(default = "default_template_dir")]
@@ -46,7 +48,7 @@ pub struct CoreConfig {
 }
 
 /// Presentations and slides configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PresentationsConfig {
     /// Directory containing individual slide files
     #[serde(default = "default_slide_dir")]
@@ -62,7 +64,7 @@ pub struct PresentationsConfig {
 }
 
 /// Fuzzy matching configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MatchingConfig {
     /// Order in which to try resolution methods
     #[serde(default = "default_resolution_order")]

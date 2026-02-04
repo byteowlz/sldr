@@ -88,7 +88,10 @@ impl SldrMatcher {
             // Try fuzzy match
             if let Some(score) = self.matcher.fuzzy_match(&candidate_lower, &query_lower) {
                 // Threshold is 0-100, safe to convert to i64
-                #[expect(clippy::cast_possible_truncation, reason = "threshold is 0-100, fits in i64")]
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "threshold is 0-100, fits in i64"
+                )]
                 let threshold = self.config.threshold as i64;
                 if score >= threshold {
                     results.push(MatchResult {
@@ -159,7 +162,7 @@ impl SldrMatcher {
                         return ResolveResult::Found(first.clone());
                     }
                     // If first score is much higher, prefer it
-                    if first.score > second.score * 2 {
+                    if first.score > second.score.saturating_mul(2) {
                         return ResolveResult::Found(first.clone());
                     }
                 }
@@ -188,7 +191,6 @@ fn extract_name(path: &str) -> &str {
 
 // Note: allow unwrap in tests - they should panic on failure
 #[allow(clippy::unwrap_used)]
-
 #[cfg(test)]
 mod tests {
     use super::*;

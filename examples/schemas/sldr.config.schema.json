@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sldr config schema",
+  "description": "Configuration schema for sldr (main config.toml)",
+  "type": "object",
+  "properties": {
+    "config": {
+      "$ref": "#/$defs/CoreConfig",
+      "default": {
+        "agent": "opencode",
+        "default_flavor": "default",
+        "flavor_dir": "~/.config/sldr/flavors",
+        "slidev_port": "3030",
+        "template_dir": "~/.config/sldr/templates"
+      }
+    },
+    "matching": {
+      "$ref": "#/$defs/MatchingConfig",
+      "default": {
+        "max_suggestions": 6,
+        "resolution_order": [
+          "anchor",
+          "exact",
+          "fuzzy",
+          "index",
+          "interactive"
+        ],
+        "threshold": 50.0
+      }
+    },
+    "presentations": {
+      "$ref": "#/$defs/PresentationsConfig",
+      "default": {
+        "output_dir": "~/sldr/presentations",
+        "skeleton_dir": "~/sldr/skeletons",
+        "slide_dir": "~/sldr/slides"
+      }
+    }
+  },
+  "$defs": {
+    "CoreConfig": {
+      "description": "Core application settings",
+      "type": "object",
+      "properties": {
+        "agent": {
+          "description": "Preferred AI agent for slide generation",
+          "type": "string",
+          "default": "opencode"
+        },
+        "default_flavor": {
+          "description": "Default flavor to use when none specified",
+          "type": "string",
+          "default": "default"
+        },
+        "flavor_dir": {
+          "description": "Directory containing flavors (themes/styles)",
+          "type": "string",
+          "default": "~/.config/sldr/flavors"
+        },
+        "slidev_port": {
+          "description": "Port for slidev server",
+          "type": "string",
+          "default": "3030"
+        },
+        "template_dir": {
+          "description": "Directory containing slide templates",
+          "type": "string",
+          "default": "~/.config/sldr/templates"
+        }
+      }
+    },
+    "MatchingConfig": {
+      "description": "Fuzzy matching configuration",
+      "type": "object",
+      "properties": {
+        "max_suggestions": {
+          "description": "Maximum number of suggestions to show",
+          "type": "integer",
+          "format": "uint",
+          "default": 6,
+          "minimum": 0
+        },
+        "resolution_order": {
+          "description": "Order in which to try resolution methods",
+          "type": "array",
+          "default": [
+            "anchor",
+            "exact",
+            "fuzzy",
+            "index",
+            "interactive"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "threshold": {
+          "description": "Minimum fuzzy match score (0-100)",
+          "type": "number",
+          "format": "double",
+          "default": 50.0
+        }
+      }
+    },
+    "PresentationsConfig": {
+      "description": "Presentations and slides configuration",
+      "type": "object",
+      "properties": {
+        "output_dir": {
+          "description": "Directory for generated presentations",
+          "type": "string",
+          "default": "~/sldr/presentations"
+        },
+        "skeleton_dir": {
+          "description": "Directory containing presentation skeletons",
+          "type": "string",
+          "default": "~/sldr/skeletons"
+        },
+        "slide_dir": {
+          "description": "Directory containing individual slide files",
+          "type": "string",
+          "default": "~/sldr/slides"
+        }
+      }
+    }
+  }
+}

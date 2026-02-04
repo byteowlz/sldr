@@ -101,11 +101,7 @@ pub fn run(query: &str, tags: Option<String>, topic: Option<String>, long: bool)
     println!();
     for (slide, reasons) in &matches {
         if long {
-            let title = slide
-                .metadata
-                .title
-                .as_deref()
-                .unwrap_or("(no title)");
+            let title = slide.metadata.title.as_deref().unwrap_or("(no title)");
             let tags = if slide.metadata.tags.is_empty() {
                 String::new()
             } else {
@@ -134,10 +130,7 @@ pub fn run(query: &str, tags: Option<String>, topic: Option<String>, long: bool)
         }
     }
 
-    println!(
-        "\n  {} result(s)",
-        matches.len().to_string().bold()
-    );
+    println!("\n  {} result(s)", matches.len().to_string().bold());
 
     Ok(())
 }

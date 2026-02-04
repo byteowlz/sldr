@@ -12,3 +12,5 @@ pub mod flavor;
 
 pub use config::Config;
 pub use error::{Error, Result};
+pub use flavor::Flavor;
+pub use presentation::{Skeleton, SlidevConfig};

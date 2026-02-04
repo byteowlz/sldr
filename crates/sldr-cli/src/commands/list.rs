@@ -42,11 +42,7 @@ fn list_slides(config: &Config, long: bool) -> Result<()> {
 
     for slide in &collection.slides {
         if long {
-            let title = slide
-                .metadata
-                .title
-                .as_deref()
-                .unwrap_or("(no title)");
+            let title = slide.metadata.title.as_deref().unwrap_or("(no title)");
             let tags = if slide.metadata.tags.is_empty() {
                 String::new()
             } else {
@@ -63,7 +59,10 @@ fn list_slides(config: &Config, long: bool) -> Result<()> {
         }
     }
 
-    println!("\n  {} slide(s)", collection.slides.len().to_string().bold());
+    println!(
+        "\n  {} slide(s)",
+        collection.slides.len().to_string().bold()
+    );
     Ok(())
 }
 
@@ -129,7 +128,9 @@ fn list_skeletons(config: &Config, long: bool) -> Result<()> {
         let path = entry.path();
 
         if path.extension().is_some_and(|ext| ext == "toml") {
-            let Some(stem) = path.file_stem() else { continue };
+            let Some(stem) = path.file_stem() else {
+                continue;
+            };
             let name = stem.to_string_lossy();
 
             if long {
@@ -176,25 +177,22 @@ fn list_flavors(config: &Config, long: bool) -> Result<()> {
 
     if collection.flavors.is_empty() {
         println!("  {}", "No flavors found".dimmed());
-        println!(
-            "  {} Run 'sldr init' to create default flavors",
-            "i".blue()
-        );
+        println!("  {} Run 'sldr init' to create default flavors", "i".blue());
         return Ok(());
     }
 
     for flavor in &collection.flavors {
         if long {
-            let desc = flavor
-                .description
-                .as_deref()
-                .unwrap_or("(no description)");
+            let desc = flavor.description.as_deref().unwrap_or("(no description)");
             println!("  {} - {}", flavor.name.cyan(), desc.dimmed());
         } else {
             println!("  {}", flavor.name);
         }
     }
 
-    println!("\n  {} flavor(s)", collection.flavors.len().to_string().bold());
+    println!(
+        "\n  {} flavor(s)",
+        collection.flavors.len().to_string().bold()
+    );
     Ok(())
 }

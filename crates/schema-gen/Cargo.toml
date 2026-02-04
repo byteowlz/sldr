@@ -1,0 +1,17 @@
+[package]
+name = "schema-gen"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "schema-gen"
+path = "src/main.rs"
+
+[dependencies]
+sldr-core = { path = "../sldr-core" }
+schemars = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }

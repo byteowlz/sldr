@@ -1,9 +1,13 @@
 //! sldr CLI - Markdown presentation manager powered by slidev
 //!
 //! This is a CLI application, so stdout/stderr output is expected and legitimate.
-#![expect(clippy::print_stdout, reason = "CLI application uses stdout for user output")]
+#![expect(
+    clippy::print_stdout,
+    reason = "CLI application uses stdout for user output"
+)]
 
 mod commands;
+mod templates;
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -159,6 +163,29 @@ enum Commands {
         #[arg(long)]
         global: bool,
     },
+
+    /// Slide management commands
+    Slides {
+        #[command(subcommand)]
+        command: SlidesCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum SlidesCommands {
+    /// Create empty slides for all missing slides referenced in a skeleton
+    Derive {
+        /// Name of the skeleton to derive slides from
+        skeleton: String,
+
+        /// Template to use for new slides
+        #[arg(short, long)]
+        template: Option<String>,
+
+        /// Dry run - show what would be created without creating files
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -220,5 +247,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Config { key, value, edit } => commands::config::run(key, value, edit),
 
         Commands::Init { global } => commands::init::run(global),
+
+        Commands::Slides { command } => match command {
+            SlidesCommands::Derive {
+                skeleton,
+                template,
+                dry_run,
+            } => commands::slides::derive(&skeleton, template.as_deref(), dry_run),
+        },
     }
 }

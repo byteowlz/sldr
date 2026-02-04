@@ -193,6 +193,14 @@ install-system:
 
 # === sldr specific ===
 
+# Generate JSON schemas for all config files
+schemas:
+    cargo run --bin schema-gen
+
+# Copy schemas to byteowlz/schemas repository
+copy-schemas:
+    ./scripts/copy_config_schema.sh
+
 # Run the CLI in development mode
 run *ARGS:
     cargo run -p sldr-cli -- {{ARGS}}

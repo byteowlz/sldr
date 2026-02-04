@@ -1,9 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = [
+    "crates/sldr-core",
+    "crates/sldr-cli",
+    "crates/sldr-server",
+    "crates/schema-gen",
+]
+exclude = [
+    "examples",
+]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["byteowlz"]
 license = "MIT"
@@ -14,6 +22,7 @@ repository = "https://github.com/byteowlz/sldr"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8"
+schemars = { version = "1.2", features = ["derive"] }
 
 # CLI
 clap = { version = "4.5", features = ["derive", "env"] }

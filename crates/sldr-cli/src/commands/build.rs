@@ -62,10 +62,16 @@ pub fn run(
     }
 
     // Determine output directory
-    let output_dir = output.map_or_else(|| config.output_dir().join(&skeleton.name), |o| Config::expand_path(&o));
+    let output_dir = output.map_or_else(
+        || config.output_dir().join(&skeleton.name),
+        |o| Config::expand_path(&o),
+    );
 
     // Build presentation
-    let title = skeleton.title.clone().unwrap_or_else(|| skeleton.name.clone());
+    let title = skeleton
+        .title
+        .clone()
+        .unwrap_or_else(|| skeleton.name.clone());
     let presentation = PresentationBuilder::new(&skeleton.name)
         .title(title)
         .flavor(flavor)
@@ -84,10 +90,7 @@ pub fn run(
 
     // Show next steps
     println!("\n{}", "Next steps:".dimmed());
-    println!(
-        "  cd {} && bun install && bun dev",
-        output_dir.display()
-    );
+    println!("  cd {} && bun install && bun dev", output_dir.display());
 
     // Export if requested
     if pdf || pptx {
@@ -157,10 +160,7 @@ fn load_flavor(config: &Config, name: &str) -> Result<Flavor> {
 
     if collection.flavors.is_empty() {
         // Return default flavor if none exist
-        println!(
-            "  {} No flavors found, using built-in default",
-            "i".blue()
-        );
+        println!("  {} No flavors found, using built-in default", "i".blue());
         return Ok(Flavor::default());
     }
 
@@ -198,15 +198,9 @@ fn resolve_with_interactive(
     slides: &SlideCollection,
 ) -> Result<Option<sldr_core::slide::Slide>> {
     match matcher.resolve(slide_ref, &slides.names()) {
-        ResolveResult::Found(result) => {
-            Ok(slides.find(&result.value).cloned())
-        }
+        ResolveResult::Found(result) => Ok(slides.find(&result.value).cloned()),
         ResolveResult::NotFound => {
-            println!(
-                "  {} Slide not found: '{}'",
-                "!".red(),
-                slide_ref.yellow()
-            );
+            println!("  {} Slide not found: '{}'", "!".red(), slide_ref.yellow());
             Ok(None)
         }
         ResolveResult::Multiple(matches) => {

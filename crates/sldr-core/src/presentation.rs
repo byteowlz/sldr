@@ -3,13 +3,18 @@
 use crate::error::Result;
 use crate::flavor::Flavor;
 use crate::slide::Slide;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// A presentation skeleton - defines which slides to include
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(
+    title = "sldr skeleton schema",
+    description = "Configuration schema for sldr presentation skeletons (skeleton.toml)"
+)]
 pub struct Skeleton {
     /// Name of the skeleton/presentation
     pub name: String,
@@ -36,7 +41,7 @@ pub struct Skeleton {
 }
 
 /// Slidev-specific configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct SlidevConfig {
     /// Theme to use
     #[serde(default)]
@@ -118,11 +123,7 @@ impl Presentation {
         let mut fm = String::from("---\n");
 
         // Theme
-        let theme = self
-            .slidev_config
-            .theme
-            .as_deref()
-            .unwrap_or("default");
+        let theme = self.slidev_config.theme.as_deref().unwrap_or("default");
         let _ = writeln!(fm, "theme: {theme}");
 
         // Title
@@ -265,10 +266,16 @@ a {
                                 "\n.slidev-page {{ background: {value} !important; }}"
                             );
                         }
-                        "image" => {
+                        "image" | "svg" => {
+                            // Normalize path to have leading / for web root
+                            let web_path = if value.starts_with('/') || value.starts_with("http") {
+                                value.clone()
+                            } else {
+                                format!("/{value}")
+                            };
                             let _ = writeln!(
                                 css,
-                                "\n.slidev-page {{ background-image: url('{value}'); background-size: cover; background-position: center; }}"
+                                "\n.slidev-page {{ background-image: url('{web_path}'); background-size: cover; background-position: center; }}"
                             );
                         }
                         _ => {}
@@ -322,17 +329,93 @@ a {
 
     /// Copy assets from flavor directory to presentation
     fn copy_flavor_assets(&self, flavor: &Flavor) -> Result<()> {
+        let public_dir = self.output_dir.join("public");
+        std::fs::create_dir_all(&public_dir)?;
+
+        // Copy assets directory if specified
         if let Some(ref assets_dir) = flavor.assets_dir {
             let assets_path = crate::config::Config::expand_path(assets_dir);
             if assets_path.exists() {
-                let dest = self.output_dir.join("public").join("assets");
+                let dest = public_dir.join("assets");
                 std::fs::create_dir_all(&dest)?;
                 copy_dir_recursive(&assets_path, &dest)?;
                 info!("Copied flavor assets to public/assets");
             }
         }
+
+        // Copy background image if specified and it's a local file
+        if let Some(ref bg_type) = flavor.background.background_type {
+            if bg_type == "image" || bg_type == "svg" {
+                if let Some(ref value) = flavor.background.value {
+                    copy_background_file(flavor, value, &public_dir)?;
+                }
+            }
+        }
+
         Ok(())
     }
+}
+
+/// Copy a background file from the flavor directory to the public directory
+fn copy_background_file(flavor: &Flavor, bg_path: &str, public_dir: &Path) -> Result<()> {
+    // Skip if it's a URL
+    if bg_path.starts_with("http://") || bg_path.starts_with("https://") {
+        return Ok(());
+    }
+
+    // Get the filename from the path (e.g., "/background.png" -> "background.png")
+    let filename = bg_path.trim_start_matches('/');
+
+    // Try to find the source file
+    let source_path = if let Some(ref source_dir) = flavor.source_dir {
+        // First, check in the flavor's source directory
+        let path_in_flavor = source_dir.join(filename);
+        if path_in_flavor.exists() {
+            Some(path_in_flavor)
+        } else if let Some(ref assets_dir) = flavor.assets_dir {
+            // Check in the assets directory
+            let assets_path = crate::config::Config::expand_path(assets_dir);
+            let path_in_assets = assets_path.join(filename);
+            if path_in_assets.exists() {
+                Some(path_in_assets)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        // Try as an absolute path
+        let expanded = crate::config::Config::expand_path(bg_path);
+        if expanded.exists() {
+            Some(expanded)
+        } else {
+            None
+        }
+    };
+
+    if let Some(src) = source_path {
+        let dest = public_dir.join(filename);
+
+        // Create parent directories if needed
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        std::fs::copy(&src, &dest)?;
+        info!(
+            "Copied background file {} to public/{}",
+            src.display(),
+            filename
+        );
+    } else {
+        tracing::warn!(
+            "Background file '{}' not found in flavor directory or assets",
+            bg_path
+        );
+    }
+
+    Ok(())
 }
 
 /// Recursively copy a directory

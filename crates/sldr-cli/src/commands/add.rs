@@ -7,7 +7,6 @@ use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
 use sldr_core::presentation::Skeleton;
 use sldr_core::slide::SlideCollection;
 
-
 pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<()> {
     let config = Config::load()?;
 
@@ -64,11 +63,7 @@ pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<
 
                 // Check if already in skeleton
                 if skeleton.slides.contains(&slide_ref) {
-                    println!(
-                        "  {} '{}' already in presentation",
-                        "~".yellow(),
-                        slide_ref
-                    );
+                    println!("  {} '{}' already in presentation", "~".yellow(), slide_ref);
                     continue;
                 }
 
@@ -84,11 +79,7 @@ pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<
                 added += 1;
             }
             ResolveResult::NotFound => {
-                println!(
-                    "  {} Slide not found: '{}'",
-                    "!".red(),
-                    slide_name.yellow()
-                );
+                println!("  {} Slide not found: '{}'", "!".red(), slide_name.yellow());
             }
             ResolveResult::Multiple(matches) => {
                 println!(

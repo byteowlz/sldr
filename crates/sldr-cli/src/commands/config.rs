@@ -12,15 +12,9 @@ pub fn run(key: Option<String>, value: Option<String>, edit: bool) -> Result<()>
         // Open in editor
         let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
 
-        println!(
-            "{} config in {}",
-            "Opening".green().bold(),
-            editor.cyan()
-        );
+        println!("{} config in {}", "Opening".green().bold(), editor.cyan());
 
-        Command::new(&editor)
-            .arg(&config_path)
-            .status()?;
+        Command::new(&editor).arg(&config_path).status()?;
 
         return Ok(());
     }

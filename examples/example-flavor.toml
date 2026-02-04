@@ -1,0 +1,66 @@
+# Example flavor configuration for sldr
+#
+# Flavors define the visual appearance of presentations, separating
+# content from style so the same slides can use different themes.
+#
+# Place this file in: ~/.config/sldr/flavors/<flavor-name>/flavor.toml
+
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+# Unique identifier for this flavor
+name = "example"
+
+# Human-readable name
+display_name = "Example Flavor"
+
+# Description of this flavor
+description = "An example flavor configuration"
+
+[colors]
+# Primary brand color (used for headings, links, etc.)
+primary = "#3b82f6"
+
+# Secondary color
+secondary = "#6366f1"
+
+# Background color
+background = "#ffffff"
+
+# Text color
+text = "#1f2937"
+
+# Accent color for highlights
+accent = "#f59e0b"
+
+# Code block background
+code_background = "#f3f4f6"
+
+[typography]
+# Font for headings (h1-h6)
+heading_font = "Inter, sans-serif"
+
+# Font for body text
+body_font = "Inter, sans-serif"
+
+# Font for code blocks
+code_font = "JetBrains Mono, monospace"
+
+# Base font size
+base_size = "16px"
+
+[background]
+# Background type: "color", "image", "gradient", or "svg"
+background_type = "color"
+
+# Value depends on background_type:
+# - color: hex color code (e.g., "#ffffff")
+# - image: path to image file (e.g., "/assets/background.png")
+# - gradient: CSS gradient (e.g., "linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
+# - svg: path to SVG file (e.g., "/assets/background.svg")
+value = "#ffffff"
+
+# Opacity overlay for backgrounds (0.0 - 1.0)
+opacity = 1.0
+
+# Optional: directory path for additional assets (logos, images)
+# assets_dir = "~/.config/sldr/flavors/example/assets"

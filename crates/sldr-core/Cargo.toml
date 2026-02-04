@@ -21,3 +21,4 @@ walkdir = { workspace = true }
 shellexpand = { workspace = true }
 fuzzy-matcher = { workspace = true }
 tracing = { workspace = true }
+schemars = { workspace = true }

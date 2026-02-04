@@ -4,13 +4,18 @@
 //! to be rendered with different visual themes.
 
 use crate::error::Result;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 /// A flavor definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(
+    title = "sldr flavor schema",
+    description = "Configuration schema for sldr flavors (flavor.toml)"
+)]
 pub struct Flavor {
     /// Unique name for this flavor
     pub name: String,
@@ -38,10 +43,15 @@ pub struct Flavor {
     /// Path to additional assets (logos, images)
     #[serde(default)]
     pub assets_dir: Option<String>,
+
+    /// Source directory where the flavor was loaded from (not serialized)
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub source_dir: Option<PathBuf>,
 }
 
 /// Color scheme for a flavor
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct ColorScheme {
     /// Primary brand color
     #[serde(default)]
@@ -69,7 +79,7 @@ pub struct ColorScheme {
 }
 
 /// Typography settings
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct Typography {
     /// Heading font family
     #[serde(default)]
@@ -89,7 +99,7 @@ pub struct Typography {
 }
 
 /// Background configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct BackgroundConfig {
     /// Background type: color, image, gradient, svg
     #[serde(default)]
@@ -114,6 +124,7 @@ impl Default for Flavor {
             typography: Typography::default(),
             background: BackgroundConfig::default(),
             assets_dir: None,
+            source_dir: None,
         }
     }
 }
@@ -136,6 +147,9 @@ impl Flavor {
                     .to_string();
             }
 
+            // Store the source directory for asset copying
+            flavor.source_dir = Some(dir.to_path_buf());
+
             Ok(flavor)
         } else {
             // Create a minimal flavor from directory name
@@ -145,6 +159,7 @@ impl Flavor {
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown")
                     .to_string(),
+                source_dir: Some(dir.to_path_buf()),
                 ..Default::default()
             })
         }

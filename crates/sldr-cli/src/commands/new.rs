@@ -33,11 +33,7 @@ pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result
         anyhow::bail!("Slide already exists: {}", path.display());
     }
 
-    println!(
-        "{} slide '{}'",
-        "Creating".green().bold(),
-        name.cyan()
-    );
+    println!("{} slide '{}'", "Creating".green().bold(), name.cyan());
 
     // Create parent directories
     if let Some(parent) = path.parent() {
@@ -73,9 +69,7 @@ pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result
 }
 
 fn default_slide_template(name: &str) -> String {
-    let title = name
-        .trim_end_matches(".md")
-        .replace(['_', '-'], " ");
+    let title = name.trim_end_matches(".md").replace(['_', '-'], " ");
 
     format!(
         r#"---

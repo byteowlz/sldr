@@ -186,6 +186,8 @@ value = "/assets/acme-background.svg"
 
 ```toml
 # ~/.config/sldr/config.toml
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
+
 [config]
 template_dir = "~/.config/sldr/templates"
 flavor_dir = "~/.config/sldr/flavors"
@@ -202,6 +204,28 @@ threshold = 50.0
 max_suggestions = 6
 ```
 
+### IDE Autocompletion
+
+All sldr config files support JSON Schema validation for IDE autocompletion. Install the **Even Better TOML** extension in VS Code to get:
+
+- Inline documentation for all options
+- Autocompletion as you type
+- Validation for errors before running sldr
+
+Example configs with all options documented are available in `examples/`:
+- `config.toml` - Main configuration
+- `example-flavor.toml` - Flavor configuration
+- `example-skeleton.toml` - Skeleton configuration
+
+### Regenerating Schemas
+
+Schemas and examples are automatically generated from Rust source code:
+
+```bash
+just schemas  # Generate all schemas and examples
+just copy-schemas  # Copy to byteowlz/schemas repository
+```
+
 ## Project Structure
 
 ```
@@ -209,9 +233,13 @@ sldr/
 ├── crates/
 │   ├── sldr-core/      # Library: slides, skeletons, flavors, presentations
 │   ├── sldr-cli/       # CLI binary
-│   └── sldr-server/    # HTTP API (planned)
+│   ├── sldr-server/    # HTTP API (planned)
+│   └── schema-gen/     # Binary: generates JSON schemas & example configs
 ├── examples/
-│   └── config.toml     # Example configuration
+│   ├── schemas/        # JSON schemas for IDE autocompletion
+│   ├── config.toml     # Example configuration
+│   ├── example-flavor.toml
+│   └── example-skeleton.toml
 └── history/            # Development notes
 ```
 

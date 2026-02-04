@@ -1,5 +1,6 @@
 //! Init command - initialize sldr configuration and directories
 
+use crate::templates;
 use anyhow::Result;
 use colored::Colorize;
 use sldr_core::config::Config;
@@ -53,11 +54,11 @@ pub fn run(_global: bool) -> Result<()> {
             display_name: Some("Default".to_string()),
             description: Some("Clean, minimal default flavor".to_string()),
             colors: sldr_core::flavor::ColorScheme {
-                primary: Some("#3b82f6".to_string()),    // Blue
-                secondary: Some("#6366f1".to_string()),   // Indigo
-                background: Some("#ffffff".to_string()), // White
-                text: Some("#1f2937".to_string()),       // Gray-800
-                accent: Some("#f59e0b".to_string()),     // Amber
+                primary: Some("#3b82f6".to_string()),         // Blue
+                secondary: Some("#6366f1".to_string()),       // Indigo
+                background: Some("#ffffff".to_string()),      // White
+                text: Some("#1f2937".to_string()),            // Gray-800
+                accent: Some("#f59e0b".to_string()),          // Amber
                 code_background: Some("#f3f4f6".to_string()), // Gray-100
             },
             typography: sldr_core::flavor::Typography {
@@ -68,29 +69,28 @@ pub fn run(_global: bool) -> Result<()> {
             },
             background: sldr_core::flavor::BackgroundConfig::default(),
             assets_dir: None,
+            source_dir: None,
         };
         default_flavor.save(&default_flavor_dir)?;
         println!("  {} Created default flavor", "+".green());
     }
 
-    // Create example slide template
-    let basic_template = config.template_dir().join("basic.md");
-    if !basic_template.exists() {
-        std::fs::write(
-            &basic_template,
-            r#"---
-title: ""
-description: ""
-tags: []
-layout: default
----
-
-# Title
-
-Content goes here.
-"#,
-        )?;
-        println!("  {} Created basic template", "+".green());
+    // Install bundled templates
+    let template_dir = config.template_dir();
+    let installed = templates::install_templates(&template_dir, false)?;
+    if installed > 0 {
+        println!(
+            "  {} Installed {} templates to {}",
+            "+".green(),
+            installed,
+            template_dir.display()
+        );
+    } else {
+        println!(
+            "  {} Templates already exist in {}",
+            "~".yellow(),
+            template_dir.display()
+        );
     }
 
     // Create example skeleton
@@ -120,10 +120,7 @@ theme = "default"
         println!("  {} Created example skeleton", "+".green());
     }
 
-    println!(
-        "\n{} sldr is ready!",
-        "Done!".green().bold()
-    );
+    println!("\n{} sldr is ready!", "Done!".green().bold());
     println!("\nNext steps:");
     println!(
         "  1. Create slides in {}",
@@ -133,7 +130,10 @@ theme = "default"
         "  2. Create a skeleton in {}",
         config.skeleton_dir().display().to_string().cyan()
     );
-    println!("  3. Run {} to build your presentation", "sldr build <skeleton>".cyan());
+    println!(
+        "  3. Run {} to build your presentation",
+        "sldr build <skeleton>".cyan()
+    );
 
     Ok(())
 }

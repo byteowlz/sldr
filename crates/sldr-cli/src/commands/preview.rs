@@ -2,31 +2,26 @@
 
 use anyhow::{Context, Result};
 use colored::Colorize;
+use dialoguer::{theme::ColorfulTheme, Select};
 use sldr_core::config::Config;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
 use sldr_core::slide::SlideCollection;
 use std::process::Command;
-use dialoguer::{theme::ColorfulTheme, Select};
 
 pub fn run(slide: &str, port: Option<String>) -> Result<()> {
     let config = Config::load()?;
 
-    println!(
-        "{} slide '{}'",
-        "Previewing".green().bold(),
-        slide.cyan()
-    );
+    println!("{} slide '{}'", "Previewing".green().bold(), slide.cyan());
 
     // Find the slide
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
     let matcher = SldrMatcher::new(config.matching.clone());
 
     let slide_path = match matcher.resolve(slide, &slides.names()) {
-        ResolveResult::Found(result) => {
-            slides.find(&result.value)
-                .map(|s| s.path.clone())
-                .context("Slide not found")?
-        }
+        ResolveResult::Found(result) => slides
+            .find(&result.value)
+            .map(|s| s.path.clone())
+            .context("Slide not found")?,
         ResolveResult::NotFound => {
             // Maybe it's a direct path?
             let direct_path = Config::expand_path(slide);
@@ -66,7 +61,8 @@ pub fn run(slide: &str, port: Option<String>) -> Result<()> {
                 .default(0)
                 .interact()?;
 
-            slides.find(&matches[selection].value)
+            slides
+                .find(&matches[selection].value)
                 .map(|s| s.path.clone())
                 .context("Slide not found")?
         }

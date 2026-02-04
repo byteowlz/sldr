@@ -64,11 +64,7 @@ pub fn run(presentation: &str, port: Option<String>, rebuild: bool) -> Result<()
 
     let port = port.unwrap_or_else(|| config.config.slidev_port.clone());
 
-    println!(
-        "  {} Starting slidev on port {}",
-        "i".blue(),
-        port.yellow()
-    );
+    println!("  {} Starting slidev on port {}", "i".blue(), port.yellow());
     println!(
         "  {} Open {} in your browser",
         ">".cyan(),

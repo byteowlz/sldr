@@ -3,6 +3,10 @@
 #
 # This file is automatically created on first run with default values.
 # All paths support ~ expansion and environment variables like $HOME.
+#
+# Schema reference for IDE autocompletion (requires Even Better TOML extension)
+
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
 
 [config]
 # Directory containing slide templates

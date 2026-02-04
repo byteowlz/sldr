@@ -10,3 +10,4 @@ pub mod open;
 pub mod preview;
 pub mod rm;
 pub mod search;
+pub mod slides;

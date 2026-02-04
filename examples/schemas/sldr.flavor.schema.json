@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sldr flavor schema",
+  "description": "Configuration schema for sldr flavors (flavor.toml)",
+  "type": "object",
+  "properties": {
+    "assets_dir": {
+      "description": "Path to additional assets (logos, images)",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "background": {
+      "description": "Background settings",
+      "$ref": "#/$defs/BackgroundConfig",
+      "default": {
+        "background_type": null,
+        "opacity": null,
+        "value": null
+      }
+    },
+    "colors": {
+      "description": "Color scheme",
+      "$ref": "#/$defs/ColorScheme",
+      "default": {
+        "accent": null,
+        "background": null,
+        "code_background": null,
+        "primary": null,
+        "secondary": null,
+        "text": null
+      }
+    },
+    "description": {
+      "description": "Description of the flavor",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "display_name": {
+      "description": "Human-readable display name",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "name": {
+      "description": "Unique name for this flavor",
+      "type": "string"
+    },
+    "typography": {
+      "description": "Typography settings",
+      "$ref": "#/$defs/Typography",
+      "default": {
+        "base_size": null,
+        "body_font": null,
+        "code_font": null,
+        "heading_font": null
+      }
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "$defs": {
+    "BackgroundConfig": {
+      "description": "Background configuration",
+      "type": "object",
+      "properties": {
+        "background_type": {
+          "description": "Background type: color, image, gradient, svg",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "opacity": {
+          "description": "Opacity for background overlay",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "float",
+          "default": null
+        },
+        "value": {
+          "description": "Value depends on type (color hex, image path, gradient CSS, svg path)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "ColorScheme": {
+      "description": "Color scheme for a flavor",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent color for highlights",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "background": {
+          "description": "Background color",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "code_background": {
+          "description": "Code block background",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "primary": {
+          "description": "Primary brand color",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "secondary": {
+          "description": "Secondary color",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "text": {
+          "description": "Text color",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "Typography": {
+      "description": "Typography settings",
+      "type": "object",
+      "properties": {
+        "base_size": {
+          "description": "Base font size",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "body_font": {
+          "description": "Body text font family",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "code_font": {
+          "description": "Code font family",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "heading_font": {
+          "description": "Heading font family",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    }
+  }
+}
