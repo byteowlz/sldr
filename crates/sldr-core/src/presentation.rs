@@ -165,20 +165,28 @@ impl Presentation {
     /// Generate the combined markdown for slidev
     pub fn to_slidev_markdown(&self) -> String {
         let mut output = self.generate_frontmatter();
-        output.push('\n');
 
         // Add each slide
-        for (i, slide) in self.slides.iter().enumerate() {
-            if i > 0 {
-                output.push_str("\n---\n\n");
-            }
+        for slide in &self.slides {
+            // Add slide separator (also before first slide content, after global frontmatter)
+            output.push_str("\n---\n");
 
-            // If slide has layout in metadata, add it
+            // Add per-slide frontmatter if there's a layout
             if let Some(ref layout) = slide.metadata.layout {
-                let _ = writeln!(output, "layout: {layout}\n");
+                // Only add layout frontmatter if it's not "default"
+                if layout != "default" {
+                    let _ = writeln!(output, "layout: {layout}");
+                    output.push_str("---\n");
+                }
             }
 
+            output.push('\n');
             output.push_str(&slide.content);
+
+            // Ensure content ends with newline
+            if !slide.content.ends_with('\n') {
+                output.push('\n');
+            }
         }
 
         output
