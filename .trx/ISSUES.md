@@ -2,6 +2,9 @@
 
 ## Open
 
+### [trx-pg1a] Agent-friendly CLI improvements (P1, epic)
+Improve sldr CLI for agent/LLM use with JSON input/output support, batch operations, and better ergonomics
+
 ### [trx-3f4w] sldr Octo Integration (P1, epic)
 Complete sldr integration with Octo for visual presentation building
 
@@ -58,6 +61,15 @@ Templates to create:
 
 ## Closed
 
+- [trx-pg1a.3] Auto-generate skeleton from slide directory (closed 2026-02-06)
+- [trx-pg1a.7] Add JSON output for all list/show commands (closed 2026-02-06)
+- [trx-9mwm] Flavor: code_background and code_text CSS variables not generated (closed 2026-02-06)
+- [trx-pg1a.6] Add skeleton validation command (closed 2026-02-04)
+- [trx-pg1a.8] Create JSON schema for slide input format (closed 2026-02-04)
+- [trx-pg1a.5] Add templates to 'sldr ls' command (closed 2026-02-04)
+- [trx-pg1a.4] Fix fuzzy matching for subdirectory paths (closed 2026-02-04)
+- [trx-pg1a.2] Add --json flag for skeleton creation (closed 2026-02-04)
+- [trx-pg1a.1] Add --json flag for batch slide creation (closed 2026-02-04)
 - [trx-3f4w.6] Octo frontend: SlideLibrary component (closed 2026-01-28)
 - [trx-3f4w.5] Octo backend: mount sldr routes (closed 2026-01-28)
 - [trx-3f4w.2] Slidev process manager (closed 2026-01-28)

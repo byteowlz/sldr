@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.slide-input.schema.json",
+  "directory": "my-topic",
+  "slides": [
+    {
+      "name": "intro",
+      "title": "Introduction to My Topic",
+      "description": "An overview slide introducing the key concepts",
+      "layout": "cover",
+      "tags": ["intro", "overview"],
+      "content": "# Introduction to My Topic\n\nWelcome to this presentation.\n\n- Key point 1\n- Key point 2\n- Key point 3"
+    },
+    {
+      "name": "concepts",
+      "title": "Core Concepts",
+      "description": "Explaining the fundamental concepts",
+      "layout": "default",
+      "tags": ["concepts", "fundamentals"],
+      "content": "# Core Concepts\n\n## What is it?\n\nA brief explanation of the concept.\n\n## Why does it matter?\n\nThe importance and applications."
+    },
+    {
+      "name": "code-example",
+      "title": "Code Example",
+      "description": "A practical code demonstration",
+      "layout": "two-cols",
+      "tags": ["code", "example"],
+      "content": "# Code Example\n\n::left::\n\n```python\ndef hello_world():\n    print(\"Hello, World!\")\n```\n\n::right::\n\n**Explanation:**\n\n- Line 1: Define a function\n- Line 2: Print a message"
+    }
+  ]
+}

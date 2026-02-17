@@ -3,11 +3,12 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Select};
+use serde::Serialize;
 use sldr_core::config::Config;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
 use sldr_core::presentation::Skeleton;
-use sldr_core::slide::SlideCollection;
-use std::io::Write;
+use sldr_core::slide::{SlideCollection, SlideInputBatch};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
 /// Derive empty slides from a skeleton - creates stub files for any missing slides
@@ -285,4 +286,227 @@ fn load_template(config: &Config, template_name: &str, slide_name: &str) -> Resu
     );
 
     Ok(default_slide_template(slide_name))
+}
+
+/// Output structure for created slides (JSON output mode)
+#[derive(Serialize)]
+struct SlidesCreateResult {
+    /// Number of slides successfully created (or would be created in dry-run)
+    created_count: usize,
+    /// Number of slides that failed
+    failed_count: usize,
+    /// Total slides in input
+    total: usize,
+    /// Details of created slides
+    created: Vec<CreatedSlide>,
+    /// Details of failed slides
+    failed: Vec<FailedSlide>,
+}
+
+#[derive(Serialize)]
+struct CreatedSlide {
+    name: String,
+    path: String,
+}
+
+#[derive(Serialize)]
+struct FailedSlide {
+    name: String,
+    error: String,
+}
+
+/// Create slides from JSON input (stdin or file)
+///
+/// This is the agent-friendly batch slide creation command.
+/// Input format: `SlideInputBatch` JSON (see schema)
+///
+/// Exit codes:
+/// - 0: All slides created successfully
+/// - 1: Some slides failed (partial success)
+/// - 2: Command failed (invalid input, IO error, etc.)
+///
+/// # Example JSON input:
+/// ```json
+/// {
+///   "directory": "my-topic",
+///   "slides": [
+///     {
+///       "name": "intro",
+///       "title": "Introduction",
+///       "content": "# Introduction\n\nWelcome to my presentation.",
+///       "layout": "cover",
+///       "tags": ["intro", "overview"]
+///     }
+///   ]
+/// }
+/// ```
+pub fn create(file: Option<&str>, dry_run: bool, json_output: bool, force: bool) -> Result<()> {
+    use super::json_output::JsonResponse;
+
+    // Wrap the entire operation to handle errors as JSON
+    let result = create_inner(file, dry_run, json_output, force);
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(e) if json_output => {
+            // Output error as JSON
+            let cause = e.source().map(|s| s.to_string());
+            let response: JsonResponse<()> = JsonResponse::error(e.to_string(), cause);
+            response.print();
+            Ok(()) // Don't propagate error - we've already output it as JSON
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn create_inner(file: Option<&str>, dry_run: bool, json_output: bool, force: bool) -> Result<()> {
+    use super::json_output::JsonResponse;
+
+    let config = Config::load()?;
+
+    // Read JSON input
+    let json_input = if let Some(path) = file {
+        std::fs::read_to_string(path).context(format!("Failed to read file: {path}"))?
+    } else {
+        let mut buffer = String::new();
+        std::io::stdin()
+            .read_to_string(&mut buffer)
+            .context("Failed to read from stdin")?;
+        buffer
+    };
+
+    // Parse the input
+    let batch: SlideInputBatch =
+        serde_json::from_str(&json_input).context("Failed to parse JSON input")?;
+
+    if !json_output {
+        println!(
+            "{} Creating {} slide(s){}...",
+            "sldr".green().bold(),
+            batch.slides.len(),
+            if dry_run { " (dry run)" } else { "" }
+        );
+    }
+
+    let slide_dir = config.slide_dir();
+    let mut created: Vec<CreatedSlide> = Vec::new();
+    let mut failed: Vec<FailedSlide> = Vec::new();
+
+    for slide_input in &batch.slides {
+        // Determine the target directory
+        let effective_dir = slide_input.effective_directory(batch.directory.as_deref());
+
+        // Build the full path
+        let filename = format!("{}.md", slide_input.name);
+        let path = if let Some(ref dir) = effective_dir {
+            slide_dir.join(dir).join(&filename)
+        } else {
+            slide_dir.join(&filename)
+        };
+
+        if dry_run {
+            if !json_output {
+                println!(
+                    "  {} Would create: {}",
+                    ">".cyan(),
+                    path.display().to_string().cyan()
+                );
+            }
+            created.push(CreatedSlide {
+                name: slide_input.name.clone(),
+                path: path.display().to_string(),
+            });
+            continue;
+        }
+
+        // Create parent directories if needed
+        if let Some(parent) = path.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                failed.push(FailedSlide {
+                    name: slide_input.name.clone(),
+                    error: format!("Failed to create directory: {e}"),
+                });
+                continue;
+            }
+        }
+
+        // Check if file already exists (unless --force is set)
+        if path.exists() && !force {
+            failed.push(FailedSlide {
+                name: slide_input.name.clone(),
+                error: "File already exists (use --force to overwrite)".to_string(),
+            });
+            continue;
+        }
+
+        // Generate content and write file
+        let content = slide_input.to_markdown();
+        match std::fs::write(&path, &content) {
+            Ok(()) => {
+                if !json_output {
+                    let action = if path.exists() && force {
+                        "Overwrote"
+                    } else {
+                        "Created"
+                    };
+                    println!(
+                        "  {} {}: {}",
+                        "+".green(),
+                        action,
+                        path.display().to_string().cyan()
+                    );
+                }
+                created.push(CreatedSlide {
+                    name: slide_input.name.clone(),
+                    path: path.display().to_string(),
+                });
+            }
+            Err(e) => {
+                if !json_output {
+                    println!("  {} Failed: {} - {}", "!".red(), slide_input.name, e);
+                }
+                failed.push(FailedSlide {
+                    name: slide_input.name.clone(),
+                    error: e.to_string(),
+                });
+            }
+        }
+    }
+
+    // Output results
+    if json_output {
+        let result = SlidesCreateResult {
+            created_count: created.len(),
+            failed_count: failed.len(),
+            total: batch.slides.len(),
+            created,
+            failed,
+        };
+        if dry_run {
+            JsonResponse::success_dry_run(result).print();
+        } else {
+            JsonResponse::success(result).print();
+        }
+    } else if dry_run {
+        println!(
+            "\n{} Dry run complete - would create {} slide(s)",
+            "i".blue(),
+            batch.slides.len()
+        );
+    } else {
+        let success_count = created.len();
+        let fail_count = failed.len();
+        println!(
+            "\n{} Created {} slide(s){}",
+            "Done!".green().bold(),
+            success_count,
+            if fail_count > 0 {
+                format!(", {fail_count} failed").red().to_string()
+            } else {
+                String::new()
+            }
+        );
+    }
+
+    Ok(())
 }

@@ -107,3 +107,30 @@ sldr is build in Rust using the following libraries (among others):
 - console
 
 The application is build in such a way that we can add a Tauri user interface at a later stage. We use a cargo workspace and separate our functionality into crates.
+
+## Issue Tracking with trx
+
+This project uses `trx` (git-backed issue tracker) for task management. Issues are stored in `.trx/` directory and committed to git.
+
+### Quick trx commands
+
+```bash
+trx list                    # List all open issues
+trx show <id>               # Show issue details
+trx create "Description"    # Create new issue (use prefixes like [bug], [feature])
+trx close <id>              # Mark issue as done/closed
+trx update <id>             # Edit issue description/title
+```
+
+### Finding work
+
+```bash
+trx ready                   # Show unblocked issues (no unresolved deps)
+trx list | grep -i bug      # Find bugs to fix
+```
+
+### Naming convention
+
+- Use descriptive prefixes: `[bug]`, `[feature]`, `[task]`, `[epic]`
+- For complex features, use `.` sub-issues (e.g., `feat-123.1`, `feat-123.2`)
+- Link dependencies with `trx dep add <parent> <child>`

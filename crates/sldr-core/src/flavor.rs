@@ -76,6 +76,10 @@ pub struct ColorScheme {
     /// Code block background
     #[serde(default)]
     pub code_background: Option<String>,
+
+    /// Code text color
+    #[serde(default)]
+    pub code_text: Option<String>,
 }
 
 /// Typography settings
@@ -193,11 +197,20 @@ impl Flavor {
         if let Some(ref color) = self.colors.accent {
             let _ = writeln!(css, "  --sldr-accent: {color};");
         }
+        if let Some(ref color) = self.colors.code_background {
+            let _ = writeln!(css, "  --sldr-code-background: {color};");
+        }
+        if let Some(ref color) = self.colors.code_text {
+            let _ = writeln!(css, "  --sldr-code-text: {color};");
+        }
         if let Some(ref font) = self.typography.heading_font {
             let _ = writeln!(css, "  --sldr-heading-font: {font};");
         }
         if let Some(ref font) = self.typography.body_font {
             let _ = writeln!(css, "  --sldr-body-font: {font};");
+        }
+        if let Some(ref font) = self.typography.code_font {
+            let _ = writeln!(css, "  --sldr-code-font: {font};");
         }
 
         css.push_str("}\n");

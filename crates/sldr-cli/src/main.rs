@@ -110,6 +110,10 @@ enum Commands {
         /// Show detailed information
         #[arg(short, long)]
         long: bool,
+
+        /// Output as JSON (for machine parsing)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Search slides by content, tags, or metadata
@@ -128,6 +132,10 @@ enum Commands {
         /// Show detailed information
         #[arg(short, long)]
         long: bool,
+
+        /// Output as JSON (for machine parsing)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Create a new slide
@@ -169,6 +177,12 @@ enum Commands {
         #[command(subcommand)]
         command: SlidesCommands,
     },
+
+    /// Skeleton management commands
+    Skeleton {
+        #[command(subcommand)]
+        command: SkeletonCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -185,6 +199,69 @@ enum SlidesCommands {
         /// Dry run - show what would be created without creating files
         #[arg(long)]
         dry_run: bool,
+    },
+
+    /// Create slides from JSON input (agent-friendly batch creation)
+    Create {
+        /// Read JSON from file instead of stdin
+        #[arg(short, long)]
+        file: Option<String>,
+
+        /// Dry run - show what would be created without creating files
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Output as JSON (for machine parsing)
+        #[arg(long)]
+        json: bool,
+
+        /// Overwrite existing slides
+        #[arg(long)]
+        force: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum SkeletonCommands {
+    /// Create a skeleton from JSON input or from a slide directory
+    Create {
+        /// Read JSON from file instead of stdin
+        #[arg(short, long, conflicts_with = "from_dir")]
+        file: Option<String>,
+
+        /// Auto-generate skeleton from all slides in a directory
+        #[arg(long)]
+        from_dir: Option<String>,
+
+        /// Name for the skeleton (required with --from-dir)
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Also save individual slide markdown files from JSON input
+        #[arg(long)]
+        save_slides: bool,
+
+        /// Dry run - show what would be created without creating files
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Output as JSON (for machine parsing)
+        #[arg(long)]
+        json: bool,
+
+        /// Overwrite existing skeleton
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Validate a skeleton - check all referenced slides exist
+    Validate {
+        /// Name of the skeleton to validate
+        skeleton: String,
+
+        /// Output as JSON (for machine parsing)
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -229,14 +306,15 @@ fn main() -> anyhow::Result<()> {
 
         Commands::Preview { slide, port } => commands::preview::run(&slide, port),
 
-        Commands::List { what, long } => commands::list::run(&what, long),
+        Commands::List { what, long, json } => commands::list::run(&what, long, json),
 
         Commands::Search {
             query,
             tags,
             topic,
             long,
-        } => commands::search::run(&query, tags, topic, long),
+            json,
+        } => commands::search::run(&query, tags, topic, long, json),
 
         Commands::New {
             name,
@@ -254,6 +332,35 @@ fn main() -> anyhow::Result<()> {
                 template,
                 dry_run,
             } => commands::slides::derive(&skeleton, template.as_deref(), dry_run),
+
+            SlidesCommands::Create {
+                file,
+                dry_run,
+                json,
+                force,
+            } => commands::slides::create(file.as_deref(), dry_run, json, force),
+        },
+
+        Commands::Skeleton { command } => match command {
+            SkeletonCommands::Create {
+                file,
+                from_dir,
+                name,
+                save_slides,
+                dry_run,
+                json,
+                force,
+            } => {
+                if let Some(dir) = from_dir {
+                    commands::skeleton::create_from_dir(&dir, name.as_deref(), dry_run, json, force)
+                } else {
+                    commands::skeleton::create(file.as_deref(), dry_run, json, force, save_slides)
+                }
+            }
+
+            SkeletonCommands::Validate { skeleton, json } => {
+                commands::skeleton::validate(&skeleton, json)
+            }
         },
     }
 }

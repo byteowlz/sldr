@@ -6,13 +6,16 @@
 /// - sldr.config.schema.json (main configuration)
 /// - sldr.flavor.schema.json (flavor/theme configuration)
 /// - sldr.skeleton.schema.json (presentation skeleton configuration)
+/// - sldr.slide-input.schema.json (JSON input for batch slide creation)
+/// - sldr.skeleton-input.schema.json (JSON input for skeleton creation)
 ///
 /// **Example Configs** (showing defaults with comments):
 /// - config.toml (main configuration)
 /// - example-flavor.toml (flavor configuration)
 /// - example-skeleton.toml (skeleton configuration)
-
 use schemars::schema_for;
+use sldr_core::presentation::SkeletonInput;
+use sldr_core::slide::SlideInputBatch;
 use sldr_core::{Config, Flavor, Skeleton};
 use std::fs;
 use std::path::PathBuf;
@@ -31,6 +34,8 @@ fn main() {
     generate_config_schema(&schemas_dir);
     generate_flavor_schema(&schemas_dir);
     generate_skeleton_schema(&schemas_dir);
+    generate_slide_input_schema(&schemas_dir);
+    generate_skeleton_input_schema(&schemas_dir);
 
     // Generate example configs
     println!("\n=== Generating Example Configs ===");
@@ -292,3 +297,93 @@ record = false
     println!("  ✓ Generated skeleton example: {:?}", output_path);
 }
 
+/// Generate schema for slide input JSON (used by agents)
+fn generate_slide_input_schema(schemas_dir: &PathBuf) {
+    let schema = schema_for!(SlideInputBatch);
+
+    let output_path = schemas_dir.join("sldr.slide-input.schema.json");
+    let json = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
+    fs::write(&output_path, json).expect("Failed to write slide input schema");
+    println!("  ✓ Generated slide input schema: {:?}", output_path);
+
+    // Also generate example JSON
+    generate_slide_input_example(&schemas_dir.parent().unwrap().to_path_buf());
+}
+
+/// Generate schema for skeleton input JSON (used by agents)
+fn generate_skeleton_input_schema(schemas_dir: &PathBuf) {
+    let schema = schema_for!(SkeletonInput);
+
+    let output_path = schemas_dir.join("sldr.skeleton-input.schema.json");
+    let json = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
+    fs::write(&output_path, json).expect("Failed to write skeleton input schema");
+    println!("  ✓ Generated skeleton input schema: {:?}", output_path);
+
+    // Also generate example JSON
+    generate_skeleton_input_example(&schemas_dir.parent().unwrap().to_path_buf());
+}
+
+/// Generate example slide input JSON
+fn generate_slide_input_example(examples_dir: &PathBuf) {
+    let output_path = examples_dir.join("example-slide-input.json");
+    let content = r##"{
+  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.slide-input.schema.json",
+  "directory": "my-topic",
+  "slides": [
+    {
+      "name": "intro",
+      "title": "Introduction to My Topic",
+      "description": "An overview slide introducing the key concepts",
+      "layout": "cover",
+      "tags": ["intro", "overview"],
+      "content": "# Introduction to My Topic\n\nWelcome to this presentation.\n\n- Key point 1\n- Key point 2\n- Key point 3"
+    },
+    {
+      "name": "concepts",
+      "title": "Core Concepts",
+      "description": "Explaining the fundamental concepts",
+      "layout": "default",
+      "tags": ["concepts", "fundamentals"],
+      "content": "# Core Concepts\n\n## What is it?\n\nA brief explanation of the concept.\n\n## Why does it matter?\n\nThe importance and applications."
+    },
+    {
+      "name": "code-example",
+      "title": "Code Example",
+      "description": "A practical code demonstration",
+      "layout": "two-cols",
+      "tags": ["code", "example"],
+      "content": "# Code Example\n\n::left::\n\n```python\ndef hello_world():\n    print(\"Hello, World!\")\n```\n\n::right::\n\n**Explanation:**\n\n- Line 1: Define a function\n- Line 2: Print a message"
+    }
+  ]
+}
+"##;
+    fs::write(&output_path, content).expect("Failed to write slide input example");
+    println!("  ✓ Generated slide input example: {:?}", output_path);
+}
+
+/// Generate example skeleton input JSON
+fn generate_skeleton_input_example(examples_dir: &PathBuf) {
+    let output_path = examples_dir.join("example-skeleton-input.json");
+    let content = r##"{
+  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.skeleton-input.schema.json",
+  "name": "my-presentation",
+  "title": "My Awesome Presentation",
+  "description": "A presentation about interesting topics",
+  "slides": [
+    "intro",
+    "my-topic/concepts",
+    "my-topic/code-example",
+    "conclusion"
+  ],
+  "flavor": "default",
+  "slidev_config": {
+    "theme": "default",
+    "drawings": true,
+    "transition": "slide-left",
+    "aspect_ratio": "16/9"
+  }
+}
+"##;
+    fs::write(&output_path, content).expect("Failed to write skeleton input example");
+    println!("  ✓ Generated skeleton input example: {:?}", output_path);
+}

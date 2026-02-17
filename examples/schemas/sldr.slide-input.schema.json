@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sldr slide input schema",
+  "description": "JSON schema for creating slides via sldr CLI",
+  "type": "object",
+  "properties": {
+    "directory": {
+      "description": "Optional subdirectory within slides folder (applies to all slides)",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "slides": {
+      "description": "List of slides to create",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SlideInput"
+      }
+    }
+  },
+  "required": [
+    "slides"
+  ],
+  "$defs": {
+    "SlideInput": {
+      "description": "Input for creating a single slide",
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "The markdown content of the slide (without frontmatter)",
+          "type": "string"
+        },
+        "description": {
+          "description": "Brief description of the slide content",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "directory": {
+          "description": "Optional subdirectory (overrides batch-level directory)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "layout": {
+          "description": "Layout to use (default, two-cols, cover, center, image-right, etc.)",
+          "type": "string",
+          "default": "default"
+        },
+        "name": {
+          "description": "Filename for the slide (without .md extension)",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Tags for categorization and search",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": {
+          "description": "Slide title (shown in frontmatter and as H1 if content doesn't start with heading)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "title",
+        "content"
+      ]
+    }
+  }
+}

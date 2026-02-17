@@ -1,9 +1,98 @@
 //! Slide management - individual markdown slide files
 
 use crate::error::Result;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+
+/// Input structure for creating slides via JSON
+/// Used by agents/LLMs to create one or more slides in a single operation
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(
+    title = "sldr slide input schema",
+    description = "JSON schema for creating slides via sldr CLI"
+)]
+pub struct SlideInputBatch {
+    /// List of slides to create
+    pub slides: Vec<SlideInput>,
+
+    /// Optional subdirectory within slides folder (applies to all slides)
+    #[serde(default)]
+    pub directory: Option<String>,
+}
+
+/// Input for creating a single slide
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SlideInput {
+    /// Filename for the slide (without .md extension)
+    pub name: String,
+
+    /// Slide title (shown in frontmatter and as H1 if content doesn't start with heading)
+    pub title: String,
+
+    /// Brief description of the slide content
+    #[serde(default)]
+    pub description: Option<String>,
+
+    /// Tags for categorization and search
+    #[serde(default)]
+    pub tags: Vec<String>,
+
+    /// Layout to use (default, two-cols, cover, center, image-right, etc.)
+    #[serde(default = "default_layout")]
+    pub layout: String,
+
+    /// The markdown content of the slide (without frontmatter)
+    pub content: String,
+
+    /// Optional subdirectory (overrides batch-level directory)
+    #[serde(default)]
+    pub directory: Option<String>,
+}
+
+fn default_layout() -> String {
+    "default".to_string()
+}
+
+impl SlideInput {
+    /// Convert to markdown file content with frontmatter
+    pub fn to_markdown(&self) -> String {
+        use std::fmt::Write;
+
+        let mut output = String::from("---\n");
+        let _ = writeln!(output, "title: \"{}\"", self.title);
+
+        if let Some(ref desc) = self.description {
+            let _ = writeln!(output, "description: \"{desc}\"");
+        } else {
+            output.push_str("description: \"\"\n");
+        }
+
+        if self.tags.is_empty() {
+            output.push_str("tags: []\n");
+        } else {
+            let _ = writeln!(output, "tags: [{}]", self.tags.join(", "));
+        }
+
+        let _ = writeln!(output, "layout: {}", self.layout);
+        output.push_str("---\n\n");
+        output.push_str(&self.content);
+
+        if !self.content.ends_with('\n') {
+            output.push('\n');
+        }
+
+        output
+    }
+
+    /// Get the effective directory for this slide
+    pub fn effective_directory(&self, batch_dir: Option<&str>) -> Option<String> {
+        self.directory
+            .clone()
+            .or_else(|| batch_dir.map(String::from))
+    }
+}
 
 /// Metadata from a slide's YAML frontmatter
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -115,8 +204,7 @@ fn parse_frontmatter(content: &str) -> (SlideMetadata, String) {
         let yaml_content = &rest[..end_idx].trim();
         let markdown_content = &rest[end_idx + 4..].trim();
 
-        let metadata: SlideMetadata =
-            serde_yaml_ng::from_str(yaml_content).unwrap_or_default();
+        let metadata: SlideMetadata = serde_yaml_ng::from_str(yaml_content).unwrap_or_default();
 
         (metadata, markdown_content.to_string())
     } else {
@@ -174,7 +262,10 @@ impl SlideCollection {
 
     /// Get all slide names for fuzzy matching
     pub fn names(&self) -> Vec<String> {
-        self.slides.iter().map(|s| s.relative_path.clone()).collect()
+        self.slides
+            .iter()
+            .map(|s| s.relative_path.clone())
+            .collect()
     }
 
     /// Find a slide by name or path
@@ -195,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_parse_frontmatter() {
-        let content = r#"---
+        let content = r"---
 title: Test Slide
 tags:
   - test
@@ -205,7 +296,7 @@ tags:
 # Hello World
 
 This is the content.
-"#;
+";
 
         let (metadata, content) = parse_frontmatter(content);
         assert_eq!(metadata.title, Some("Test Slide".to_string()));

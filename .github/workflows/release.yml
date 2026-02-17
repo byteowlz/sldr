@@ -1,0 +1,251 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v0.2.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: sldr
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-14
+          - target: aarch64-apple-darwin
+            os: macos-14
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../${{ env.BINARY_NAME }}-${{ env.RELEASE_TAG }}-${{ matrix.target }}.tar.gz sldr sldr-server
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../${{ env.BINARY_NAME }}-${{ env.RELEASE_TAG }}-${{ matrix.target }}.zip sldr.exe sldr-server.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ matrix.target }}
+          path: ${{ env.BINARY_NAME }}-${{ env.RELEASE_TAG }}-${{ matrix.target }}.*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec mv {} . \;
+          sha256sum *.tar.gz > checksums.txt
+          if ls *.zip 1>/dev/null 2>&1; then
+            sha256sum *.zip >> checksums.txt
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+            artifacts/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-homebrew:
+    name: Publish to Homebrew
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Homebrew tap
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          repository: byteowlz/homebrew-tap
+          event-type: update-formula
+          client-payload: |
+            {
+              "formula": "sldr",
+              "version": "${{ env.RELEASE_TAG }}",
+              "repo": "${{ github.repository }}"
+            }
+
+  publish-aur:
+    name: Publish to AUR (sldr-bin)
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Generate PKGBUILD for sldr-bin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ env.RELEASE_TAG }}"
+          VERSION="${VERSION#v}"
+
+          for i in 1 2 3 4 5; do
+            if gh release download "${{ env.RELEASE_TAG }}" --repo "${{ github.repository }}" --pattern "checksums.txt" --output checksums.txt; then
+              break
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+
+          SHA256=$(grep "x86_64-unknown-linux-gnu.tar.gz" checksums.txt | awk '{print $1}')
+
+          if [ -z "$SHA256" ]; then
+            echo "ERROR: Could not extract SHA256 for x86_64-unknown-linux-gnu.tar.gz"
+            exit 1
+          fi
+
+          cat > PKGBUILD <<'PKGEOF'
+          # Maintainer: byteowlz <dev@byteowlz.com>
+          pkgname=sldr-bin
+          pkgver=VERSION_PLACEHOLDER
+          pkgrel=1
+          pkgdesc="Modular markdown presentations powered by slidev"
+          arch=('x86_64')
+          url="https://github.com/byteowlz/sldr"
+          license=('MIT')
+          provides=('sldr')
+          conflicts=('sldr')
+          source=("sldr-${pkgver}.tar.gz::https://github.com/byteowlz/sldr/releases/download/v${pkgver}/sldr-v${pkgver}-x86_64-unknown-linux-gnu.tar.gz")
+          sha256sums=('SHA256_PLACEHOLDER')
+
+          package() {
+              install -Dm755 sldr "$pkgdir/usr/bin/sldr"
+              install -Dm755 sldr-server "$pkgdir/usr/bin/sldr-server"
+          }
+          PKGEOF
+
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g" PKGBUILD
+          sed -i "s/SHA256_PLACEHOLDER/${SHA256}/g" PKGBUILD
+          sed -i 's/^          //' PKGBUILD
+
+          echo "=== Generated PKGBUILD ==="
+          cat PKGBUILD
+
+      - name: Publish sldr-bin to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        with:
+          pkgname: sldr-bin
+          pkgbuild: ./PKGBUILD
+          commit_username: byteowlz
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to ${{ env.RELEASE_TAG }}"
+
+  publish-aur-source:
+    name: Publish to AUR (sldr)
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Generate PKGBUILD for sldr
+        run: |
+          set -euo pipefail
+          VERSION="${{ env.RELEASE_TAG }}"
+          VERSION="${VERSION#v}"
+
+          cat > PKGBUILD <<'PKGEOF'
+          # Maintainer: byteowlz <dev@byteowlz.com>
+          pkgname=sldr
+          pkgver=VERSION_PLACEHOLDER
+          pkgrel=1
+          pkgdesc="Modular markdown presentations powered by slidev"
+          arch=('x86_64' 'aarch64')
+          url="https://github.com/byteowlz/sldr"
+          license=('MIT')
+          provides=('sldr')
+          conflicts=('sldr-bin')
+          makedepends=('rust' 'cargo')
+          source=("${pkgname}-${pkgver}.tar.gz::https://github.com/byteowlz/sldr/archive/v${pkgver}.tar.gz")
+          sha256sums=('SKIP')
+
+          build() {
+              cd "${pkgname}-${pkgver}"
+              cargo build --release --locked
+          }
+
+          package() {
+              cd "${pkgname}-${pkgver}"
+              install -Dm755 target/release/sldr "${pkgdir}/usr/bin/sldr"
+              install -Dm755 target/release/sldr-server "${pkgdir}/usr/bin/sldr-server"
+              install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+          }
+          PKGEOF
+
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g" PKGBUILD
+          sed -i 's/^          //' PKGBUILD
+
+          echo "=== Generated PKGBUILD ==="
+          cat PKGBUILD
+
+      - name: Publish sldr to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        with:
+          pkgname: sldr
+          pkgbuild: ./PKGBUILD
+          commit_username: byteowlz
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to ${{ env.RELEASE_TAG }}"

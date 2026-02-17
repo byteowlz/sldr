@@ -93,6 +93,55 @@ impl Skeleton {
         std::fs::write(path, content)?;
         Ok(())
     }
+
+    /// Create a skeleton from JSON input
+    pub fn from_json(json: &str) -> Result<Self> {
+        let skeleton: Skeleton = serde_json::from_str(json)?;
+        Ok(skeleton)
+    }
+}
+
+/// Input structure for creating a skeleton via JSON
+/// Used by agents/LLMs to create a presentation skeleton
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(
+    title = "sldr skeleton input schema",
+    description = "JSON schema for creating presentation skeletons via sldr CLI"
+)]
+pub struct SkeletonInput {
+    /// Name of the skeleton (used as filename)
+    pub name: String,
+
+    /// Title for the presentation
+    pub title: String,
+
+    /// Optional description
+    #[serde(default)]
+    pub description: Option<String>,
+
+    /// List of slide references (paths relative to slides directory)
+    pub slides: Vec<String>,
+
+    /// Flavor to use (e.g., "acme", "default")
+    #[serde(default)]
+    pub flavor: Option<String>,
+
+    /// Slidev configuration
+    #[serde(default)]
+    pub slidev_config: Option<SlidevConfig>,
+}
+
+impl From<SkeletonInput> for Skeleton {
+    fn from(input: SkeletonInput) -> Self {
+        Skeleton {
+            name: input.name,
+            title: Some(input.title),
+            description: input.description,
+            slides: input.slides,
+            flavor: input.flavor,
+            slidev_config: input.slidev_config.unwrap_or_default(),
+        }
+    }
 }
 
 /// A fully assembled presentation ready for slidev
@@ -226,7 +275,7 @@ impl Presentation {
 
             // Apply variables to slidev elements
             css.push_str(
-                r"
+                r#"
 /* Apply sldr flavor variables */
 .slidev-layout {
   --slidev-theme-primary: var(--sldr-primary, #3b82f6);
@@ -247,15 +296,53 @@ p, li, span {
   font-family: var(--sldr-body-font, inherit);
 }
 
+/* Base code styling - background only, let Shiki handle syntax colors */
 code, pre {
   font-family: var(--sldr-code-font, 'JetBrains Mono', monospace);
-  background: var(--sldr-code-background, #f3f4f6);
+  background: var(--sldr-code-background, #f3f4f6) !important;
+}
+
+/* Slidev code block wrapper - main container */
+.slidev-code-wrapper,
+.slidev-code,
+.slidev-code-block {
+  background: var(--sldr-code-background, #f3f4f6) !important;
+}
+
+/* The pre element inside code blocks - force background only */
+.slidev-code-wrapper pre,
+.slidev-code pre,
+.slidev-code-block pre,
+.slidev-layout pre {
+  background: var(--sldr-code-background, #f3f4f6) !important;
+}
+
+/* Shiki-specific targeting - background only */
+pre.shiki,
+pre.astro-code,
+.shiki,
+.astro-code {
+  background-color: var(--sldr-code-background, #f3f4f6) !important;
+}
+
+/* Shiki inline tokens - background only, preserve syntax highlighting */
+.shiki span,
+.astro-code span,
+.shiki code,
+.astro-code code {
+  background-color: transparent !important;
+}
+
+/* Only override text color if code_text is explicitly set */
+.slidev-layout {
+  --shiki-color-text: var(--sldr-code-text);
+  --shiki-foreground: var(--sldr-code-text);
 }
 
 a {
   color: var(--sldr-accent, var(--sldr-primary, #3b82f6));
 }
-",
+"#,
             );
 
             // Add background styles if configured

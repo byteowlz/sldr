@@ -64,18 +64,26 @@ impl SldrMatcher {
             return Vec::new();
         }
 
-        let query_lower = query.to_lowercase();
-        let query_trimmed = query.trim_end_matches(".md");
+        // Normalize query: lowercase and remove .md extension
+        let query_normalized = normalize_path(query);
+        let query_lower = query_normalized.to_lowercase();
+        let query_name = extract_name(&query_normalized).to_lowercase();
         let mut results: Vec<MatchResult> = Vec::new();
 
         for candidate in candidates {
-            let candidate_name = extract_name(candidate);
-            let candidate_lower = candidate_name.to_lowercase();
+            // Normalize candidate: lowercase and remove .md extension
+            let candidate_normalized = normalize_path(candidate);
+            let candidate_lower = candidate_normalized.to_lowercase();
+            let candidate_name = extract_name(&candidate_normalized).to_lowercase();
 
             // Try exact match first (highest priority)
+            // Match if:
+            // 1. Full paths match (e.g., "subdir/slide" == "subdir/slide")
+            // 2. Query matches candidate filename (e.g., "slide" matches "subdir/slide")
+            // 3. Query with path matches candidate (e.g., "subdir/slide" matches "subdir/slide.md")
             if candidate_lower == query_lower
-                || candidate_name == query_trimmed
-                || candidate == query
+                || candidate_name == query_lower
+                || candidate_lower == query_name
             {
                 results.push(MatchResult {
                     value: candidate.clone(),
@@ -85,8 +93,19 @@ impl SldrMatcher {
                 continue;
             }
 
-            // Try fuzzy match
-            if let Some(score) = self.matcher.fuzzy_match(&candidate_lower, &query_lower) {
+            // Try fuzzy match on full path and name separately
+            let path_score = self.matcher.fuzzy_match(&candidate_lower, &query_lower);
+            let name_score = self.matcher.fuzzy_match(&candidate_name, &query_name);
+
+            // Use the better of path or name match
+            let best_score = match (path_score, name_score) {
+                (Some(p), Some(n)) => Some(std::cmp::max(p, n)),
+                (Some(p), None) => Some(p),
+                (None, Some(n)) => Some(n),
+                (None, None) => None,
+            };
+
+            if let Some(score) = best_score {
                 // Threshold is 0-100, safe to convert to i64
                 #[expect(
                     clippy::cast_possible_truncation,
@@ -103,10 +122,10 @@ impl SldrMatcher {
             }
 
             // Substring fallback for short queries
-            if query.len() <= 3 && candidate_lower.contains(&query_lower) {
+            if query_name.len() <= 3 && candidate_name.contains(&query_name) {
                 // query.len() <= 3, so query.len() * 50 <= 150, fits in i64
                 #[expect(clippy::cast_possible_wrap, reason = "small value <= 150, safe")]
-                let substring_score = (query.len() * 50) as i64;
+                let substring_score = (query_name.len() * 50) as i64;
                 if !results.iter().any(|r| r.value == *candidate) {
                     results.push(MatchResult {
                         value: candidate.clone(),
@@ -183,14 +202,21 @@ pub enum ResolveResult {
     Multiple(Vec<MatchResult>),
 }
 
-/// Extract the base name from a path (without extension)
+/// Normalize a path by removing the .md extension
+fn normalize_path(path: &str) -> String {
+    path.trim_end_matches(".md").to_string()
+}
+
+/// Extract the base name from a path (without extension or directories)
 fn extract_name(path: &str) -> &str {
-    let path = path.trim_end_matches(".md");
     path.rsplit('/').next().unwrap_or(path)
 }
 
-// Note: allow unwrap in tests - they should panic on failure
-#[allow(clippy::unwrap_used)]
+// Note: expect unwrap in tests - they should panic on failure
+#[expect(
+    clippy::unwrap_used,
+    reason = "test code - panic on failure is acceptable"
+)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,5 +264,55 @@ mod tests {
 
         let result = matcher.find_best("xyz123", &candidates);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_subdir_exact_match() {
+        let matcher = SldrMatcher::new(test_config());
+        let candidates = vec![
+            "lora/intro.md".to_string(),
+            "lora/concepts.md".to_string(),
+            "ai/intro.md".to_string(),
+        ];
+
+        // Should match with full path (without .md)
+        let result = matcher.find_best("lora/intro", &candidates);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value, "lora/intro.md");
+
+        // Should also match with full path (with .md)
+        let result = matcher.find_best("lora/intro.md", &candidates);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value, "lora/intro.md");
+    }
+
+    #[test]
+    fn test_subdir_name_only_match() {
+        let matcher = SldrMatcher::new(test_config());
+        let candidates = vec![
+            "lora/concepts.md".to_string(),
+            "lora/adapters.md".to_string(),
+        ];
+
+        // Should match name without directory
+        let result = matcher.find_best("concepts", &candidates);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value, "lora/concepts.md");
+    }
+
+    #[test]
+    fn test_md_extension_normalization() {
+        let matcher = SldrMatcher::new(test_config());
+        let candidates = vec!["slide-one.md".to_string(), "slide-two.md".to_string()];
+
+        // With .md extension
+        let result = matcher.find_best("slide-one.md", &candidates);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value, "slide-one.md");
+
+        // Without .md extension
+        let result = matcher.find_best("slide-one", &candidates);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().value, "slide-one.md");
     }
 }

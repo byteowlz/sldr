@@ -4,14 +4,17 @@
 //! Priority order: CLI args > env vars > local config > global config > defaults
 
 use crate::error::Result;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
-use schemars::JsonSchema;
 
 /// Main configuration structure
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-#[schemars(title = "sldr config schema", description = "Configuration schema for sldr (main config.toml)")]
+#[schemars(
+    title = "sldr config schema",
+    description = "Configuration schema for sldr (main config.toml)"
+)]
 pub struct Config {
     #[serde(default)]
     pub config: CoreConfig,
@@ -218,7 +221,10 @@ impl Config {
             debug!("Loading config from {:?}", config_path);
             Self::load_from_path(&config_path)
         } else {
-            info!("Config file not found, creating default at {:?}", config_path);
+            info!(
+                "Config file not found, creating default at {:?}",
+                config_path
+            );
             let config = Config::default();
             config.save()?;
             Ok(config)
@@ -292,7 +298,8 @@ mod tests {
         let config = Config::default();
         assert_eq!(config.config.default_flavor, "default");
         assert_eq!(config.config.slidev_port, "3030");
-        assert_eq!(config.matching.threshold, 50.0);
+        // Use approximate comparison for floats
+        assert!((config.matching.threshold - 50.0).abs() < f64::EPSILON);
     }
 
     #[test]

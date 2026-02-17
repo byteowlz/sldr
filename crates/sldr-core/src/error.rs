@@ -38,6 +38,9 @@ pub enum Error {
     #[error("TOML serialize error: {0}")]
     TomlSerialize(#[from] toml::ser::Error),
 
+    #[error("JSON parse error: {0}")]
+    JsonParse(#[from] serde_json::Error),
+
     #[error("{0}")]
     Other(String),
 }

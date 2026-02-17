@@ -60,6 +60,7 @@ pub fn run(_global: bool) -> Result<()> {
                 text: Some("#1f2937".to_string()),            // Gray-800
                 accent: Some("#f59e0b".to_string()),          // Amber
                 code_background: Some("#f3f4f6".to_string()), // Gray-100
+                code_text: Some("#1f2937".to_string()),       // Gray-800
             },
             typography: sldr_core::flavor::Typography {
                 heading_font: Some("Inter, sans-serif".to_string()),

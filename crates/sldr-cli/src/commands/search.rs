@@ -1,19 +1,51 @@
 //! Search command - find slides by content, tags, or metadata
 
+use super::json_output::JsonResponse;
 use anyhow::Result;
 use colored::Colorize;
+use serde::Serialize;
 use sldr_core::config::Config;
 use sldr_core::slide::SlideCollection;
 
-pub fn run(query: &str, tags: Option<String>, topic: Option<String>, long: bool) -> Result<()> {
+/// JSON output for a search result entry
+#[derive(Serialize)]
+struct SearchResultEntry {
+    name: String,
+    relative_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    topic: Option<String>,
+    matched_in: Vec<String>,
+}
+
+/// JSON output for search results
+#[derive(Serialize)]
+struct SearchResults {
+    query: String,
+    count: usize,
+    results: Vec<SearchResultEntry>,
+}
+
+pub fn run(
+    query: &str,
+    tags: Option<String>,
+    topic: Option<String>,
+    long: bool,
+    json: bool,
+) -> Result<()> {
     let config = Config::load()?;
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
 
-    println!(
-        "{} slides matching '{}'",
-        "Searching".green().bold(),
-        query.cyan()
-    );
+    if !json {
+        println!(
+            "{} slides matching '{}'",
+            "Searching".green().bold(),
+            query.cyan()
+        );
+    }
 
     let query_lower = query.to_lowercase();
     let tag_filter: Vec<String> = tags
@@ -30,14 +62,14 @@ pub fn run(query: &str, tags: Option<String>, topic: Option<String>, long: bool)
         // Search in name
         if slide.name.to_lowercase().contains(&query_lower) {
             matched = true;
-            match_reasons.push("name");
+            match_reasons.push("name".to_string());
         }
 
         // Search in title
         if let Some(ref title) = slide.metadata.title {
             if title.to_lowercase().contains(&query_lower) {
                 matched = true;
-                match_reasons.push("title");
+                match_reasons.push("title".to_string());
             }
         }
 
@@ -45,21 +77,21 @@ pub fn run(query: &str, tags: Option<String>, topic: Option<String>, long: bool)
         if let Some(ref desc) = slide.metadata.description {
             if desc.to_lowercase().contains(&query_lower) {
                 matched = true;
-                match_reasons.push("description");
+                match_reasons.push("description".to_string());
             }
         }
 
         // Search in content
         if slide.content.to_lowercase().contains(&query_lower) {
             matched = true;
-            match_reasons.push("content");
+            match_reasons.push("content".to_string());
         }
 
         // Search in tags
         for tag in &slide.metadata.tags {
             if tag.to_lowercase().contains(&query_lower) {
                 matched = true;
-                match_reasons.push("tags");
+                match_reasons.push("tags".to_string());
                 break;
             }
         }
@@ -91,6 +123,27 @@ pub fn run(query: &str, tags: Option<String>, topic: Option<String>, long: bool)
         if matched {
             matches.push((slide, match_reasons));
         }
+    }
+
+    if json {
+        let results: Vec<SearchResultEntry> = matches
+            .iter()
+            .map(|(slide, reasons)| SearchResultEntry {
+                name: slide.name.clone(),
+                relative_path: slide.relative_path.clone(),
+                title: slide.metadata.title.clone(),
+                tags: slide.metadata.tags.clone(),
+                topic: slide.metadata.topic.clone(),
+                matched_in: reasons.clone(),
+            })
+            .collect();
+        let output = SearchResults {
+            query: query.to_string(),
+            count: results.len(),
+            results,
+        };
+        JsonResponse::success(output).print();
+        return Ok(());
     }
 
     if matches.is_empty() {

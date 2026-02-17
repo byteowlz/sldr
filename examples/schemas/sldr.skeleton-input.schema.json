@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sldr skeleton input schema",
+  "description": "JSON schema for creating presentation skeletons via sldr CLI",
+  "type": "object",
+  "properties": {
+    "description": {
+      "description": "Optional description",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "flavor": {
+      "description": "Flavor to use (e.g., \"acme\", \"default\")",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "name": {
+      "description": "Name of the skeleton (used as filename)",
+      "type": "string"
+    },
+    "slides": {
+      "description": "List of slide references (paths relative to slides directory)",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "slidev_config": {
+      "description": "Slidev configuration",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SlidevConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "title": {
+      "description": "Title for the presentation",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "title",
+    "slides"
+  ],
+  "$defs": {
+    "SlidevConfig": {
+      "description": "Slidev-specific configuration",
+      "type": "object",
+      "properties": {
+        "aspect_ratio": {
+          "description": "Aspect ratio (e.g., \"16/9\", \"4/3\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "canvas_width": {
+          "description": "Canvas width",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "dark_mode": {
+          "description": "Enable dark mode",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "drawings": {
+          "description": "Enable/disable drawing feature",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "record": {
+          "description": "Enable slide recording",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "theme": {
+          "description": "Theme to use",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "title": {
+          "description": "Title override",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "transition": {
+          "description": "Transition effect",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    }
+  }
+}

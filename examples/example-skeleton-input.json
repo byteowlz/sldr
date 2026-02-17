@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.skeleton-input.schema.json",
+  "name": "my-presentation",
+  "title": "My Awesome Presentation",
+  "description": "A presentation about interesting topics",
+  "slides": [
+    "intro",
+    "my-topic/concepts",
+    "my-topic/code-example",
+    "conclusion"
+  ],
+  "flavor": "default",
+  "slidev_config": {
+    "theme": "default",
+    "drawings": true,
+    "transition": "slide-left",
+    "aspect_ratio": "16/9"
+  }
+}
