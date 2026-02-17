@@ -11,6 +11,8 @@ Complete sldr integration with Octo for visual presentation building
 ...
 
 
+### [trx-wr77] Add GitHub release workflow with AUR + Homebrew publishing (P2, feature)
+
 ### [trx-3f4w.9] Octo frontend: TemplateEditor component (P2, task)
 React component for visual template editing
 
