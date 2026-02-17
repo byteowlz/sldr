@@ -45,8 +45,8 @@ Features:
 Create complete flavor.toml files with assets for each brand
 
 Flavors:
-- acme (ACME acme colors, logo)
-- byteowlz (byteowlz branding)
+- default (clean minimal theme)
+- dark (dark mode variant)
 ...
 
 

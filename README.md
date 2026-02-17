@@ -16,42 +16,42 @@ Build a presentation once, export with different branding. Create a slide once, 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Slide Library                        │
-│  ~/sldr/slides/                                             │
-│  ├── intro.md                                               │
-│  ├── ai/transformers.md                                     │
-│  ├── ai/llm-basics.md                                       │
-│  └── conclusion.md                                          │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                         Skeleton                            │
-│  ~/sldr/skeletons/my-talk.toml                              │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ name = "my-talk"                                    │    │
-│  │ slides = ["intro", "ai/transformers", "conclusion"] │    │
-│  │ flavor = "acme"                                      │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     sldr build my-talk                      │
-│                              +                              │
-│                    Flavor (acme branding)                    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Slidev Presentation                      │
-│  ~/sldr/presentations/my-talk/                              │
-│  ├── slides.md                                              │
-│  ├── style.css                                              │
-│  ├── package.json                                           │
-│  └── public/assets/                                         │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                        Slide Library                        |
+|  ~/sldr/slides/                                             |
+|  +-- intro.md                                               |
+|  +-- ai/transformers.md                                     |
+|  +-- ai/llm-basics.md                                       |
+|  +-- conclusion.md                                          |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                         Skeleton                            |
+|  ~/sldr/skeletons/my-talk.toml                              |
+|  +-----------------------------------------------------+   |
+|  | name = "my-talk"                                     |   |
+|  | slides = ["intro", "ai/transformers", "conclusion"]  |   |
+|  | flavor = "acme"                                      |   |
+|  +-----------------------------------------------------+   |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                     sldr build my-talk                       |
+|                              +                              |
+|                    Flavor (acme branding)                    |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                    Slidev Presentation                      |
+|  ~/sldr/presentations/my-talk/                              |
+|  +-- slides.md                                              |
+|  +-- style.css                                              |
+|  +-- package.json                                           |
+|  +-- public/assets/                                         |
++-------------------------------------------------------------+
 ```
 
 ## Installation
@@ -59,6 +59,9 @@ Build a presentation once, export with different branding. Create a slide once, 
 ```bash
 # Build from source
 cargo install --path crates/sldr-cli
+
+# Or via Homebrew
+brew install byteowlz/tap/sldr
 
 # Initialize directories
 sldr init --global
@@ -84,7 +87,7 @@ sldr ls flavors
 ### Build a presentation
 
 ```bash
-sldr build my-talk                    # Build with default flavor
+sldr build my-talk                     # Build with default flavor
 sldr build my-talk --flavor acme       # Build with specific flavor
 sldr build my-talk --flavor acme --pdf # Build and export to PDF
 ```
@@ -165,7 +168,7 @@ Flavors define visual theming separate from content:
 ```toml
 # ~/.config/sldr/flavors/acme/flavor.toml
 name = "acme"
-display_name = "ACME acme"
+display_name = "ACME Corp"
 
 [colors]
 primary = "#179c7d"
@@ -174,8 +177,8 @@ background = "#ffffff"
 text = "#1f2937"
 
 [typography]
-heading_font = "Source Sans Pro, sans-serif"
-body_font = "Source Sans Pro, sans-serif"
+heading_font = "Inter, sans-serif"
+body_font = "Inter, sans-serif"
 
 [background]
 background_type = "image"
@@ -230,17 +233,16 @@ just copy-schemas  # Copy to byteowlz/schemas repository
 
 ```
 sldr/
-├── crates/
-│   ├── sldr-core/      # Library: slides, skeletons, flavors, presentations
-│   ├── sldr-cli/       # CLI binary
-│   ├── sldr-server/    # HTTP API (planned)
-│   └── schema-gen/     # Binary: generates JSON schemas & example configs
-├── examples/
-│   ├── schemas/        # JSON schemas for IDE autocompletion
-│   ├── config.toml     # Example configuration
-│   ├── example-flavor.toml
-│   └── example-skeleton.toml
-└── history/            # Development notes
++-- crates/
+|   +-- sldr-core/      # Library: slides, skeletons, flavors, presentations
+|   +-- sldr-cli/       # CLI binary
+|   +-- sldr-server/    # HTTP API (planned)
++-- examples/
+|   +-- schemas/        # JSON schemas for IDE autocompletion
+|   +-- config.toml     # Example configuration
+|   +-- example-flavor.toml
+|   +-- example-skeleton.toml
++-- history/            # Development notes
 ```
 
 ## Roadmap
@@ -256,4 +258,4 @@ See `.trx/` for detailed issue tracking.
 
 ## License
 
-Proprietary
+MIT
