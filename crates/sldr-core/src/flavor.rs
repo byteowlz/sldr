@@ -212,8 +212,62 @@ impl Flavor {
         if let Some(ref font) = self.typography.code_font {
             let _ = writeln!(css, "  --sldr-code-font: {font};");
         }
+        if let Some(ref size) = self.typography.base_size {
+            let _ = writeln!(css, "  --sldr-base-size: {size};");
+        }
 
         css.push_str("}\n");
+        css
+    }
+
+    /// Generate CSS for background styling (used by the HTML renderer)
+    ///
+    /// Returns CSS rules that apply the configured background to `.sldr-slide`.
+    /// For image/svg backgrounds, the caller must ensure the asset file is
+    /// available at the path referenced by `value`.
+    pub fn to_background_css(&self) -> String {
+        let mut css = String::new();
+
+        if let Some(ref bg_type) = self.background.background_type {
+            if let Some(ref value) = self.background.value {
+                match bg_type.as_str() {
+                    "color" => {
+                        let _ = writeln!(
+                            css,
+                            ".sldr-slide {{ background-color: {value}; }}"
+                        );
+                    }
+                    "gradient" => {
+                        let _ = writeln!(
+                            css,
+                            ".sldr-slide {{ background: {value}; }}"
+                        );
+                    }
+                    "image" | "svg" => {
+                        let web_path = if value.starts_with('/') || value.starts_with("http") {
+                            value.clone()
+                        } else {
+                            format!("/{value}")
+                        };
+                        let _ = writeln!(
+                            css,
+                            ".sldr-slide {{ background-image: url('{web_path}'); background-size: cover; background-position: center; }}"
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        if let Some(opacity) = self.background.opacity {
+            if opacity < 1.0 {
+                let _ = writeln!(
+                    css,
+                    ".sldr-slide::before {{ content: ''; position: absolute; inset: 0; background: inherit; opacity: {opacity}; z-index: -1; }}"
+                );
+            }
+        }
+
         css
     }
 }

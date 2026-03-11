@@ -9,6 +9,4 @@ layout: cover
 
 ## Subtitle goes here
 
-<div class="abs-bl m-6 text-sm opacity-50">
 Author Name | Date | Event/Context
-</div>
