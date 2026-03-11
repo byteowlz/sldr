@@ -9,13 +9,7 @@ layout: two-cols
 
 ::left::
 
-<div class="text-center mb-4">
-
 ## Option A
-
-</div>
-
-<div class="border rounded-lg p-4">
 
 **Pros:**
 - Advantage 1
@@ -26,17 +20,9 @@ layout: two-cols
 - Disadvantage 1
 - Disadvantage 2
 
-</div>
-
 ::right::
 
-<div class="text-center mb-4">
-
 ## Option B
-
-</div>
-
-<div class="border rounded-lg p-4">
 
 **Pros:**
 - Advantage 1
@@ -46,5 +32,3 @@ layout: two-cols
 - Disadvantage 1
 - Disadvantage 2
 - Disadvantage 3
-
-</div>

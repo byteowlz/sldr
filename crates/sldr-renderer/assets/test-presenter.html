@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sldr Presenter Test</title>
+  <link rel="stylesheet" href="base.css">
+  <style>
+    /* Simulate flavor CSS custom properties */
+    :root {
+      --sldr-primary: #6366f1;
+      --sldr-secondary: #8b5cf6;
+      --sldr-background: #0f0f23;
+      --sldr-text: #e0e0e0;
+      --sldr-accent: #38bdf8;
+      --sldr-heading-font: 'Segoe UI', system-ui, sans-serif;
+      --sldr-body-font: 'Segoe UI', system-ui, sans-serif;
+      --sldr-code-font: 'JetBrains Mono', 'Fira Code', monospace;
+      --sldr-code-background: #1e1e2e;
+      --sldr-code-text: #cdd6f4;
+    }
+  </style>
+</head>
+<body>
+  <div class="sldr-deck" data-transition="fade">
+
+    <!-- Slide 1: cover -->
+    <section class="sldr-slide" data-layout="cover" data-index="0">
+      <div class="sldr-content">
+        <h1>Introduction to Rust</h1>
+        <p>A systems programming language that runs blazingly fast</p>
+      </div>
+      <aside class="sldr-notes">
+        Welcome everyone! Today we'll explore why Rust is gaining so much traction in systems programming.
+      </aside>
+    </section>
+
+    <!-- Slide 2: default with click steps -->
+    <section class="sldr-slide" data-layout="default" data-index="1">
+      <div class="sldr-content">
+        <h1>Why Rust?</h1>
+        <ul>
+          <li data-click-step="1">Memory safety without garbage collection</li>
+          <li data-click-step="2">Zero-cost abstractions</li>
+          <li data-click-step="3">Fearless concurrency</li>
+          <li data-click-step="4">Rich type system and ownership model</li>
+        </ul>
+      </div>
+      <aside class="sldr-notes">
+        These are the four pillars of Rust. Click through each one.
+      </aside>
+    </section>
+
+    <!-- Slide 3: two-cols -->
+    <section class="sldr-slide" data-layout="two-cols" data-index="2">
+      <div class="sldr-content">
+        <h1>Rust vs C++</h1>
+        <div class="sldr-columns">
+          <div class="sldr-col">
+            <h2>Rust</h2>
+            <ul>
+              <li>Ownership system</li>
+              <li>No null pointers</li>
+              <li>Pattern matching</li>
+              <li>Cargo package manager</li>
+            </ul>
+          </div>
+          <div class="sldr-col">
+            <h2>C++</h2>
+            <ul>
+              <li>Manual memory management</li>
+              <li>Null pointer exceptions</li>
+              <li>Switch statements</li>
+              <li>CMake / Conan / vcpkg</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 4: code -->
+    <section class="sldr-slide" data-layout="default" data-index="3">
+      <div class="sldr-content">
+        <h1>Hello, World!</h1>
+        <pre class="sldr-code"><code>fn main() {
+    println!("Hello, world!");
+}
+
+// With error handling
+fn read_file(path: &amp;str) -&gt; Result&lt;String, std::io::Error&gt; {
+    std::fs::read_to_string(path)
+}</code></pre>
+      </div>
+      <aside class="sldr-notes">
+        Notice how Rust uses Result types for error handling instead of exceptions.
+      </aside>
+    </section>
+
+    <!-- Slide 5: quote -->
+    <section class="sldr-slide" data-layout="quote" data-index="4">
+      <div class="sldr-content">
+        <blockquote>
+          "Rust is the most loved programming language for the eighth year in a row."
+        </blockquote>
+        <div class="sldr-attribution">-- Stack Overflow Developer Survey 2024</div>
+      </div>
+    </section>
+
+    <!-- Slide 6: section -->
+    <section class="sldr-slide" data-layout="section" data-index="5">
+      <div class="sldr-content">
+        <h1>Part II: Ownership</h1>
+        <p>Understanding Rust's core innovation</p>
+      </div>
+    </section>
+
+    <!-- Slide 7: default with table -->
+    <section class="sldr-slide" data-layout="default" data-index="6">
+      <div class="sldr-content">
+        <h1>Ownership Rules</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Single owner</td>
+              <td>Each value has exactly one owner</td>
+            </tr>
+            <tr>
+              <td>Move semantics</td>
+              <td>Assignment transfers ownership</td>
+            </tr>
+            <tr>
+              <td>Drop on scope exit</td>
+              <td>Values are dropped when owner goes out of scope</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Slide 8: end -->
+    <section class="sldr-slide" data-layout="end" data-index="7">
+      <div class="sldr-content">
+        <h1>Thank you!</h1>
+        <p>Questions?</p>
+        <p><a href="https://github.com/byteowlz/sldr">github.com/byteowlz/sldr</a></p>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="sldr-progress" style="width: 0%"></div>
+  <div class="sldr-nav">
+    <span class="sldr-page-num">1 / 8</span>
+  </div>
+
+  <script src="presenter.js"></script>
+</body>
+</html>

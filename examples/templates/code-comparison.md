@@ -21,13 +21,9 @@ def old_way():
     return result
 ```
 
-<div class="text-red-500 text-sm mt-2">
-
 - Verbose
 - Hard to read
 - Multiple lines
-
-</div>
 
 ::right::
 
@@ -43,10 +39,6 @@ def new_way():
     ]
 ```
 
-<div class="text-green-500 text-sm mt-2">
-
 - Concise
 - Pythonic
 - Single expression
-
-</div>

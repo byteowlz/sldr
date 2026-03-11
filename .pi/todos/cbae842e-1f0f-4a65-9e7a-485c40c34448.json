@@ -1,0 +1,29 @@
+{
+  "todos": [
+    {
+      "id": "phase1-presenter",
+      "content": "trx-8crj.1: Write presenter.js (keyboard nav, transitions, speaker notes, overview grid, touch, fullscreen, progress bar, URL hash)",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "phase1-flavors",
+      "content": "trx-8crj.3: Port flavor CSS from .slidev-* selectors to .sldr-* selectors",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "phase1-templates",
+      "content": "trx-8crj.4: Convert slidev Vue templates to HTML fragment templates",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "phase1-verify",
+      "content": "Verify Phase 1: remote-build check, test standalone HTML with presenter.js",
+      "status": "completed",
+      "priority": "high"
+    }
+  ],
+  "updated_at": "2026-03-11T16:18:38.914Z"
+}

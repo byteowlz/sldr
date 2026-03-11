@@ -2,18 +2,14 @@
 title: "{{title}}"
 description: "Research results slide"
 tags: [academic, results, data]
-layout: default
+layout: two-cols
 ---
 
 # {{title}}
 
-<div class="grid grid-cols-2 gap-6">
-
-<div>
+::left::
 
 ## Key Findings
-
-<v-clicks>
 
 1. **Finding 1**: Brief description with statistical significance (p < 0.05)
 
@@ -21,25 +17,13 @@ layout: default
 
 3. **Finding 3**: Brief description with confidence interval [X, Y]
 
-</v-clicks>
+::right::
 
-</div>
-
-<div class="flex items-center justify-center">
-
-```mermaid {scale: 0.7}
+```mermaid
 pie title Distribution
     "Category A" : 45
     "Category B" : 30
     "Category C" : 25
 ```
 
-</div>
-
-</div>
-
-<div class="mt-4 text-sm opacity-70">
-
 *Note: All results significant at alpha = 0.05 unless otherwise noted*
-
-</div>

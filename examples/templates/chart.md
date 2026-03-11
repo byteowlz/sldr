@@ -7,7 +7,7 @@ layout: center
 
 # {{title}}
 
-```mermaid {scale: 0.9}
+```mermaid
 xychart-beta
     title "Chart Title"
     x-axis [Jan, Feb, Mar, Apr, May, Jun]
@@ -16,10 +16,6 @@ xychart-beta
     line [25, 40, 55, 50, 65, 80]
 ```
 
-<div class="text-sm opacity-70 mt-4">
-
 **Interpretation:** Brief explanation of what the data shows and its significance.
 
 Source: Citation or data source
-
-</div>

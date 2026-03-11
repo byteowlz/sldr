@@ -1,0 +1,598 @@
+/**
+ * sldr Base Stylesheet
+ *
+ * Core layout, typography, transitions, overview grid, progress bar, and print
+ * styles for the self-contained HTML presenter. Flavor CSS custom properties
+ * override defaults via :root.
+ *
+ * All selectors use .sldr-* namespace to avoid collisions.
+ */
+
+/* === Reset === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sldr-background, #ffffff);
+  color: var(--sldr-text, #1f2937);
+  font-family: var(--sldr-body-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: var(--sldr-base-size, 18px);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Dark mode === */
+html.dark {
+  --sldr-background: #0f0f23;
+  --sldr-text: #e0e0e0;
+}
+
+/* === Slide deck container === */
+.sldr-deck {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* === Individual slides === */
+.sldr-slide {
+  position: absolute;
+  inset: 0;
+  display: none;
+  padding: 48px 64px;
+  background: var(--sldr-background, #ffffff);
+  color: var(--sldr-text, #1f2937);
+  overflow: hidden;
+}
+
+.sldr-slide.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.sldr-slide[aria-hidden="true"] {
+  display: none;
+}
+
+.sldr-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* === Layout: cover === */
+.sldr-slide[data-layout="cover"] {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.sldr-slide[data-layout="cover"] .sldr-content {
+  justify-content: center;
+  align-items: center;
+}
+
+/* === Layout: center === */
+.sldr-slide[data-layout="center"] {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.sldr-slide[data-layout="center"] .sldr-content {
+  justify-content: center;
+  align-items: center;
+}
+
+/* === Layout: section === */
+.sldr-slide[data-layout="section"] {
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.sldr-slide[data-layout="section"] h1 {
+  font-size: 3em;
+}
+
+/* === Layout: two-cols === */
+.sldr-slide[data-layout="two-cols"] .sldr-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  flex: 1;
+}
+
+/* === Layout: two-cols-header === */
+.sldr-slide[data-layout="two-cols-header"] .sldr-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  flex: 1;
+}
+
+/* === Layout: image (full bleed) === */
+.sldr-slide[data-layout="image"] {
+  padding: 0;
+}
+
+.sldr-slide[data-layout="image"] img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* === Layout: image-left === */
+.sldr-slide[data-layout="image-left"] .sldr-columns {
+  display: grid;
+  grid-template-columns: 45% 1fr;
+  gap: 0;
+  flex: 1;
+}
+
+.sldr-slide[data-layout="image-left"] .sldr-col-image {
+  padding: 0;
+}
+
+.sldr-slide[data-layout="image-left"] .sldr-col-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sldr-slide[data-layout="image-left"] .sldr-col-content {
+  padding: 48px 48px 48px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* === Layout: image-right === */
+.sldr-slide[data-layout="image-right"] .sldr-columns {
+  display: grid;
+  grid-template-columns: 1fr 45%;
+  gap: 0;
+  flex: 1;
+}
+
+.sldr-slide[data-layout="image-right"] .sldr-col-content {
+  padding: 48px 32px 48px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sldr-slide[data-layout="image-right"] .sldr-col-image {
+  padding: 0;
+}
+
+.sldr-slide[data-layout="image-right"] .sldr-col-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* === Layout: quote === */
+.sldr-slide[data-layout="quote"] {
+  justify-content: center;
+  align-items: center;
+}
+
+.sldr-slide[data-layout="quote"] blockquote {
+  font-size: 1.5em;
+  font-style: italic;
+  border-left: 4px solid var(--sldr-primary, #3b82f6);
+  padding: 16px 32px;
+  max-width: 80%;
+}
+
+.sldr-slide[data-layout="quote"] .sldr-attribution {
+  margin-top: 16px;
+  font-style: normal;
+  font-size: 0.7em;
+  color: var(--sldr-secondary, #6366f1);
+}
+
+/* === Layout: end === */
+.sldr-slide[data-layout="end"] {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* === Typography === */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--sldr-heading-font, inherit);
+  color: var(--sldr-primary, inherit);
+  line-height: 1.2;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 2.5em;
+}
+
+h2 {
+  font-size: 1.8em;
+}
+
+h3 {
+  font-size: 1.4em;
+}
+
+h4 {
+  font-size: 1.2em;
+}
+
+p {
+  margin-bottom: 0.75em;
+}
+
+ul,
+ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+li {
+  margin-bottom: 0.3em;
+}
+
+li::marker {
+  color: var(--sldr-primary, #3b82f6);
+}
+
+a {
+  color: var(--sldr-accent, var(--sldr-primary, #3b82f6));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+strong {
+  font-weight: 700;
+}
+
+em {
+  font-style: italic;
+}
+
+blockquote {
+  border-left: 3px solid var(--sldr-primary, #3b82f6);
+  padding-left: 16px;
+  margin: 0.75em 0;
+  opacity: 0.9;
+}
+
+/* === Code blocks === */
+pre.sldr-code {
+  background: var(--sldr-code-background, #1e1e2e);
+  color: var(--sldr-code-text, #cdd6f4);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-size: 0.85em;
+  line-height: 1.5;
+  margin: 0.75em 0;
+}
+
+code {
+  font-family: var(--sldr-code-font, "JetBrains Mono", "Fira Code", "Cascadia Code", monospace);
+}
+
+/* Inline code */
+:not(pre) > code {
+  background: var(--sldr-code-background, #f3f4f6);
+  color: var(--sldr-code-text, #1f2937);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+html.dark :not(pre) > code {
+  background: #2a2a3e;
+  color: #cdd6f4;
+}
+
+/* === Tables === */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 0.9em;
+}
+
+th {
+  background: var(--sldr-primary, #3b82f6);
+  color: #ffffff;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+}
+
+td {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+tr:hover td {
+  background: rgba(128, 128, 128, 0.05);
+}
+
+/* === Images === */
+.sldr-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* === Click-through builds === */
+[data-click-step] {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.sldr-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
+.sldr-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* === Transitions === */
+.tr-fade-enter {
+  animation: sldrFadeIn 0.3s ease forwards;
+}
+.tr-fade-exit {
+  animation: sldrFadeOut 0.3s ease forwards;
+}
+
+.tr-slide-left-enter {
+  animation: sldrSlideLeftIn 0.3s ease forwards;
+}
+.tr-slide-left-exit {
+  animation: sldrSlideLeftOut 0.3s ease forwards;
+}
+
+.tr-slide-right-enter {
+  animation: sldrSlideRightIn 0.3s ease forwards;
+}
+.tr-slide-right-exit {
+  animation: sldrSlideRightOut 0.3s ease forwards;
+}
+
+.tr-none {
+  animation: none;
+}
+
+@keyframes sldrFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sldrFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sldrSlideLeftIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sldrSlideLeftOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes sldrSlideRightIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sldrSlideRightOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* === Progress bar === */
+.sldr-progress {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--sldr-primary, #3b82f6);
+  transition: width 0.3s ease;
+  z-index: 100;
+}
+
+/* === Navigation UI === */
+.sldr-nav {
+  position: fixed;
+  bottom: 8px;
+  right: 16px;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* Show nav on hover near bottom */
+body:hover .sldr-nav {
+  opacity: 1;
+}
+
+.sldr-page-num {
+  font-size: 12px;
+  color: var(--sldr-text, #1f2937);
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--sldr-code-font, monospace);
+}
+
+/* === Speaker notes (hidden in presentation) === */
+.sldr-notes {
+  display: none;
+}
+
+/* === Overview grid === */
+.sldr-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.9);
+  display: none;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.sldr-overview.sldr-overview-open {
+  display: block;
+}
+
+.sldr-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.sldr-overview-thumb {
+  position: relative;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  transition: border-color 0.2s, transform 0.2s;
+  padding: 0;
+}
+
+.sldr-overview-thumb:hover {
+  border-color: var(--sldr-primary, #3b82f6);
+  transform: scale(1.03);
+}
+
+.sldr-overview-thumb.sldr-overview-current {
+  border-color: var(--sldr-primary, #3b82f6);
+}
+
+.sldr-overview-content {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  transform: scale(0.25);
+  transform-origin: top left;
+  width: 400%;
+  height: 400%;
+}
+
+.sldr-overview-label {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 11px;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Print styles === */
+@media print {
+  html,
+  body {
+    overflow: visible;
+    height: auto;
+    width: auto;
+  }
+
+  .sldr-deck {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  .sldr-slide {
+    display: block !important;
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .sldr-slide[aria-hidden="true"] {
+    display: block !important;
+  }
+
+  .sldr-progress,
+  .sldr-nav,
+  .sldr-overview {
+    display: none !important;
+  }
+
+  /* Show all click-step elements when printing */
+  [data-click-step] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .sldr-hidden {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+}
