@@ -2,6 +2,20 @@
 
 ## Open
 
+### [trx-8crj.9] [task] Remove slidev dependency (SlidevManager, npm deps, frontend/) (P1, task)
+
+### [trx-8crj.5] [task] Wire sldr build to output HTML instead of slidev markdown (P1, task)
+
+### [trx-8crj.4] [task] Port slide templates from slidev Vue layouts to HTML fragments (P1, task)
+
+### [trx-8crj.3] [task] Port flavor system to pure CSS custom properties (P1, task)
+
+### [trx-8crj.2] [task] Create sldr-renderer crate with HTML slide compiler (markdown -> self-contained HTML) (P1, task)
+
+### [trx-8crj.1] [task] Design HTML presenter engine (JS: keyboard nav, transitions, speaker notes, overview grid, progress bar, touch gestures) (P1, task)
+
+### [trx-8crj] [epic] Drop slidev - build custom HTML rendering engine (P1, task)
+
 ### [trx-pg1a] Agent-friendly CLI improvements (P1, epic)
 Improve sldr CLI for agent/LLM use with JSON input/output support, batch operations, and better ergonomics
 
@@ -13,6 +27,14 @@ Complete sldr integration with Octo for visual presentation building
 ### 1. sldr-server crate (HTTP API)
 ...
 
+
+### [trx-8crj.11] [task] Contenteditable slide editing mode (inline text editing, floating toolbar, save/download) (P2, task)
+
+### [trx-8crj.10] [task] Update sldr-server to serve self-contained HTML instead of proxying slidev (P2, task)
+
+### [trx-8crj.7] [task] PDF export via headless Chrome/Playwright (P2, task)
+
+### [trx-8crj.6] [task] Implement sldr watch with live-reload for HTML preview (P2, task)
 
 ### [trx-3f4w.9] Octo frontend: TemplateEditor component (P2, task)
 React component for visual template editing
@@ -58,6 +80,8 @@ Templates to create:
 - two-column.md (left content, right content, header)
 ...
 
+
+### [trx-8crj.8] [task] PPTX export from rendered HTML (P3, task)
 
 ## Closed
 
