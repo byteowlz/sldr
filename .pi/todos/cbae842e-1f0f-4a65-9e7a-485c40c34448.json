@@ -1,29 +1,35 @@
 {
   "todos": [
     {
-      "id": "p2-renderer-crate",
-      "content": "trx-8crj.2: Create sldr-renderer crate (Cargo.toml, lib.rs, pulldown-cmark, syntect, HTML compiler)",
+      "id": "t6-watch",
+      "content": "trx-8crj.6: sldr watch with live-reload (tiny HTTP server + WebSocket + file watcher)",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "t10-server",
+      "content": "trx-8crj.10: Update sldr-server to serve self-contained HTML instead of proxying slidev",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "p2-wire-build",
-      "content": "trx-8crj.5: Wire sldr build/open/preview to output HTML instead of slidev markdown",
-      "status": "completed",
-      "priority": "high"
+      "id": "t7-pdf",
+      "content": "trx-8crj.7: PDF export via headless Chrome/Playwright",
+      "status": "pending",
+      "priority": "medium"
     },
     {
-      "id": "p2-cleanup",
-      "content": "trx-8crj.9: Remove slidev dependency (SlidevManager, npm deps, package.json generation)",
-      "status": "completed",
-      "priority": "high"
+      "id": "t11-edit",
+      "content": "trx-8crj.11: Contenteditable slide editing mode",
+      "status": "pending",
+      "priority": "medium"
     },
     {
-      "id": "p2-verify",
-      "content": "Verify: remote-build check, build a test presentation end-to-end",
-      "status": "completed",
-      "priority": "high"
+      "id": "t8-pptx",
+      "content": "trx-8crj.8: PPTX export from rendered HTML",
+      "status": "pending",
+      "priority": "low"
     }
   ],
-  "updated_at": "2026-03-12T11:40:28.591Z"
+  "updated_at": "2026-03-12T13:27:46.422Z"
 }

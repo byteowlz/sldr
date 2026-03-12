@@ -25,3 +25,4 @@ notify = "8.2"
 tempfile = "3"
 
 sldr-core.workspace = true
+sldr-renderer.workspace = true
