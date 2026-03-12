@@ -43,7 +43,7 @@ dirs = "5.0"
 walkdir = "2.5"
 shellexpand = "3.1"
 
-# Async (for future slidev integration)
+# Async runtime (server, watch, export)
 tokio = { version = "1.0", features = ["full"] }
 
 # Web framework

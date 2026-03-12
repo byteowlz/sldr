@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use sldr_core::flavor::Flavor;
-use sldr_core::presentation::{Skeleton, SlidevConfig};
+use sldr_core::presentation::{Skeleton, SlidevConfig}; // SlidevConfig = RenderOpts alias
 use sldr_core::slide::SlideMetadata;
 use uuid::Uuid;
 

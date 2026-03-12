@@ -24,7 +24,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
         presentation_name.cyan()
     );
 
-    // Check for index.html (new renderer) or slides.md (legacy slidev)
+    // Check for index.html or slides.md (legacy output)
     let index_path = output_dir.join("index.html");
     let slides_path = output_dir.join("slides.md");
 
@@ -57,9 +57,9 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
 
         open_in_browser(&index_path.to_string_lossy())?;
     } else {
-        // Legacy slidev project - inform user to rebuild
+        // Legacy output - rebuild as HTML
         println!(
-            "  {} Found legacy slidev project. Rebuilding as HTML...",
+            "  {} Found legacy output. Rebuilding as HTML...",
             "i".blue()
         );
         super::build::run(
