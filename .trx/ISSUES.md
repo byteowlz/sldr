@@ -16,8 +16,6 @@ Complete sldr integration with Octo for visual presentation building
 ...
 
 
-### [trx-8crj.11] [task] Contenteditable slide editing mode (inline text editing, floating toolbar, save/download) (P2, task)
-
 ### [trx-3f4w.9] Octo frontend: TemplateEditor component (P2, task)
 React component for visual template editing
 
@@ -67,6 +65,7 @@ Templates to create:
 
 ## Closed
 
+- [trx-8crj.11] [task] Contenteditable slide editing mode (inline text editing, floating toolbar, save/download) (closed 2026-03-12)
 - [trx-8crj.7] [task] PDF export via headless Chrome/Playwright (closed 2026-03-12)
 - [trx-8crj.6] [task] Implement sldr watch with live-reload for HTML preview (closed 2026-03-12)
 - [trx-8crj.10] [task] Update sldr-server to serve self-contained HTML instead of proxying slidev (closed 2026-03-12)

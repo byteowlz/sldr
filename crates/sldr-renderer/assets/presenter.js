@@ -518,6 +518,14 @@
         toggleDarkMode();
         break;
 
+      case "e":
+      case "E":
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          toggleEditMode();
+        }
+        break;
+
       case "t":
       case "T":
         e.preventDefault();
@@ -726,6 +734,149 @@
   function onResize() {
     // CSS handles scaling. Hook for future enhancements.
   }
+
+  // ---------------------------------------------------------------------------
+  // Edit mode (contenteditable inline editing)
+  // ---------------------------------------------------------------------------
+  var editMode = false;
+  var editToolbar = null;
+
+  function toggleEditMode() {
+    editMode = !editMode;
+
+    // Toggle contenteditable on all slide content areas
+    for (var i = 0; i < slides.length; i++) {
+      var contentAreas = slides[i].querySelectorAll(
+        ".sldr-content, .sldr-left, .sldr-right, .sldr-heading"
+      );
+      for (var j = 0; j < contentAreas.length; j++) {
+        contentAreas[j].contentEditable = editMode ? "true" : "false";
+        contentAreas[j].classList.toggle("sldr-editable", editMode);
+      }
+    }
+
+    if (editMode) {
+      document.body.classList.add("sldr-edit-mode");
+      if (!editToolbar) editToolbar = createEditToolbar();
+      editToolbar.classList.add("sldr-edit-toolbar-visible");
+    } else {
+      document.body.classList.remove("sldr-edit-mode");
+      if (editToolbar) editToolbar.classList.remove("sldr-edit-toolbar-visible");
+    }
+  }
+
+  function createEditToolbar() {
+    var bar = document.createElement("div");
+    bar.className = "sldr-edit-toolbar";
+
+    var label = document.createElement("span");
+    label.className = "sldr-edit-label";
+    label.textContent = "EDIT MODE";
+    bar.appendChild(label);
+
+    var actions = [
+      { cmd: "bold", icon: "B", title: "Bold (Ctrl+B)" },
+      { cmd: "italic", icon: "I", title: "Italic (Ctrl+I)" },
+      { cmd: "underline", icon: "U", title: "Underline (Ctrl+U)" },
+    ];
+
+    for (var i = 0; i < actions.length; i++) {
+      var btn = document.createElement("button");
+      btn.className = "sldr-edit-btn";
+      btn.setAttribute("title", actions[i].title);
+      btn.textContent = actions[i].icon;
+      btn.dataset.cmd = actions[i].cmd;
+      btn.addEventListener("mousedown", function (ev) {
+        ev.preventDefault(); // Keep focus on editable area
+        document.execCommand(ev.currentTarget.dataset.cmd, false, null);
+      });
+      bar.appendChild(btn);
+    }
+
+    // Separator
+    var sep = document.createElement("span");
+    sep.className = "sldr-edit-sep";
+    bar.appendChild(sep);
+
+    // Save/Download button
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "sldr-edit-btn sldr-edit-save";
+    saveBtn.setAttribute("title", "Download modified HTML (Ctrl+S)");
+    saveBtn.textContent = "Save";
+    saveBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      downloadModifiedHtml();
+    });
+    bar.appendChild(saveBtn);
+
+    // Close edit mode button
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "sldr-edit-btn sldr-edit-close";
+    closeBtn.setAttribute("title", "Exit edit mode (E)");
+    closeBtn.textContent = "Exit";
+    closeBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      toggleEditMode();
+    });
+    bar.appendChild(closeBtn);
+
+    document.body.appendChild(bar);
+    return bar;
+  }
+
+  function downloadModifiedHtml() {
+    // Turn off edit mode temporarily to get clean HTML
+    var wasEditing = editMode;
+    if (wasEditing) {
+      // Remove contenteditable attributes for export
+      for (var i = 0; i < slides.length; i++) {
+        var areas = slides[i].querySelectorAll("[contenteditable]");
+        for (var j = 0; j < areas.length; j++) {
+          areas[j].removeAttribute("contenteditable");
+          areas[j].classList.remove("sldr-editable");
+        }
+      }
+    }
+
+    // Remove edit toolbar and mode class temporarily
+    document.body.classList.remove("sldr-edit-mode");
+    if (editToolbar) editToolbar.classList.remove("sldr-edit-toolbar-visible");
+
+    // Get the full document HTML
+    var html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+    // Restore edit mode
+    if (wasEditing) {
+      document.body.classList.add("sldr-edit-mode");
+      if (editToolbar) editToolbar.classList.add("sldr-edit-toolbar-visible");
+      for (var k = 0; k < slides.length; k++) {
+        var contentAreas = slides[k].querySelectorAll(
+          ".sldr-content, .sldr-left, .sldr-right, .sldr-heading"
+        );
+        for (var l = 0; l < contentAreas.length; l++) {
+          contentAreas[l].contentEditable = "true";
+          contentAreas[l].classList.add("sldr-editable");
+        }
+      }
+    }
+
+    // Download
+    var blob = new Blob([html], { type: "text/html" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = document.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".html";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Intercept Ctrl+S in edit mode for save
+  document.addEventListener("keydown", function (e) {
+    if (editMode && (e.ctrlKey || e.metaKey) && e.key === "s") {
+      e.preventDefault();
+      downloadModifiedHtml();
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // Boot
