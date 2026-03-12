@@ -3,10 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>sldr Presenter Test</title>
+  <title>sldr Presenter Test - Multi-Flavor</title>
   <link rel="stylesheet" href="base.css">
-  <style>
-    /* Simulate flavor CSS custom properties */
+
+  <!-- ===================================================================
+       FLAVOR STYLES
+       Each <style data-flavor="name"> block is a flavor. The presenter
+       enables/disables them at runtime. Only one is active at a time.
+       The renderer will generate these from flavor.toml files.
+       =================================================================== -->
+
+  <!-- Flavor: Indigo Night (default - active) -->
+  <style data-flavor="Indigo Night">
     :root {
       --sldr-primary: #6366f1;
       --sldr-secondary: #8b5cf6;
@@ -18,6 +26,102 @@
       --sldr-code-font: 'JetBrains Mono', 'Fira Code', monospace;
       --sldr-code-background: #1e1e2e;
       --sldr-code-text: #cdd6f4;
+    }
+    /* Dark mode is the base for this flavor */
+    html.dark {
+      --sldr-background: #070714;
+      --sldr-text: #c8c8d8;
+      --sldr-code-background: #111122;
+    }
+  </style>
+
+  <!-- Flavor: Clean White -->
+  <style data-flavor="Clean White" disabled>
+    :root {
+      --sldr-primary: #2563eb;
+      --sldr-secondary: #3b82f6;
+      --sldr-background: #ffffff;
+      --sldr-text: #1e293b;
+      --sldr-accent: #0891b2;
+      --sldr-heading-font: 'Inter', system-ui, sans-serif;
+      --sldr-body-font: 'Inter', system-ui, sans-serif;
+      --sldr-code-font: 'Fira Code', monospace;
+      --sldr-code-background: #f1f5f9;
+      --sldr-code-text: #334155;
+    }
+    html.dark {
+      --sldr-background: #0f172a;
+      --sldr-text: #e2e8f0;
+      --sldr-code-background: #1e293b;
+      --sldr-code-text: #e2e8f0;
+    }
+  </style>
+
+  <!-- Flavor: Emerald -->
+  <style data-flavor="Emerald" disabled>
+    :root {
+      --sldr-primary: #059669;
+      --sldr-secondary: #10b981;
+      --sldr-background: #ecfdf5;
+      --sldr-text: #064e3b;
+      --sldr-accent: #d97706;
+      --sldr-heading-font: 'Georgia', serif;
+      --sldr-body-font: system-ui, sans-serif;
+      --sldr-code-font: 'Cascadia Code', monospace;
+      --sldr-code-background: #d1fae5;
+      --sldr-code-text: #064e3b;
+    }
+    html.dark {
+      --sldr-background: #022c22;
+      --sldr-text: #a7f3d0;
+      --sldr-code-background: #064e3b;
+      --sldr-code-text: #a7f3d0;
+    }
+  </style>
+
+  <!-- Flavor: Sunset -->
+  <style data-flavor="Sunset" disabled>
+    :root {
+      --sldr-primary: #dc2626;
+      --sldr-secondary: #ea580c;
+      --sldr-background: #fffbeb;
+      --sldr-text: #451a03;
+      --sldr-accent: #9333ea;
+      --sldr-heading-font: 'Playfair Display', Georgia, serif;
+      --sldr-body-font: system-ui, sans-serif;
+      --sldr-code-font: 'JetBrains Mono', monospace;
+      --sldr-code-background: #fef3c7;
+      --sldr-code-text: #78350f;
+    }
+    html.dark {
+      --sldr-background: #1c1917;
+      --sldr-text: #fef3c7;
+      --sldr-code-background: #292524;
+      --sldr-code-text: #fde68a;
+    }
+  </style>
+
+  <!-- Flavor: Monochrome -->
+  <style data-flavor="Monochrome" disabled>
+    :root {
+      --sldr-primary: #374151;
+      --sldr-secondary: #6b7280;
+      --sldr-background: #f9fafb;
+      --sldr-text: #111827;
+      --sldr-accent: #374151;
+      --sldr-heading-font: 'Helvetica Neue', Arial, sans-serif;
+      --sldr-body-font: 'Helvetica Neue', Arial, sans-serif;
+      --sldr-code-font: 'SF Mono', 'Menlo', monospace;
+      --sldr-code-background: #f3f4f6;
+      --sldr-code-text: #1f2937;
+    }
+    html.dark {
+      --sldr-primary: #d1d5db;
+      --sldr-secondary: #9ca3af;
+      --sldr-background: #111827;
+      --sldr-text: #f9fafb;
+      --sldr-code-background: #1f2937;
+      --sldr-code-text: #e5e7eb;
     }
   </style>
 </head>
@@ -31,7 +135,8 @@
         <p>A systems programming language that runs blazingly fast</p>
       </div>
       <aside class="sldr-notes">
-        Welcome everyone! Today we'll explore why Rust is gaining so much traction in systems programming.
+        Welcome everyone! Today we explore why Rust is gaining so much traction.
+        Try pressing D to toggle dark/light mode, or T to switch flavors!
       </aside>
     </section>
 
@@ -47,7 +152,7 @@
         </ul>
       </div>
       <aside class="sldr-notes">
-        These are the four pillars of Rust. Click through each one.
+        Click through each bullet point. The flavor and dark mode persist as you navigate.
       </aside>
     </section>
 
@@ -90,9 +195,10 @@
 fn read_file(path: &amp;str) -&gt; Result&lt;String, std::io::Error&gt; {
     std::fs::read_to_string(path)
 }</code></pre>
+        <p>Notice how the code block colors change with each flavor.</p>
       </div>
       <aside class="sldr-notes">
-        Notice how Rust uses Result types for error handling instead of exceptions.
+        The code block background and text adapt to the active flavor.
       </aside>
     </section>
 
@@ -140,6 +246,7 @@ fn read_file(path: &amp;str) -&gt; Result&lt;String, std::io::Error&gt; {
             </tr>
           </tbody>
         </table>
+        <p>Table header color follows the <code>--sldr-primary</code> variable.</p>
       </div>
     </section>
 

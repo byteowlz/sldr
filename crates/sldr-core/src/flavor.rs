@@ -28,9 +28,13 @@ pub struct Flavor {
     #[serde(default)]
     pub description: Option<String>,
 
-    /// Color scheme
+    /// Color scheme (light mode / default)
     #[serde(default)]
     pub colors: ColorScheme,
+
+    /// Dark mode color overrides (merged on top of colors when dark mode is active)
+    #[serde(default)]
+    pub dark_colors: Option<ColorScheme>,
 
     /// Typography settings
     #[serde(default)]
@@ -125,6 +129,7 @@ impl Default for Flavor {
             display_name: Some("Default".to_string()),
             description: Some("Default sldr flavor".to_string()),
             colors: ColorScheme::default(),
+            dark_colors: None,
             typography: Typography::default(),
             background: BackgroundConfig::default(),
             assets_dir: None,
@@ -217,6 +222,34 @@ impl Flavor {
         }
 
         css.push_str("}\n");
+
+        // Dark mode overrides
+        if let Some(ref dark) = self.dark_colors {
+            css.push_str("html.dark {\n");
+            if let Some(ref color) = dark.primary {
+                let _ = writeln!(css, "  --sldr-primary: {color};");
+            }
+            if let Some(ref color) = dark.secondary {
+                let _ = writeln!(css, "  --sldr-secondary: {color};");
+            }
+            if let Some(ref color) = dark.background {
+                let _ = writeln!(css, "  --sldr-background: {color};");
+            }
+            if let Some(ref color) = dark.text {
+                let _ = writeln!(css, "  --sldr-text: {color};");
+            }
+            if let Some(ref color) = dark.accent {
+                let _ = writeln!(css, "  --sldr-accent: {color};");
+            }
+            if let Some(ref color) = dark.code_background {
+                let _ = writeln!(css, "  --sldr-code-background: {color};");
+            }
+            if let Some(ref color) = dark.code_text {
+                let _ = writeln!(css, "  --sldr-code-text: {color};");
+            }
+            css.push_str("}\n");
+        }
+
         css
     }
 

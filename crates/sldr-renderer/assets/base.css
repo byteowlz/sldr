@@ -1,9 +1,12 @@
 /**
  * sldr Base Stylesheet
  *
- * Core layout, typography, transitions, overview grid, progress bar, and print
- * styles for the self-contained HTML presenter. Flavor CSS custom properties
- * override defaults via :root.
+ * Core layout, typography, transitions, overview grid, progress bar, toolbar
+ * (dark/light toggle + flavor selector), and print styles for the
+ * self-contained HTML presenter.
+ *
+ * Flavor CSS custom properties override defaults via :root.
+ * Dark mode inverts via html.dark overrides.
  *
  * All selectors use .sldr-* namespace to avoid collisions.
  */
@@ -29,12 +32,15 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* === Dark mode === */
+/* === Dark mode defaults (when no flavor dark vars are set) === */
 html.dark {
   --sldr-background: #0f0f23;
   --sldr-text: #e0e0e0;
+  --sldr-code-background: #1e1e2e;
+  --sldr-code-text: #cdd6f4;
 }
 
 /* === Slide deck container === */
@@ -54,6 +60,7 @@ html.dark {
   background: var(--sldr-background, #ffffff);
   color: var(--sldr-text, #1f2937);
   overflow: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .sldr-slide.active {
@@ -221,6 +228,7 @@ h6 {
   color: var(--sldr-primary, inherit);
   line-height: 1.2;
   margin-bottom: 0.5em;
+  transition: color 0.3s ease;
 }
 
 h1 {
@@ -292,6 +300,7 @@ pre.sldr-code {
   font-size: 0.85em;
   line-height: 1.5;
   margin: 0.75em 0;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 code {
@@ -305,6 +314,7 @@ code {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.9em;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 html.dark :not(pre) > code {
@@ -326,6 +336,7 @@ th {
   padding: 10px 14px;
   text-align: left;
   font-weight: 600;
+  transition: background 0.3s ease;
 }
 
 td {
@@ -388,57 +399,33 @@ tr:hover td {
 }
 
 @keyframes sldrFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes sldrFadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 @keyframes sldrSlideLeftIn {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes sldrSlideLeftOut {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-100%);
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
 }
 
 @keyframes sldrSlideRightIn {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes sldrSlideRightOut {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(100%);
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
 }
 
 /* === Progress bar === */
@@ -448,11 +435,11 @@ tr:hover td {
   left: 0;
   height: 3px;
   background: var(--sldr-primary, #3b82f6);
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, background 0.3s ease;
   z-index: 100;
 }
 
-/* === Navigation UI === */
+/* === Navigation UI (page number) === */
 .sldr-nav {
   position: fixed;
   bottom: 8px;
@@ -463,7 +450,6 @@ tr:hover td {
   pointer-events: none;
 }
 
-/* Show nav on hover near bottom */
 body:hover .sldr-nav {
   opacity: 1;
 }
@@ -479,6 +465,131 @@ body:hover .sldr-nav {
 /* === Speaker notes (hidden in presentation) === */
 .sldr-notes {
   display: none;
+}
+
+/* =========================================================================
+ * Toolbar - bottom-left bar with dark/light toggle + flavor selector
+ * ========================================================================= */
+.sldr-toolbar {
+  position: fixed;
+  bottom: 12px;
+  left: 16px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+body:hover .sldr-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Also show when flavor panel is open */
+.sldr-toolbar:has(.sldr-flavor-panel-open) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Toolbar buttons */
+.sldr-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 6px;
+  background: rgba(128, 128, 128, 0.1);
+  color: var(--sldr-text, #1f2937);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--sldr-body-font, system-ui, sans-serif);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.2s, border-color 0.2s, color 0.3s ease;
+  line-height: 1;
+}
+
+.sldr-toolbar-btn:hover {
+  background: rgba(128, 128, 128, 0.2);
+  border-color: rgba(128, 128, 128, 0.4);
+}
+
+.sldr-toolbar-btn svg {
+  flex-shrink: 0;
+}
+
+.sldr-flavor-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* === Flavor panel (dropdown above toolbar) === */
+.sldr-flavor-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: rgba(30, 30, 46, 0.95);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  padding: 4px;
+  display: none;
+  flex-direction: column;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+html:not(.dark) .sldr-flavor-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(128, 128, 128, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.sldr-flavor-panel.sldr-flavor-panel-open {
+  display: flex;
+}
+
+.sldr-flavor-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--sldr-body-font, system-ui, sans-serif);
+  text-align: left;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+html:not(.dark) .sldr-flavor-item {
+  color: #1f2937;
+}
+
+.sldr-flavor-item:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.sldr-flavor-item.sldr-flavor-active {
+  background: var(--sldr-primary, #6366f1);
+  color: #ffffff;
+}
+
+.sldr-flavor-item.sldr-flavor-active:hover {
+  opacity: 0.9;
 }
 
 /* === Overview grid === */
@@ -580,11 +691,11 @@ body:hover .sldr-nav {
 
   .sldr-progress,
   .sldr-nav,
-  .sldr-overview {
+  .sldr-overview,
+  .sldr-toolbar {
     display: none !important;
   }
 
-  /* Show all click-step elements when printing */
   [data-click-step] {
     opacity: 1 !important;
     transform: none !important;
