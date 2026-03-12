@@ -7,6 +7,23 @@
  * toggle, live flavor switching, click-through builds (data-click-step).
  *
  * No external dependencies. Single IIFE.
+ *
+ * FLAVOR EMBEDDING CONTRACT
+ * -------------------------
+ * The renderer embeds flavors as <style data-flavor="Name"> blocks in <head>.
+ * The active flavor has no `disabled` attribute; all others have `disabled`.
+ *
+ *   Single flavor (default):
+ *     <style data-flavor="Acme">:root { ... } html.dark { ... }</style>
+ *     -> Toolbar shows dark/light toggle only. No flavor selector.
+ *
+ *   Multi-flavor (--flavors flag):
+ *     <style data-flavor="Acme">...</style>
+ *     <style data-flavor="Dark" disabled>...</style>
+ *     <style data-flavor="Mono" disabled>...</style>
+ *     -> Toolbar shows dark/light toggle + flavor dropdown (T key).
+ *
+ * Dark/light mode works in both modes via html.dark class + CSS variables.
  */
 (function () {
   "use strict";
