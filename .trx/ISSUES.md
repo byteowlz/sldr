@@ -2,8 +2,6 @@
 
 ## Open
 
-### [trx-8crj] [epic] Drop slidev - build custom HTML rendering engine (P1, task)
-
 ### [trx-pg1a] Agent-friendly CLI improvements (P1, epic)
 Improve sldr CLI for agent/LLM use with JSON input/output support, batch operations, and better ergonomics
 
@@ -63,6 +61,7 @@ Templates to create:
 
 ## Closed
 
+- [trx-8crj] [epic] Drop slidev - build custom HTML rendering engine (closed 2026-03-12)
 - [trx-8crj.8] [task] PPTX export from rendered HTML (closed 2026-03-12)
 - [trx-8crj.11] [task] Contenteditable slide editing mode (inline text editing, floating toolbar, save/download) (closed 2026-03-12)
 - [trx-8crj.7] [task] PDF export via headless Chrome/Playwright (closed 2026-03-12)
