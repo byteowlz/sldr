@@ -2,8 +2,6 @@
 
 ## Open
 
-### [trx-8crj.9] [task] Remove slidev dependency (SlidevManager, npm deps, frontend/) (P1, task)
-
 ### [trx-8crj] [epic] Drop slidev - build custom HTML rendering engine (P1, task)
 
 ### [trx-pg1a] Agent-friendly CLI improvements (P1, epic)
@@ -75,6 +73,7 @@ Templates to create:
 
 ## Closed
 
+- [trx-8crj.9] [task] Remove slidev dependency (SlidevManager, npm deps, frontend/) (closed 2026-03-12)
 - [trx-8crj.5] [task] Wire sldr build to output HTML instead of slidev markdown (closed 2026-03-12)
 - [trx-8crj.2] [task] Create sldr-renderer crate with HTML slide compiler (markdown -> self-contained HTML) (closed 2026-03-12)
 - [trx-8crj.4] [task] Port slide templates from slidev Vue layouts to HTML fragments (closed 2026-03-11)

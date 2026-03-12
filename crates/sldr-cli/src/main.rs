@@ -1,4 +1,4 @@
-//! sldr CLI - Markdown presentation manager powered by slidev
+//! sldr CLI - Markdown presentation manager
 //!
 //! This is a CLI application, so stdout/stderr output is expected and legitimate.
 #![expect(
@@ -14,7 +14,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Parser)]
 #[command(name = "sldr")]
-#[command(author, version, about = "Markdown presentations powered by slidev")]
+#[command(author, version, about = "Markdown presentations - self-contained HTML output")]
 #[command(propagate_version = true)]
 struct Cli {
     /// Enable debug logging
@@ -76,13 +76,13 @@ enum Commands {
         interactive: bool,
     },
 
-    /// Open a presentation in slidev
+    /// Open a built presentation in the browser
     Open {
         /// Name of the presentation to open
         presentation: String,
 
-        /// Port for slidev server
-        #[arg(short, long)]
+        /// Port (unused, kept for backwards compat)
+        #[arg(short, long, hide = true)]
         port: Option<String>,
 
         /// Rebuild presentation before opening
@@ -90,13 +90,13 @@ enum Commands {
         rebuild: bool,
     },
 
-    /// Preview a single slide quickly
+    /// Preview a single slide quickly in the browser
     Preview {
         /// Slide to preview (name or path)
         slide: String,
 
-        /// Port for slidev server
-        #[arg(short, long)]
+        /// Port (unused, kept for backwards compat)
+        #[arg(short, long, hide = true)]
         port: Option<String>,
     },
 

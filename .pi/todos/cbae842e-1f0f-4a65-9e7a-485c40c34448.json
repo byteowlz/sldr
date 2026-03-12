@@ -15,15 +15,15 @@
     {
       "id": "p2-cleanup",
       "content": "trx-8crj.9: Remove slidev dependency (SlidevManager, npm deps, package.json generation)",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "high"
     },
     {
       "id": "p2-verify",
       "content": "Verify: remote-build check, build a test presentation end-to-end",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     }
   ],
-  "updated_at": "2026-03-12T11:39:07.246Z"
+  "updated_at": "2026-03-12T11:40:28.591Z"
 }
