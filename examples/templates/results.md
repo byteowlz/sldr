@@ -19,11 +19,12 @@ layout: two-cols
 
 ::right::
 
-```mermaid
-pie title Distribution
-    "Category A" : 45
-    "Category B" : 30
-    "Category C" : 25
-```
+## Distribution
+
+| Category   | Share |
+|------------|------:|
+| Category A |   45% |
+| Category B |   30% |
+| Category C |   25% |
 
 *Note: All results significant at alpha = 0.05 unless otherwise noted*

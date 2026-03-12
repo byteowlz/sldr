@@ -1,41 +1,71 @@
 {
   "todos": [
     {
-      "id": "r1",
-      "content": "Remove dead legacy code: to_slidev_markdown(), generate_package_json(), .slidev-* CSS",
+      "id": "m1",
+      "content": "Rewrite oqto/cover.md",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "r2",
-      "content": "Rename SlidevConfig -> RenderConfig internally (keep serde compat)",
+      "id": "m2",
+      "content": "Rewrite oqto/what-is-oqto.md",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "r3",
-      "content": "Update all doc comments and descriptions referencing slidev",
+      "id": "m3",
+      "content": "Rewrite oqto/architecture.md",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "r4",
-      "content": "Update schema descriptions (generated from doc comments)",
+      "id": "m4",
+      "content": "Rewrite oqto/canonical-protocol.md",
       "status": "completed",
-      "priority": "medium"
+      "priority": "high"
     },
     {
-      "id": "r5",
-      "content": "Regenerate schemas and copy to schemas repo",
+      "id": "m5",
+      "content": "Rewrite oqto/runtime-modes.md",
       "status": "completed",
-      "priority": "medium"
+      "priority": "high"
     },
     {
-      "id": "r6",
-      "content": "Verify build compiles and tests pass",
+      "id": "m6",
+      "content": "Rewrite oqto/eavs-integration.md",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "m7",
+      "content": "Rewrite oqto/key-components.md",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "m8",
+      "content": "Rewrite oqto/tooling.md",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "m9",
+      "content": "Rewrite oqto/data-flow.md",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "m10",
+      "content": "Rewrite oqto/end.md",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "m11",
+      "content": "Rebuild presentation and verify",
       "status": "completed",
       "priority": "high"
     }
   ],
-  "updated_at": "2026-03-12T15:09:11.085Z"
+  "updated_at": "2026-03-12T15:58:13.609Z"
 }
