@@ -1,35 +1,41 @@
 {
   "todos": [
     {
-      "id": "t6-watch",
-      "content": "trx-8crj.6: sldr watch with live-reload (tiny HTTP server + WebSocket + file watcher)",
+      "id": "s1",
+      "content": "Audit schema-gen output vs current Rust structs (config, flavor, skeleton, slide)",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "t10-server",
-      "content": "trx-8crj.10: Update sldr-server to serve self-contained HTML instead of proxying slidev",
+      "id": "s2",
+      "content": "Audit example config.toml / flavor.toml / skeleton.toml against schema",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "t7-pdf",
-      "content": "trx-8crj.7: PDF export via headless Chrome/Playwright",
+      "id": "s3",
+      "content": "Audit skill/SKILL.md and AGENTS.md / AGENTS_USE.md docs",
       "status": "completed",
-      "priority": "medium"
+      "priority": "high"
     },
     {
-      "id": "t11-edit",
-      "content": "trx-8crj.11: Contenteditable slide editing mode",
+      "id": "s4",
+      "content": "Audit README.md for staleness",
       "status": "completed",
-      "priority": "medium"
+      "priority": "high"
     },
     {
-      "id": "t8-pptx",
-      "content": "trx-8crj.8: PPTX export from rendered HTML",
+      "id": "s5",
+      "content": "Copy updated schemas to ../schemas/sldr/",
       "status": "completed",
-      "priority": "low"
+      "priority": "high"
+    },
+    {
+      "id": "s6",
+      "content": "Run copy_config_schema.sh or equivalent",
+      "status": "completed",
+      "priority": "medium"
     }
   ],
-  "updated_at": "2026-03-12T13:46:12.563Z"
+  "updated_at": "2026-03-12T14:29:53.412Z"
 }

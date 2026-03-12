@@ -29,25 +29,14 @@ slides = [
 # Default flavor to use for styling
 flavor = "default"
 
-# Slidev configuration overrides
+# Rendering configuration
+# (key kept as slidev_config for backwards compat with existing skeletons)
 [slidev_config]
-# Theme to use (slidev theme name)
-theme = "default"
-
-# Enable/disable drawing feature
-drawings = true
-
-# Transition effect between slides
-transition = "slide-left"
+# Transition effect between slides: "fade", "slide-left", "slide-right", "none"
+transition = "fade"
 
 # Aspect ratio (e.g., "16/9", "4/3")
 aspect_ratio = "16/9"
 
-# Canvas width in pixels
-canvas_width = 1280
-
-# Enable dark mode
+# Start in dark mode
 dark_mode = false
-
-# Enable slide recording
-record = false

@@ -40,26 +40,30 @@ pub struct Skeleton {
     pub slidev_config: SlidevConfig,
 }
 
-/// Slidev-specific configuration
+/// Presentation rendering configuration
+///
+/// Kept as `SlidevConfig` in serialization for backwards compatibility
+/// with existing skeleton.toml files. Controls transition style, aspect
+/// ratio, and other rendering options for the HTML output.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct SlidevConfig {
-    /// Theme to use
+    /// Theme name (reserved for future use)
     #[serde(default)]
     pub theme: Option<String>,
 
-    /// Enable/disable drawing feature
+    /// Enable/disable drawing feature (reserved for future use)
     #[serde(default)]
     pub drawings: Option<bool>,
 
-    /// Transition effect
+    /// Transition effect between slides: "fade", "slide-left", "slide-right", "none"
     #[serde(default)]
     pub transition: Option<String>,
 
-    /// Title override
+    /// Title override for the presentation
     #[serde(default)]
     pub title: Option<String>,
 
-    /// Enable dark mode
+    /// Start in dark mode
     #[serde(default)]
     pub dark_mode: Option<bool>,
 
@@ -67,11 +71,11 @@ pub struct SlidevConfig {
     #[serde(default)]
     pub aspect_ratio: Option<String>,
 
-    /// Canvas width
+    /// Canvas width hint in pixels (informational)
     #[serde(default)]
     pub canvas_width: Option<u32>,
 
-    /// Enable slide recording
+    /// Enable slide recording (reserved for future use)
     #[serde(default)]
     pub record: Option<bool>,
 }

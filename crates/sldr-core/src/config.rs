@@ -41,9 +41,9 @@ pub struct CoreConfig {
     #[serde(default = "default_flavor")]
     pub default_flavor: String,
 
-    /// Port for slidev server
-    #[serde(default = "default_slidev_port")]
-    pub slidev_port: String,
+    /// Port for the local dev/watch server
+    #[serde(default = "default_dev_port", alias = "slidev_port")]
+    pub dev_port: String,
 
     /// Preferred AI agent for slide generation
     #[serde(default = "default_agent")]
@@ -95,7 +95,7 @@ fn default_flavor() -> String {
     "default".to_string()
 }
 
-fn default_slidev_port() -> String {
+fn default_dev_port() -> String {
     "3030".to_string()
 }
 
@@ -139,7 +139,7 @@ impl Default for CoreConfig {
             template_dir: default_template_dir(),
             flavor_dir: default_flavor_dir(),
             default_flavor: default_flavor(),
-            slidev_port: default_slidev_port(),
+            dev_port: default_dev_port(),
             agent: default_agent(),
         }
     }
@@ -297,7 +297,7 @@ mod tests {
     fn test_default_config() {
         let config = Config::default();
         assert_eq!(config.config.default_flavor, "default");
-        assert_eq!(config.config.slidev_port, "3030");
+        assert_eq!(config.config.dev_port, "3030");
         // Use approximate comparison for floats
         assert!((config.matching.threshold - 50.0).abs() < f64::EPSILON);
     }

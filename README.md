@@ -1,14 +1,14 @@
 # sldr
 
-Modular markdown presentations powered by [Slidev](https://sli.dev).
+Modular markdown presentations rendered as self-contained HTML. No runtime dependencies - a single Rust binary produces a single HTML file with everything inlined.
 
 ## What it does
 
 sldr separates **content**, **layout**, and **style** for presentations:
 
 - **Slides** - Individual markdown files with YAML frontmatter
-- **Templates** - Reusable layouts with positioned elements (via Slidev's v-drag)
-- **Flavors** - Brand themes (colors, fonts, logos) that can be swapped at build time
+- **Templates** - Reusable layouts (cover, two-cols, image-left, etc.)
+- **Flavors** - Brand themes (colors, fonts, backgrounds, dark mode overrides)
 - **Skeletons** - Presentation definitions that reference which slides to include
 
 Build a presentation once, export with different branding. Create a slide once, reuse across presentations.
@@ -38,19 +38,15 @@ Build a presentation once, export with different branding. Create a slide once, 
                               |
                               v
 +-------------------------------------------------------------+
-|                     sldr build my-talk                       |
-|                              +                              |
-|                    Flavor (acme branding)                    |
+|            sldr build my-talk --flavor acme                  |
+|                              |                              |
+|  pulldown-cmark + syntect + flavor CSS + presenter.js       |
 +-------------------------------------------------------------+
                               |
                               v
 +-------------------------------------------------------------+
-|                    Slidev Presentation                      |
-|  ~/sldr/presentations/my-talk/                              |
-|  +-- slides.md                                              |
-|  +-- style.css                                              |
-|  +-- package.json                                           |
-|  +-- public/assets/                                         |
+|             ~/sldr/presentations/my-talk/index.html         |
+|             (single self-contained file, open in browser)   |
 +-------------------------------------------------------------+
 ```
 
@@ -60,10 +56,7 @@ Build a presentation once, export with different branding. Create a slide once, 
 # Build from source
 cargo install --path crates/sldr-cli
 
-# Or via Homebrew
-brew install byteowlz/tap/sldr
-
-# Initialize directories
+# Initialize directories and default config
 sldr init --global
 ```
 
@@ -73,7 +66,7 @@ sldr init --global
 
 ```bash
 sldr new my-slide
-sldr new ai/transformers --template two-column
+sldr new ai/transformers --template two-cols
 ```
 
 ### List slides, skeletons, flavors
@@ -87,9 +80,25 @@ sldr ls flavors
 ### Build a presentation
 
 ```bash
-sldr build my-talk                     # Build with default flavor
-sldr build my-talk --flavor acme       # Build with specific flavor
-sldr build my-talk --flavor acme --pdf # Build and export to PDF
+sldr build my-talk                       # Build with default flavor
+sldr build my-talk --flavor acme         # Build with specific flavor
+sldr build my-talk --pdf                 # Build and export to PDF
+```
+
+### Dev server with live-reload
+
+```bash
+sldr watch my-talk                       # Default port (3030)
+sldr watch my-talk --flavor dark --port 8080
+```
+
+Watches slide files, skeletons, and flavors for changes. Rebuilds and reloads the browser automatically via Server-Sent Events.
+
+### Export
+
+```bash
+sldr export my-talk --format pdf         # PDF via headless Chrome
+sldr export my-talk --format pptx        # PPTX (slide screenshots)
 ```
 
 ### Add slides to a skeleton
@@ -98,10 +107,11 @@ sldr build my-talk --flavor acme --pdf # Build and export to PDF
 sldr add my-talk "intro, ai/transformers, conclusion"
 ```
 
-### Preview a presentation
+### Open / Preview
 
 ```bash
-sldr open my-talk
+sldr open my-talk           # Open built presentation in browser
+sldr preview slide-name     # Quick single-slide preview
 ```
 
 ### Search slides
@@ -110,6 +120,22 @@ sldr open my-talk
 sldr search "machine learning"
 sldr search --tags "AI,intro"
 ```
+
+## Presenter Shortcuts
+
+The generated HTML includes a full presenter engine:
+
+| Key | Action |
+|-----|--------|
+| Arrow keys / Space / Enter | Navigate slides |
+| O | Overview grid |
+| S | Speaker notes window (with timer) |
+| F | Fullscreen |
+| D | Dark/light mode toggle |
+| T | Flavor selector (multi-flavor presentations) |
+| E | Edit mode (inline text editing) |
+| Ctrl+S (edit mode) | Download modified HTML |
+| Home / End | First / last slide |
 
 ## Slide Format
 
@@ -121,45 +147,31 @@ title: Introduction to Transformers
 description: Overview of transformer architecture
 tags: [AI, deep-learning, transformers]
 topic: Machine Learning
-layout: two-column
+layout: two-cols
 ---
 
 # Transformers
+
+::left::
 
 The transformer architecture revolutionized NLP...
 
 ::right::
 
-![Transformer diagram](/assets/transformer.png)
+- Self-attention mechanism
+- Parallel processing
+- Scalable to billions of parameters
 ```
 
-## Visual Positioning with v-drag
-
-sldr leverages Slidev's built-in draggable elements. Templates can define positioned anchors:
-
+Speaker notes:
 ```markdown
----
-title: My Slide
-dragPos:
-  logo: 850,30,80,_,0
-  main-image: 100,200,400,_,0
----
+# My Slide
 
-<img v-drag="'logo'" src="/assets/logo.svg" class="h-12">
+Content here.
 
-<v-drag pos="main-image">
-  ![Diagram](/assets/diagram.png)
-</v-drag>
-
-# Content here
+<!-- notes -->
+Remember to mention the key insight about attention mechanisms.
 ```
-
-**To edit positions visually:**
-1. Run `sldr open <presentation>`
-2. Double-click any v-drag element
-3. Drag to reposition
-4. Click outside to confirm
-5. Slidev automatically updates `dragPos` in the source file
 
 ## Flavors
 
@@ -167,6 +179,8 @@ Flavors define visual theming separate from content:
 
 ```toml
 # ~/.config/sldr/flavors/acme/flavor.toml
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
 name = "acme"
 display_name = "ACME Corp"
 
@@ -176,13 +190,19 @@ secondary = "#005b7f"
 background = "#ffffff"
 text = "#1f2937"
 
+[dark_colors]
+primary = "#2dd4a8"
+background = "#0f172a"
+text = "#e2e8f0"
+
 [typography]
 heading_font = "Inter, sans-serif"
 body_font = "Inter, sans-serif"
+code_font = "JetBrains Mono, monospace"
 
 [background]
-background_type = "image"
-value = "/assets/acme-background.svg"
+background_type = "color"
+value = "#ffffff"
 ```
 
 ## Configuration
@@ -195,7 +215,8 @@ value = "/assets/acme-background.svg"
 template_dir = "~/.config/sldr/templates"
 flavor_dir = "~/.config/sldr/flavors"
 default_flavor = "default"
-slidev_port = "3030"
+dev_port = "3030"            # Port for sldr watch
+agent = "opencode"           # AI agent: "opencode", "claude code", "codex"
 
 [presentations]
 slide_dir = "~/sldr/slides"
@@ -209,24 +230,15 @@ max_suggestions = 6
 
 ### IDE Autocompletion
 
-All sldr config files support JSON Schema validation for IDE autocompletion. Install the **Even Better TOML** extension in VS Code to get:
+All config files support JSON Schema validation. Install the **Even Better TOML** extension in VS Code/editors for inline docs, autocompletion, and validation.
 
-- Inline documentation for all options
-- Autocompletion as you type
-- Validation for errors before running sldr
-
-Example configs with all options documented are available in `examples/`:
-- `config.toml` - Main configuration
-- `example-flavor.toml` - Flavor configuration
-- `example-skeleton.toml` - Skeleton configuration
+Example configs: `examples/config.toml`, `examples/example-flavor.toml`, `examples/example-skeleton.toml`
 
 ### Regenerating Schemas
 
-Schemas and examples are automatically generated from Rust source code:
-
 ```bash
-just schemas  # Generate all schemas and examples
-just copy-schemas  # Copy to byteowlz/schemas repository
+just schemas        # Generate all schemas and examples from Rust types
+just copy-schemas   # Copy to byteowlz/schemas repository
 ```
 
 ## Project Structure
@@ -234,27 +246,19 @@ just copy-schemas  # Copy to byteowlz/schemas repository
 ```
 sldr/
 +-- crates/
-|   +-- sldr-core/      # Library: slides, skeletons, flavors, presentations
-|   +-- sldr-cli/       # CLI binary
-|   +-- sldr-server/    # HTTP API (planned)
+|   +-- sldr-core/       # Library: config, slides, skeletons, flavors, fuzzy matching
+|   +-- sldr-renderer/   # HTML compiler: markdown -> self-contained HTML
+|   +-- sldr-cli/        # CLI binary (build, watch, export, open, preview, etc.)
+|   +-- sldr-server/     # HTTP API for programmatic access
+|   +-- schema-gen/      # JSON schema and example config generator
 +-- examples/
-|   +-- schemas/        # JSON schemas for IDE autocompletion
-|   +-- config.toml     # Example configuration
+|   +-- schemas/          # JSON schemas for IDE autocompletion
+|   +-- templates/        # Markdown slide templates (30 layouts)
+|   +-- config.toml       # Example configuration
 |   +-- example-flavor.toml
 |   +-- example-skeleton.toml
-+-- history/            # Development notes
++-- skill/                # AI agent skill for creating presentations
 ```
-
-## Roadmap
-
-- [x] Core library (slides, skeletons, flavors, fuzzy matching)
-- [x] CLI (build, ls, new, add, rm, search, preview, open)
-- [ ] HTTP API for Octo integration
-- [ ] Slidev process manager with dragPos sync
-- [ ] Template library with v-drag layouts
-- [ ] Octo frontend components
-
-See `.trx/` for detailed issue tracking.
 
 ## License
 

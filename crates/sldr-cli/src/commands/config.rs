@@ -41,8 +41,8 @@ pub fn run(key: Option<String>, value: Option<String>, edit: bool) -> Result<()>
                 format!("\"{}\"", config.config.default_flavor).yellow()
             );
             println!(
-                "  slidev_port = {}",
-                format!("\"{}\"", config.config.slidev_port).yellow()
+                "  dev_port = {}",
+                format!("\"{}\"", config.config.dev_port).yellow()
             );
             println!(
                 "  agent = {}",
@@ -103,7 +103,9 @@ fn get_config_value(config: &Config, key: &str) -> Option<String> {
         "template_dir" | "config.template_dir" => Some(config.config.template_dir.clone()),
         "flavor_dir" | "config.flavor_dir" => Some(config.config.flavor_dir.clone()),
         "default_flavor" | "config.default_flavor" => Some(config.config.default_flavor.clone()),
-        "slidev_port" | "config.slidev_port" => Some(config.config.slidev_port.clone()),
+        "dev_port" | "config.dev_port" | "slidev_port" | "config.slidev_port" => {
+            Some(config.config.dev_port.clone())
+        }
         "agent" | "config.agent" => Some(config.config.agent.clone()),
         "slide_dir" | "presentations.slide_dir" => Some(config.presentations.slide_dir.clone()),
         "output_dir" | "presentations.output_dir" => Some(config.presentations.output_dir.clone()),

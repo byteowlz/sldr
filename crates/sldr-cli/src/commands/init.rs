@@ -123,8 +123,10 @@ slides = [
 # Optional: specify a flavor
 # flavor = "default"
 
+# Rendering options
 [slidev_config]
-theme = "default"
+transition = "fade"
+aspect_ratio = "16/9"
 "#,
         )?;
         println!("  {} Created example skeleton", "+".green());

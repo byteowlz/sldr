@@ -55,7 +55,7 @@
   ],
   "$defs": {
     "SlidevConfig": {
-      "description": "Slidev-specific configuration",
+      "description": "Presentation rendering configuration\n\nKept as `SlidevConfig` in serialization for backwards compatibility\nwith existing skeleton.toml files. Controls transition style, aspect\nratio, and other rendering options for the HTML output.",
       "type": "object",
       "properties": {
         "aspect_ratio": {
@@ -67,7 +67,7 @@
           "default": null
         },
         "canvas_width": {
-          "description": "Canvas width",
+          "description": "Canvas width hint in pixels (informational)",
           "type": [
             "integer",
             "null"
@@ -77,7 +77,7 @@
           "minimum": 0
         },
         "dark_mode": {
-          "description": "Enable dark mode",
+          "description": "Start in dark mode",
           "type": [
             "boolean",
             "null"
@@ -85,7 +85,7 @@
           "default": null
         },
         "drawings": {
-          "description": "Enable/disable drawing feature",
+          "description": "Enable/disable drawing feature (reserved for future use)",
           "type": [
             "boolean",
             "null"
@@ -93,7 +93,7 @@
           "default": null
         },
         "record": {
-          "description": "Enable slide recording",
+          "description": "Enable slide recording (reserved for future use)",
           "type": [
             "boolean",
             "null"
@@ -101,7 +101,7 @@
           "default": null
         },
         "theme": {
-          "description": "Theme to use",
+          "description": "Theme name (reserved for future use)",
           "type": [
             "string",
             "null"
@@ -109,7 +109,7 @@
           "default": null
         },
         "title": {
-          "description": "Title override",
+          "description": "Title override for the presentation",
           "type": [
             "string",
             "null"
@@ -117,7 +117,7 @@
           "default": null
         },
         "transition": {
-          "description": "Transition effect",
+          "description": "Transition effect between slides: \"fade\", \"slide-left\", \"slide-right\", \"none\"",
           "type": [
             "string",
             "null"
