@@ -7,20 +7,15 @@ layout: center
 
 # {{title}}
 
-```mermaid
-graph TB
-    subgraph Client
-        A[Browser] --> B[Frontend]
-    end
-
-    subgraph Server
-        C[API Gateway] --> D[Service A]
-        C --> E[Service B]
-        D --> F[(Database)]
-        E --> F
-    end
-
-    B --> C
+```
+Client                      Server
++---------+                 +-------------------+
+| Browser |---> Frontend -->| API Gateway       |
++---------+                 |   |           |   |
+                            | Service A  Service B |
+                            |   |           |   |
+                            |   +---> DB <--+   |
+                            +-------------------+
 ```
 
 Key components:
