@@ -1,29 +1,11 @@
 {
   "todos": [
     {
-      "id": "live-darkmode",
-      "content": "Add dark/light mode toggle UI (not just D key) with smooth transition",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "id": "live-flavor",
-      "content": "Add live flavor selector panel - switch between embedded flavor presets during presentation",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "id": "live-css",
-      "content": "Update base.css with dark mode variables, flavor switcher panel, toggle button styles",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "id": "live-test",
-      "content": "Update test-presenter.html with multiple flavors and verify everything works",
-      "status": "completed",
-      "priority": "high"
+      "id": "single-flavor-doc",
+      "content": "Document single vs multi-flavor embedding in presenter.js and add single-flavor test HTML",
+      "status": "in_progress",
+      "priority": "medium"
     }
   ],
-  "updated_at": "2026-03-12T09:40:38.190Z"
+  "updated_at": "2026-03-12T09:42:17.595Z"
 }

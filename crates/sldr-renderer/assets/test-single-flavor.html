@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sldr Presenter Test - Single Flavor</title>
+  <link rel="stylesheet" href="base.css">
+
+  <!--
+    SINGLE FLAVOR MODE
+    When only one <style data-flavor> block is present, the toolbar shows
+    only the dark/light toggle. No flavor selector appears.
+    This is the default for `sldr build skeleton --flavor acme`.
+  -->
+  <style data-flavor="Clean White">
+    :root {
+      --sldr-primary: #2563eb;
+      --sldr-secondary: #3b82f6;
+      --sldr-background: #ffffff;
+      --sldr-text: #1e293b;
+      --sldr-accent: #0891b2;
+      --sldr-heading-font: 'Inter', system-ui, sans-serif;
+      --sldr-body-font: 'Inter', system-ui, sans-serif;
+      --sldr-code-font: 'Fira Code', monospace;
+      --sldr-code-background: #f1f5f9;
+      --sldr-code-text: #334155;
+    }
+    html.dark {
+      --sldr-background: #0f172a;
+      --sldr-text: #e2e8f0;
+      --sldr-code-background: #1e293b;
+      --sldr-code-text: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="sldr-deck" data-transition="slide-left">
+
+    <section class="sldr-slide" data-layout="cover" data-index="0">
+      <div class="sldr-content">
+        <h1>Single Flavor Mode</h1>
+        <p>Only dark/light toggle - no flavor selector in the toolbar</p>
+      </div>
+      <aside class="sldr-notes">
+        With one flavor, pressing T does nothing. Only D toggles dark/light.
+      </aside>
+    </section>
+
+    <section class="sldr-slide" data-layout="default" data-index="1">
+      <div class="sldr-content">
+        <h1>This is the default build mode</h1>
+        <p>When you run <code>sldr build my-talk --flavor acme</code>, only that
+        one flavor is embedded. The output is smaller and the toolbar is simpler.</p>
+        <pre class="sldr-code"><code>sldr build my-talk --flavor acme       # single flavor (default)
+sldr build my-talk --flavors acme,dark  # multi-flavor, selector shown</code></pre>
+      </div>
+    </section>
+
+    <section class="sldr-slide" data-layout="end" data-index="2">
+      <div class="sldr-content">
+        <h1>Done</h1>
+        <p>Press D to toggle dark mode</p>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="sldr-progress" style="width: 0%"></div>
+  <div class="sldr-nav">
+    <span class="sldr-page-num">1 / 3</span>
+  </div>
+
+  <script src="presenter.js"></script>
+</body>
+</html>
