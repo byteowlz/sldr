@@ -1,0 +1,26 @@
+{
+  "signals": [
+    {
+      "action": "open",
+      "path": "crates/sldr-renderer/assets/test-debug.html",
+      "title": "sldr Debug - Layout Test",
+      "timestamp": 1773329805759
+    },
+    {
+      "action": "close",
+      "path": "crates/sldr-renderer/assets/test-debug.html",
+      "timestamp": 1773329811759
+    },
+    {
+      "action": "open",
+      "path": "crates/sldr-renderer/assets/test-inline.html",
+      "title": "sldr Debug",
+      "timestamp": 1773329837482
+    },
+    {
+      "action": "close",
+      "path": "crates/sldr-renderer/assets/test-inline.html",
+      "timestamp": 1773329987022
+    }
+  ]
+}

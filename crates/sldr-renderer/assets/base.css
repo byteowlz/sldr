@@ -373,25 +373,38 @@ tr:hover td {
 }
 
 /* === Transitions === */
+
+/* Entering slide must render above exiting slide for proper layering */
+.tr-fade-enter,
+.tr-slide-left-enter,
+.tr-slide-right-enter {
+  z-index: 2;
+}
+.tr-fade-exit,
+.tr-slide-left-exit,
+.tr-slide-right-exit {
+  z-index: 1;
+}
+
 .tr-fade-enter {
-  animation: sldrFadeIn 0.3s ease forwards;
+  animation: sldrFadeIn 0.4s ease forwards;
 }
 .tr-fade-exit {
-  animation: sldrFadeOut 0.3s ease forwards;
+  animation: sldrFadeOut 0.4s ease forwards;
 }
 
 .tr-slide-left-enter {
-  animation: sldrSlideLeftIn 0.3s ease forwards;
+  animation: sldrSlideLeftIn 0.4s ease forwards;
 }
 .tr-slide-left-exit {
-  animation: sldrSlideLeftOut 0.3s ease forwards;
+  animation: sldrSlideLeftOut 0.4s ease forwards;
 }
 
 .tr-slide-right-enter {
-  animation: sldrSlideRightIn 0.3s ease forwards;
+  animation: sldrSlideRightIn 0.4s ease forwards;
 }
 .tr-slide-right-exit {
-  animation: sldrSlideRightOut 0.3s ease forwards;
+  animation: sldrSlideRightOut 0.4s ease forwards;
 }
 
 .tr-none {
