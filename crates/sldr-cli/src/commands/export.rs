@@ -115,7 +115,21 @@ pub fn run(
 
     match format {
         "pdf" => export_pdf(&html, &output_path)?,
-        other => anyhow::bail!("Unsupported export format: {other}. Supported: pdf"),
+        "pptx" => {
+            let pptx_path = if output_path.extension().is_some_and(|e| e == "pdf") {
+                output_path.with_extension("pptx")
+            } else {
+                output_path.clone()
+            };
+            export_pptx(&html, resolved_slides.len(), &pptx_path)?;
+            println!(
+                "\n{} Exported to {}",
+                "Success!".green().bold(),
+                pptx_path.display().to_string().cyan()
+            );
+            return Ok(());
+        }
+        other => anyhow::bail!("Unsupported export format: {other}. Supported: pdf, pptx"),
     }
 
     println!(
@@ -199,6 +213,79 @@ fn export_pdf(html: &str, output_path: &std::path::Path) -> Result<()> {
 
         Ok::<(), anyhow::Error>(())
     })?;
+
+    Ok(())
+}
+
+fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) -> Result<()> {
+    let browser = find_browser()?;
+    println!("  {} Using {}", "i".blue(), browser.display());
+    println!(
+        "  {} Capturing {} slide screenshots...",
+        ">".cyan(),
+        slide_count
+    );
+
+    let temp_dir = tempfile::tempdir()?;
+    let html_owned = html.to_string();
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let images = rt.block_on(async {
+        // Allocate port and start server
+        let port = allocate_port()?;
+        let addr = format!("127.0.0.1:{port}");
+        let listener = tokio::net::TcpListener::bind(&addr).await?;
+
+        let app = axum::Router::new().route(
+            "/",
+            axum::routing::get(move || {
+                let content = html_owned.clone();
+                async move { axum::response::Html(content) }
+            }),
+        );
+
+        let server_handle = tokio::spawn(async move {
+            axum::serve(listener, app).await.ok();
+        });
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Screenshot each slide by navigating to #/N
+        let mut image_paths = Vec::new();
+        for i in 1..=slide_count {
+            let url = format!("http://127.0.0.1:{port}/#{i}");
+            let img_path = temp_dir.path().join(format!("slide_{i}.png"));
+
+            let status = tokio::process::Command::new(&browser)
+                .args([
+                    "--headless",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    "--window-size=1920,1080",
+                    "--hide-scrollbars",
+                    "--virtual-time-budget=3000",
+                    &format!("--screenshot={}", img_path.display()),
+                    &url,
+                ])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .await
+                .with_context(|| format!("Failed to screenshot slide {i}"))?;
+
+            if !status.success() {
+                anyhow::bail!("Chrome screenshot failed for slide {i}");
+            }
+
+            image_paths.push(img_path);
+        }
+
+        server_handle.abort();
+        Ok::<Vec<PathBuf>, anyhow::Error>(image_paths)
+    })?;
+
+    println!("  {} Creating PPTX...", ">".cyan());
+    sldr_renderer::pptx::create_pptx(&images, output_path)?;
 
     Ok(())
 }

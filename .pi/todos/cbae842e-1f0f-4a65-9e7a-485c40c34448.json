@@ -27,9 +27,9 @@
     {
       "id": "t8-pptx",
       "content": "trx-8crj.8: PPTX export from rendered HTML",
-      "status": "pending",
+      "status": "completed",
       "priority": "low"
     }
   ],
-  "updated_at": "2026-03-12T13:43:02.011Z"
+  "updated_at": "2026-03-12T13:46:12.563Z"
 }

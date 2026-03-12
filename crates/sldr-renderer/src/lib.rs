@@ -23,6 +23,7 @@
 //! ```
 
 mod markdown;
+pub mod pptx;
 mod render;
 mod template;
 
