@@ -659,6 +659,118 @@ html:not(.dark) .sldr-flavor-item {
   font-variant-numeric: tabular-nums;
 }
 
+/* === Edit mode === */
+.sldr-edit-mode .sldr-editable {
+  outline: 2px dashed rgba(99, 102, 241, 0.4);
+  outline-offset: 4px;
+  border-radius: 4px;
+  min-height: 1em;
+  cursor: text;
+  transition: outline-color 0.2s;
+}
+
+.sldr-edit-mode .sldr-editable:focus {
+  outline-color: var(--sldr-primary, #6366f1);
+  outline-style: solid;
+}
+
+.sldr-edit-mode .sldr-editable:hover:not(:focus) {
+  outline-color: rgba(99, 102, 241, 0.6);
+}
+
+/* Edit mode indicator - top border */
+.sldr-edit-mode::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--sldr-primary, #6366f1);
+  z-index: 300;
+}
+
+/* Floating edit toolbar */
+.sldr-edit-toolbar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(30, 30, 46, 0.95);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+html:not(.dark) .sldr-edit-toolbar {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(128, 128, 128, 0.2);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.sldr-edit-toolbar-visible {
+  display: flex;
+}
+
+.sldr-edit-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--sldr-primary, #6366f1);
+  padding: 0 8px 0 4px;
+  font-family: var(--sldr-code-font, monospace);
+}
+
+.sldr-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--sldr-text, #e0e0e0);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--sldr-body-font, system-ui, sans-serif);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+html:not(.dark) .sldr-edit-btn {
+  color: #1f2937;
+}
+
+.sldr-edit-btn:hover {
+  background: rgba(128, 128, 128, 0.15);
+  border-color: rgba(128, 128, 128, 0.4);
+}
+
+.sldr-edit-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(128, 128, 128, 0.3);
+  margin: 0 4px;
+}
+
+.sldr-edit-save {
+  color: var(--sldr-primary, #6366f1);
+  font-weight: 700;
+}
+
+.sldr-edit-close {
+  color: #ef4444;
+}
+
 /* === Print styles === */
 @media print {
   html,
@@ -692,7 +804,8 @@ html:not(.dark) .sldr-flavor-item {
   .sldr-progress,
   .sldr-nav,
   .sldr-overview,
-  .sldr-toolbar {
+  .sldr-toolbar,
+  .sldr-edit-toolbar {
     display: none !important;
   }
 
