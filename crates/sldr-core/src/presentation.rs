@@ -67,11 +67,12 @@ pub struct SlidevConfig {
     #[serde(default)]
     pub dark_mode: Option<bool>,
 
-    /// Aspect ratio (e.g., "16/9", "4/3")
+    /// Aspect ratio hint for PDF/PPTX export viewport (e.g., "16/9", "4/3").
+    /// The HTML output is fully responsive and fills the browser viewport.
     #[serde(default)]
     pub aspect_ratio: Option<String>,
 
-    /// Canvas width hint in pixels (informational)
+    /// Canvas width hint in pixels for export (informational)
     #[serde(default)]
     pub canvas_width: Option<u32>,
 

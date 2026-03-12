@@ -64,7 +64,7 @@
       "type": "object",
       "properties": {
         "aspect_ratio": {
-          "description": "Aspect ratio (e.g., \"16/9\", \"4/3\")",
+          "description": "Aspect ratio hint for PDF/PPTX export viewport (e.g., \"16/9\", \"4/3\").\nThe HTML output is fully responsive and fills the browser viewport.",
           "type": [
             "string",
             "null"
@@ -72,7 +72,7 @@
           "default": null
         },
         "canvas_width": {
-          "description": "Canvas width hint in pixels (informational)",
+          "description": "Canvas width hint in pixels for export (informational)",
           "type": [
             "integer",
             "null"

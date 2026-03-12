@@ -29,7 +29,8 @@ pub struct RenderConfig {
     /// Transition style ("fade", "slide-left", "slide-right", "none")
     pub transition: String,
 
-    /// Aspect ratio hint (informational, CSS handles actual sizing)
+    /// Aspect ratio hint for PDF/PPTX export viewport. The HTML output is
+    /// fully responsive and fills the browser viewport regardless of this value.
     pub aspect_ratio: String,
 
     /// Whether to include speaker notes support
