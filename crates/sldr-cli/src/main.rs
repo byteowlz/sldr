@@ -90,6 +90,24 @@ enum Commands {
         rebuild: bool,
     },
 
+    /// Export a presentation to PDF
+    Export {
+        /// Name of the skeleton to export
+        skeleton: String,
+
+        /// Flavor to apply
+        #[arg(short, long)]
+        flavor: Option<String>,
+
+        /// Output file path (default: <output_dir>/<skeleton>.pdf)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Export format (currently: pdf)
+        #[arg(long, default_value = "pdf")]
+        format: String,
+    },
+
     /// Watch a presentation for changes and live-reload in browser
     Watch {
         /// Name of the skeleton to watch
@@ -317,6 +335,13 @@ fn main() -> anyhow::Result<()> {
             port,
             rebuild,
         } => commands::open::run(&presentation, port, rebuild),
+
+        Commands::Export {
+            skeleton,
+            flavor,
+            output,
+            format,
+        } => commands::export::run(&skeleton, flavor, output, &format),
 
         Commands::Watch {
             skeleton,

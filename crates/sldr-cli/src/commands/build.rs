@@ -113,11 +113,8 @@ pub fn run(
     println!("  Or run: sldr open {}", skeleton_name);
 
     if pdf {
-        println!(
-            "\n  {} PDF export via headless browser not yet implemented",
-            "i".blue()
-        );
-        println!("  For now, use Ctrl+P in the browser (print styles are built in)");
+        println!("\n  {} Exporting to PDF...", ">".cyan());
+        super::export::run(skeleton_name, None, None, "pdf")?;
     }
 
     Ok(())

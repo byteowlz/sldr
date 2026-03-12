@@ -15,7 +15,7 @@
     {
       "id": "t7-pdf",
       "content": "trx-8crj.7: PDF export via headless Chrome/Playwright",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium"
     },
     {
@@ -31,5 +31,5 @@
       "priority": "low"
     }
   ],
-  "updated_at": "2026-03-12T13:30:50.508Z"
+  "updated_at": "2026-03-12T13:40:59.155Z"
 }
