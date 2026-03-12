@@ -202,6 +202,17 @@ accent = "#f59e0b"
 # Code block background
 code_background = "#f3f4f6"
 
+# Dark mode color overrides (applied when dark mode is toggled)
+# Only specify values you want to override; unset values keep the light defaults.
+[dark_colors]
+primary = "#60a5fa"
+secondary = "#818cf8"
+background = "#0f172a"
+text = "#e2e8f0"
+accent = "#fbbf24"
+code_background = "#1e293b"
+code_text = "#e2e8f0"
+
 [typography]
 # Font for headings (h1-h6)
 heading_font = "Inter, sans-serif"

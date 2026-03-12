@@ -3,10 +3,10 @@
  *
  * Vanilla JS presentation controller embedded into self-contained HTML output.
  * Features: keyboard navigation, CSS transitions, speaker notes, overview grid,
- * touch gestures, fullscreen, progress bar, URL hash routing, dark mode toggle,
- * click-through builds (data-click-step).
+ * touch gestures, fullscreen, progress bar, URL hash routing, dark/light mode
+ * toggle, live flavor switching, click-through builds (data-click-step).
  *
- * No external dependencies. Single IIFE, ~400 lines.
+ * No external dependencies. Single IIFE.
  */
 (function () {
   "use strict";
@@ -30,14 +30,224 @@
   // State
   // ---------------------------------------------------------------------------
   var current = 0;
-  var clickStep = 0; // current build step within a slide
+  var clickStep = 0;
   var overviewOpen = false;
+  var flavorPanelOpen = false;
   var transition = deck.dataset.transition || "fade";
+  var isDark = document.documentElement.classList.contains("dark");
+
+  // ---------------------------------------------------------------------------
+  // Flavor system
+  // ---------------------------------------------------------------------------
+  var flavorStyles = Array.from(document.querySelectorAll("style[data-flavor]"));
+  var flavorNames = flavorStyles.map(function (s) { return s.dataset.flavor; });
+  var activeFlavor = "";
+
+  function initFlavors() {
+    // Find which flavor is currently active (enabled)
+    for (var i = 0; i < flavorStyles.length; i++) {
+      if (!flavorStyles[i].disabled) {
+        activeFlavor = flavorStyles[i].dataset.flavor;
+        break;
+      }
+    }
+    // If none active but flavors exist, activate the first
+    if (!activeFlavor && flavorStyles.length > 0) {
+      activeFlavor = flavorStyles[0].dataset.flavor;
+      flavorStyles[0].disabled = false;
+    }
+  }
+
+  function switchFlavor(name) {
+    if (name === activeFlavor) return;
+
+    for (var i = 0; i < flavorStyles.length; i++) {
+      if (flavorStyles[i].dataset.flavor === name) {
+        flavorStyles[i].disabled = false;
+      } else {
+        flavorStyles[i].disabled = true;
+      }
+    }
+
+    activeFlavor = name;
+    updateToolbarFlavor();
+
+    // Persist choice in sessionStorage
+    try { sessionStorage.setItem("sldr-flavor", name); } catch (e) { /* noop */ }
+  }
+
+  function restoreFlavor() {
+    try {
+      var saved = sessionStorage.getItem("sldr-flavor");
+      if (saved && flavorNames.indexOf(saved) !== -1) {
+        switchFlavor(saved);
+      }
+    } catch (e) { /* noop */ }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dark / Light mode
+  // ---------------------------------------------------------------------------
+  function toggleDarkMode() {
+    isDark = !isDark;
+    document.documentElement.classList.toggle("dark", isDark);
+    updateToolbarDark();
+
+    // Persist choice
+    try { sessionStorage.setItem("sldr-dark", isDark ? "1" : "0"); } catch (e) { /* noop */ }
+  }
+
+  function restoreDarkMode() {
+    try {
+      var saved = sessionStorage.getItem("sldr-dark");
+      if (saved === "1" && !isDark) {
+        toggleDarkMode();
+      } else if (saved === "0" && isDark) {
+        toggleDarkMode();
+      }
+    } catch (e) { /* noop */ }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Toolbar (bottom bar with dark mode toggle + flavor selector)
+  // ---------------------------------------------------------------------------
+  var toolbar = null;
+  var darkBtn = null;
+  var flavorBtn = null;
+  var flavorPanel = null;
+
+  function createToolbar() {
+    toolbar = document.createElement("div");
+    toolbar.className = "sldr-toolbar";
+
+    // Dark mode toggle button
+    darkBtn = document.createElement("button");
+    darkBtn.className = "sldr-toolbar-btn";
+    darkBtn.setAttribute("aria-label", "Toggle dark/light mode (D)");
+    darkBtn.setAttribute("title", "Toggle dark/light mode (D)");
+    darkBtn.innerHTML = isDark ? getSunIcon() : getMoonIcon();
+    darkBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      toggleDarkMode();
+    });
+
+    toolbar.appendChild(darkBtn);
+
+    // Flavor selector - only show if there are multiple flavors
+    if (flavorNames.length > 1) {
+      // Flavor button
+      flavorBtn = document.createElement("button");
+      flavorBtn.className = "sldr-toolbar-btn sldr-flavor-btn";
+      flavorBtn.setAttribute("aria-label", "Switch flavor (T)");
+      flavorBtn.setAttribute("title", "Switch flavor (T)");
+      flavorBtn.innerHTML = getPaletteIcon() + '<span class="sldr-flavor-label">' + escapeHtml(activeFlavor) + "</span>";
+      flavorBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        toggleFlavorPanel();
+      });
+
+      toolbar.appendChild(flavorBtn);
+
+      // Flavor panel (dropdown)
+      flavorPanel = document.createElement("div");
+      flavorPanel.className = "sldr-flavor-panel";
+      flavorPanel.setAttribute("aria-hidden", "true");
+
+      for (var i = 0; i < flavorNames.length; i++) {
+        var item = document.createElement("button");
+        item.className = "sldr-flavor-item";
+        if (flavorNames[i] === activeFlavor) item.classList.add("sldr-flavor-active");
+        item.textContent = flavorNames[i];
+        item.dataset.flavor = flavorNames[i];
+        item.addEventListener("click", onFlavorItemClick);
+        flavorPanel.appendChild(item);
+      }
+
+      toolbar.appendChild(flavorPanel);
+    }
+
+    document.body.appendChild(toolbar);
+  }
+
+  function onFlavorItemClick(e) {
+    e.stopPropagation();
+    var name = e.currentTarget.dataset.flavor;
+    switchFlavor(name);
+    closeFlavorPanel();
+  }
+
+  function toggleFlavorPanel() {
+    if (!flavorPanel) return;
+    flavorPanelOpen = !flavorPanelOpen;
+
+    if (flavorPanelOpen) {
+      flavorPanel.classList.add("sldr-flavor-panel-open");
+      flavorPanel.setAttribute("aria-hidden", "false");
+    } else {
+      closeFlavorPanel();
+    }
+  }
+
+  function closeFlavorPanel() {
+    if (!flavorPanel) return;
+    flavorPanelOpen = false;
+    flavorPanel.classList.remove("sldr-flavor-panel-open");
+    flavorPanel.setAttribute("aria-hidden", "true");
+  }
+
+  function updateToolbarDark() {
+    if (darkBtn) {
+      darkBtn.innerHTML = isDark ? getSunIcon() : getMoonIcon();
+    }
+  }
+
+  function updateToolbarFlavor() {
+    if (flavorBtn) {
+      flavorBtn.innerHTML = getPaletteIcon() + '<span class="sldr-flavor-label">' + escapeHtml(activeFlavor) + "</span>";
+    }
+    if (flavorPanel) {
+      var items = flavorPanel.querySelectorAll(".sldr-flavor-item");
+      for (var i = 0; i < items.length; i++) {
+        items[i].classList.toggle("sldr-flavor-active", items[i].dataset.flavor === activeFlavor);
+      }
+    }
+  }
+
+  // Close flavor panel on outside click
+  function onDocumentClick() {
+    if (flavorPanelOpen) closeFlavorPanel();
+  }
+
+  // ---------------------------------------------------------------------------
+  // SVG icons (inline, no external deps)
+  // ---------------------------------------------------------------------------
+  function getSunIcon() {
+    return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+  }
+
+  function getMoonIcon() {
+    return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  }
+
+  function getPaletteIcon() {
+    return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.04-.23-.29-.38-.63-.38-1.02 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.17-4.36-8.94-10-8.94z"/></svg>';
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+  }
 
   // ---------------------------------------------------------------------------
   // Initialisation
   // ---------------------------------------------------------------------------
   function init() {
+    // Init flavors and restore preferences
+    initFlavors();
+    restoreFlavor();
+    restoreDarkMode();
+
     // Read initial slide from URL hash
     var hash = parseHash();
     if (hash >= 0 && hash < total) {
@@ -47,8 +257,12 @@
     // Mark first slide active
     showSlide(current, "none");
 
+    // Create toolbar
+    createToolbar();
+
     // Event listeners
     document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onDocumentClick);
     window.addEventListener("hashchange", onHashChange);
     window.addEventListener("resize", onResize);
     initTouch();
@@ -58,9 +272,8 @@
   // Navigation
   // ---------------------------------------------------------------------------
   function next() {
-    if (overviewOpen) return;
+    if (overviewOpen || flavorPanelOpen) return;
 
-    // Check for click-through build steps
     var maxSteps = getMaxClickStep(slides[current]);
     if (clickStep < maxSteps) {
       clickStep++;
@@ -75,9 +288,8 @@
   }
 
   function prev() {
-    if (overviewOpen) return;
+    if (overviewOpen || flavorPanelOpen) return;
 
-    // Step backwards through click steps first
     if (clickStep > 0) {
       clickStep--;
       applyClickSteps(slides[current], clickStep);
@@ -114,7 +326,6 @@
         slide.classList.add("active");
         slide.removeAttribute("aria-hidden");
 
-        // Apply enter transition
         if (dir !== "none") {
           var enterClass = getTransitionClass(dir, "enter");
           slide.classList.add(enterClass);
@@ -128,10 +339,8 @@
           );
         }
 
-        // Reset click steps to 0 (hide all build elements)
         applyClickSteps(slide, 0);
       } else {
-        // Apply exit transition to previous slide
         if (dir !== "none" && i === prevIndex) {
           var exitClass = getTransitionClass(dir, "exit");
           slide.classList.add(exitClass);
@@ -153,7 +362,6 @@
   }
 
   function getTransitionClass(dir, phase) {
-    // phase: "enter" or "exit"
     if (transition === "none") return "tr-none";
     if (transition === "fade") return "tr-fade-" + phase;
     if (transition === "slide-left") {
@@ -212,7 +420,7 @@
   // ---------------------------------------------------------------------------
   function parseHash() {
     var m = window.location.hash.match(/^#\/?(\d+)$/);
-    if (m) return parseInt(m[1], 10) - 1; // 1-indexed in URL, 0-indexed internally
+    if (m) return parseInt(m[1], 10) - 1;
     return -1;
   }
 
@@ -234,7 +442,6 @@
   // Keyboard handling
   // ---------------------------------------------------------------------------
   function onKey(e) {
-    // Ignore if user is typing in an input/textarea/contenteditable
     var tag = e.target.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || e.target.isContentEditable) {
       return;
@@ -247,6 +454,7 @@
       case "Enter":
         e.preventDefault();
         if (overviewOpen) return;
+        if (flavorPanelOpen) { closeFlavorPanel(); return; }
         next();
         break;
 
@@ -255,6 +463,7 @@
       case "Backspace":
         e.preventDefault();
         if (overviewOpen) return;
+        if (flavorPanelOpen) { closeFlavorPanel(); return; }
         prev();
         break;
 
@@ -292,16 +501,23 @@
         toggleDarkMode();
         break;
 
+      case "t":
+      case "T":
+        e.preventDefault();
+        if (flavorNames.length > 1) toggleFlavorPanel();
+        break;
+
       case "Escape":
-        if (overviewOpen) {
+        if (flavorPanelOpen) {
+          e.preventDefault();
+          closeFlavorPanel();
+        } else if (overviewOpen) {
           e.preventDefault();
           toggleOverview();
         }
         break;
 
       default:
-        // Number key + Enter: go to slide N
-        // We handle just the digit accumulation here
         break;
     }
   }
@@ -333,7 +549,6 @@
         var dx = touch.clientX - startX;
         var dy = touch.clientY - startY;
 
-        // Only handle horizontal swipes (ignore vertical scroll-like gestures)
         if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > threshold) {
           if (dx < 0) {
             next();
@@ -389,7 +604,6 @@
       thumb.dataset.index = i;
       thumb.setAttribute("aria-label", "Go to slide " + (i + 1));
 
-      // Clone slide content as thumbnail
       var clone = slides[i].cloneNode(true);
       clone.classList.remove("active");
       clone.removeAttribute("aria-hidden");
@@ -432,7 +646,7 @@
     }
 
     notesWin = window.open("", "sldr-notes", "width=500,height=400");
-    if (!notesWin) return; // popup blocked
+    if (!notesWin) return;
 
     notesWin.document.write(
       "<!DOCTYPE html><html><head>" +
@@ -490,18 +704,10 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Dark mode
-  // ---------------------------------------------------------------------------
-  function toggleDarkMode() {
-    document.documentElement.classList.toggle("dark");
-  }
-
-  // ---------------------------------------------------------------------------
-  // Resize handling (maintains aspect ratio)
+  // Resize handling
   // ---------------------------------------------------------------------------
   function onResize() {
-    // The CSS handles scaling via aspect-ratio + viewport units.
-    // This hook is available for future enhancements.
+    // CSS handles scaling. Hook for future enhancements.
   }
 
   // ---------------------------------------------------------------------------

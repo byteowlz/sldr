@@ -1,29 +1,29 @@
 {
   "todos": [
     {
-      "id": "phase1-presenter",
-      "content": "trx-8crj.1: Write presenter.js (keyboard nav, transitions, speaker notes, overview grid, touch, fullscreen, progress bar, URL hash)",
+      "id": "live-darkmode",
+      "content": "Add dark/light mode toggle UI (not just D key) with smooth transition",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "phase1-flavors",
-      "content": "trx-8crj.3: Port flavor CSS from .slidev-* selectors to .sldr-* selectors",
+      "id": "live-flavor",
+      "content": "Add live flavor selector panel - switch between embedded flavor presets during presentation",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "phase1-templates",
-      "content": "trx-8crj.4: Convert slidev Vue templates to HTML fragment templates",
+      "id": "live-css",
+      "content": "Update base.css with dark mode variables, flavor switcher panel, toggle button styles",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "phase1-verify",
-      "content": "Verify Phase 1: remote-build check, test standalone HTML with presenter.js",
+      "id": "live-test",
+      "content": "Update test-presenter.html with multiple flavors and verify everything works",
       "status": "completed",
       "priority": "high"
     }
   ],
-  "updated_at": "2026-03-11T16:18:38.914Z"
+  "updated_at": "2026-03-12T09:40:38.190Z"
 }
