@@ -14,11 +14,14 @@ pub fn wrap_slide(
     rendered: MarkdownOutput,
     speaker_notes: Option<&str>,
 ) -> String {
+    use std::fmt::Write as _;
+
     let mut html = String::new();
 
-    html.push_str(&format!(
-        "<section class=\"sldr-slide\" data-layout=\"{layout}\" data-index=\"{index}\">\n"
-    ));
+    let _ = writeln!(
+        html,
+        "<section class=\"sldr-slide\" data-layout=\"{layout}\" data-index=\"{index}\">"
+    );
 
     match rendered {
         MarkdownOutput::Single(content) => {

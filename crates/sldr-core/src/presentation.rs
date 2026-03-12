@@ -275,7 +275,7 @@ impl Presentation {
 
             // Apply variables to slidev elements
             css.push_str(
-                r#"
+                r"
 /* Apply sldr flavor variables */
 .slidev-layout {
   --slidev-theme-primary: var(--sldr-primary, #3b82f6);
@@ -342,7 +342,7 @@ pre.astro-code,
 a {
   color: var(--sldr-accent, var(--sldr-primary, #3b82f6));
 }
-"#,
+",
             );
 
             // Add background styles if configured

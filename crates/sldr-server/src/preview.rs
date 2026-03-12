@@ -35,6 +35,12 @@ pub struct PreviewManager {
     cleanup_interval: Duration,
 }
 
+impl Default for PreviewManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PreviewManager {
     pub fn new() -> Self {
         let manager = Self {

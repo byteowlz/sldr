@@ -12,7 +12,7 @@ use sldr_core::config::Config;
 
 /// A tiny JS snippet injected into the page that expands all slides
 /// for printing (shows all slides, no transitions, no toolbar).
-const PRINT_PREP_SCRIPT: &str = r#"
+const PRINT_PREP_SCRIPT: &str = r"
 <script>
 // When loaded with ?print query param, prepare for PDF export
 if (window.location.search.includes('print')) {
@@ -34,7 +34,7 @@ if (window.location.search.includes('print')) {
   });
 }
 </script>
-"#;
+";
 
 pub fn run(
     skeleton_name: &str,
