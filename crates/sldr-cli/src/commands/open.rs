@@ -1,13 +1,13 @@
-//! Open command - start slidev server for a presentation
+//! Open command - open a built presentation in the browser
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Select};
 use sldr_core::config::Config;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
 use std::process::Command;
 
-pub fn run(presentation: &str, port: Option<String>, rebuild: bool) -> Result<()> {
+pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<()> {
     let config = Config::load()?;
 
     // Find the presentation with fuzzy matching
@@ -24,20 +24,20 @@ pub fn run(presentation: &str, port: Option<String>, rebuild: bool) -> Result<()
         presentation_name.cyan()
     );
 
+    // Check for index.html (new renderer) or slides.md (legacy slidev)
+    let index_path = output_dir.join("index.html");
     let slides_path = output_dir.join("slides.md");
-    let package_json = output_dir.join("package.json");
 
-    if !slides_path.exists() {
+    if !index_path.exists() && !slides_path.exists() {
         anyhow::bail!(
-            "slides.md not found in {}. Try rebuilding the presentation.",
+            "No presentation found in {}. Build one first with: sldr build <skeleton>",
             output_dir.display()
         );
     }
 
-    // Check if rebuild is needed or requested
+    // Rebuild if requested
     if rebuild {
         println!("  {} Rebuilding presentation...", "i".blue());
-        // Call build command
         super::build::run(
             presentation_name,
             None,
@@ -47,40 +47,32 @@ pub fn run(presentation: &str, port: Option<String>, rebuild: bool) -> Result<()
         )?;
     }
 
-    // Install dependencies if needed
-    let node_modules = output_dir.join("node_modules");
-    if !node_modules.exists() && package_json.exists() {
-        println!("  {} Installing dependencies...", "i".blue());
-        let status = Command::new("bun")
-            .arg("install")
-            .current_dir(&output_dir)
-            .status()
-            .context("Failed to run bun install. Is bun installed?")?;
+    if index_path.exists() {
+        // New HTML renderer output - open directly in browser
+        println!(
+            "  {} Opening {} in browser",
+            ">".cyan(),
+            index_path.display()
+        );
 
-        if !status.success() {
-            anyhow::bail!("bun install failed");
+        open_in_browser(&index_path.to_string_lossy())?;
+    } else {
+        // Legacy slidev project - inform user to rebuild
+        println!(
+            "  {} Found legacy slidev project. Rebuilding as HTML...",
+            "i".blue()
+        );
+        super::build::run(
+            presentation_name,
+            None,
+            false,
+            false,
+            Some(output_dir.to_string_lossy().to_string()),
+        )?;
+
+        if index_path.exists() {
+            open_in_browser(&index_path.to_string_lossy())?;
         }
-    }
-
-    let port = port.unwrap_or_else(|| config.config.slidev_port.clone());
-
-    println!("  {} Starting slidev on port {}", "i".blue(), port.yellow());
-    println!(
-        "  {} Open {} in your browser",
-        ">".cyan(),
-        format!("http://localhost:{port}").underline()
-    );
-    println!("  {} Press Ctrl+C to stop\n", "i".dimmed());
-
-    // Start slidev using bun
-    let status = Command::new("bun")
-        .args(["run", "dev", "--", "--port", &port])
-        .current_dir(&output_dir)
-        .status()
-        .context("Failed to start slidev")?;
-
-    if !status.success() {
-        anyhow::bail!("Slidev exited with error");
     }
 
     Ok(())
@@ -96,8 +88,10 @@ fn resolve_presentation(config: &Config, name: &str) -> Result<std::path::PathBu
         for entry in std::fs::read_dir(&output_dir)? {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
-                // Check if it has slides.md
-                if entry.path().join("slides.md").exists() {
+                // Check for index.html (new) or slides.md (legacy)
+                let has_index = entry.path().join("index.html").exists();
+                let has_slides = entry.path().join("slides.md").exists();
+                if has_index || has_slides {
                     if let Some(name) = entry.file_name().to_str() {
                         presentations.push(name.to_string());
                     }
@@ -135,4 +129,38 @@ fn resolve_presentation(config: &Config, name: &str) -> Result<std::path::PathBu
             Ok(output_dir.join(&matches[selection].value))
         }
     }
+}
+
+/// Open a file or URL in the default browser
+fn open_in_browser(path: &str) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(path).spawn()?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try xdg-open first, then common browsers
+        let result = Command::new("xdg-open").arg(path).spawn();
+        if result.is_err() {
+            // Fallback: try common browsers
+            for browser in &["firefox", "chromium", "google-chrome", "brave"] {
+                if Command::new(browser).arg(path).spawn().is_ok() {
+                    return Ok(());
+                }
+            }
+            println!(
+                "  {} Could not open browser. Open manually: {}",
+                "!".yellow(),
+                path
+            );
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd").args(["/C", "start", path]).spawn()?;
+    }
+
+    Ok(())
 }

@@ -9,13 +9,13 @@
     {
       "id": "p2-wire-build",
       "content": "trx-8crj.5: Wire sldr build/open/preview to output HTML instead of slidev markdown",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "high"
     },
     {
       "id": "p2-cleanup",
       "content": "trx-8crj.9: Remove slidev dependency (SlidevManager, npm deps, package.json generation)",
-      "status": "pending",
+      "status": "in_progress",
       "priority": "high"
     },
     {
@@ -25,5 +25,5 @@
       "priority": "high"
     }
   ],
-  "updated_at": "2026-03-12T11:37:17.792Z"
+  "updated_at": "2026-03-12T11:39:07.246Z"
 }

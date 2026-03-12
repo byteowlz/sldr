@@ -1,14 +1,16 @@
-//! Preview command - quickly preview a single slide or slide file
+//! Preview command - quickly preview a single slide as self-contained HTML
 
 use anyhow::{Context, Result};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Select};
 use sldr_core::config::Config;
+use sldr_core::flavor::Flavor;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::slide::SlideCollection;
+use sldr_core::slide::{Slide, SlideCollection};
+use sldr_renderer::{HtmlRenderer, RenderConfig};
 use std::process::Command;
 
-pub fn run(slide: &str, port: Option<String>) -> Result<()> {
+pub fn run(slide: &str, _port: Option<String>) -> Result<()> {
     let config = Config::load()?;
 
     println!("{} slide '{}'", "Previewing".green().bold(), slide.cyan());
@@ -17,16 +19,16 @@ pub fn run(slide: &str, port: Option<String>) -> Result<()> {
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
     let matcher = SldrMatcher::new(config.matching.clone());
 
-    let slide_path = match matcher.resolve(slide, &slides.names()) {
+    let found_slide = match matcher.resolve(slide, &slides.names()) {
         ResolveResult::Found(result) => slides
             .find(&result.value)
-            .map(|s| s.path.clone())
+            .cloned()
             .context("Slide not found")?,
         ResolveResult::NotFound => {
             // Maybe it's a direct path?
             let direct_path = Config::expand_path(slide);
             if direct_path.exists() {
-                direct_path
+                Slide::load(&direct_path)?
             } else {
                 println!("{} Slide '{}' not found.", "!".red(), slide);
                 println!("Available slides:");
@@ -63,90 +65,67 @@ pub fn run(slide: &str, port: Option<String>) -> Result<()> {
 
             slides
                 .find(&matches[selection].value)
-                .map(|s| s.path.clone())
+                .cloned()
                 .context("Slide not found")?
         }
     };
 
-    // Create a temporary slidev project for preview
+    let slide_title = found_slide
+        .metadata
+        .title
+        .as_deref()
+        .unwrap_or("Preview");
+
+    // Render to a temp HTML file
     let temp_dir = std::env::temp_dir().join(format!("sldr-preview-{}", std::process::id()));
     std::fs::create_dir_all(&temp_dir)?;
 
-    // Read the slide content
-    let slide_content = std::fs::read_to_string(&slide_path)?;
+    let render_config = RenderConfig {
+        title: format!("Preview: {slide_title}"),
+        transition: "fade".to_string(),
+        ..Default::default()
+    };
 
-    // Create slides.md with minimal frontmatter
-    let preview_content = format!(
-        r"---
-theme: default
-title: Preview
----
+    let mut renderer = HtmlRenderer::new(render_config).add_flavor(Flavor::default());
+    renderer.add_slide(&found_slide);
 
-{}
-",
-        slide_content.trim()
-    );
-
-    std::fs::write(temp_dir.join("slides.md"), preview_content)?;
-
-    // Create minimal package.json
-    let package_json = serde_json::json!({
-        "name": "sldr-preview",
-        "type": "module",
-        "private": true,
-        "scripts": {
-            "dev": "slidev --open"
-        },
-        "dependencies": {
-            "@slidev/cli": "^52.0.0",
-            "@slidev/theme-default": "latest"
-        }
-    });
-    std::fs::write(
-        temp_dir.join("package.json"),
-        serde_json::to_string_pretty(&package_json)?,
-    )?;
-
-    let port = port.unwrap_or_else(|| config.config.slidev_port.clone());
-
-    println!("  {} Installing dependencies...", "i".blue());
-
-    let install_status = Command::new("bun")
-        .arg("install")
-        .current_dir(&temp_dir)
-        .stdout(std::process::Stdio::null())
-        .status()
-        .context("Failed to run bun install")?;
-
-    if !install_status.success() {
-        anyhow::bail!("bun install failed");
-    }
+    let output_path = temp_dir.join("index.html");
+    renderer.render_to_file(&output_path)?;
 
     println!(
-        "  {} Starting preview on port {}",
-        "i".blue(),
-        port.yellow()
-    );
-    println!(
-        "  {} Open {} in your browser",
+        "  {} Opening {} in browser",
         ">".cyan(),
-        format!("http://localhost:{port}").underline()
+        output_path.display()
     );
-    println!("  {} Press Ctrl+C to stop\n", "i".dimmed());
 
-    // Start slidev
-    let status = Command::new("bun")
-        .args(["run", "dev", "--", "--port", &port])
-        .current_dir(&temp_dir)
-        .status()
-        .context("Failed to start slidev")?;
-
-    // Cleanup temp directory
-    let _ = std::fs::remove_dir_all(&temp_dir);
-
-    if !status.success() {
-        anyhow::bail!("Slidev exited with error");
+    // Open in browser
+    #[cfg(target_os = "linux")]
+    {
+        let _ = Command::new("xdg-open")
+            .arg(output_path.to_string_lossy().as_ref())
+            .spawn();
     }
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = Command::new("open")
+            .arg(output_path.to_string_lossy().as_ref())
+            .spawn();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let _ = Command::new("cmd")
+            .args(["/C", "start", &output_path.to_string_lossy()])
+            .spawn();
+    }
+
+    println!(
+        "\n  {} Preview at: {}",
+        "i".blue(),
+        output_path.display().to_string().underline()
+    );
+    println!("  {} Temp files will be cleaned up on next run", "i".dimmed());
 
     Ok(())
 }
