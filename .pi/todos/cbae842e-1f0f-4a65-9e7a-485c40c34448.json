@@ -3,7 +3,7 @@
     {
       "id": "t6-watch",
       "content": "trx-8crj.6: sldr watch with live-reload (tiny HTTP server + WebSocket + file watcher)",
-      "status": "pending",
+      "status": "completed",
       "priority": "high"
     },
     {
@@ -31,5 +31,5 @@
       "priority": "low"
     }
   ],
-  "updated_at": "2026-03-12T13:27:46.422Z"
+  "updated_at": "2026-03-12T13:30:50.508Z"
 }

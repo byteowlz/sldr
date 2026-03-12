@@ -90,6 +90,20 @@ enum Commands {
         rebuild: bool,
     },
 
+    /// Watch a presentation for changes and live-reload in browser
+    Watch {
+        /// Name of the skeleton to watch
+        skeleton: String,
+
+        /// Flavor to apply
+        #[arg(short, long)]
+        flavor: Option<String>,
+
+        /// Port for the dev server (default: from config or 3030)
+        #[arg(short, long)]
+        port: Option<u16>,
+    },
+
     /// Preview a single slide quickly in the browser
     Preview {
         /// Slide to preview (name or path)
@@ -303,6 +317,12 @@ fn main() -> anyhow::Result<()> {
             port,
             rebuild,
         } => commands::open::run(&presentation, port, rebuild),
+
+        Commands::Watch {
+            skeleton,
+            flavor,
+            port,
+        } => commands::watch::run(&skeleton, flavor, port),
 
         Commands::Preview { slide, port } => commands::preview::run(&slide, port),
 

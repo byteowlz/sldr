@@ -20,8 +20,6 @@ Complete sldr integration with Octo for visual presentation building
 
 ### [trx-8crj.7] [task] PDF export via headless Chrome/Playwright (P2, task)
 
-### [trx-8crj.6] [task] Implement sldr watch with live-reload for HTML preview (P2, task)
-
 ### [trx-3f4w.9] Octo frontend: TemplateEditor component (P2, task)
 React component for visual template editing
 
@@ -71,6 +69,7 @@ Templates to create:
 
 ## Closed
 
+- [trx-8crj.6] [task] Implement sldr watch with live-reload for HTML preview (closed 2026-03-12)
 - [trx-8crj.10] [task] Update sldr-server to serve self-contained HTML instead of proxying slidev (closed 2026-03-12)
 - [trx-8crj.9] [task] Remove slidev dependency (SlidevManager, npm deps, frontend/) (closed 2026-03-12)
 - [trx-8crj.5] [task] Wire sldr build to output HTML instead of slidev markdown (closed 2026-03-12)

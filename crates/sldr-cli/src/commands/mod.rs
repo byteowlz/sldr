@@ -13,3 +13,4 @@ pub mod rm;
 pub mod search;
 pub mod skeleton;
 pub mod slides;
+pub mod watch;
