@@ -6,7 +6,7 @@ use colored::Colorize;
 use sldr_core::config::Config;
 use sldr_core::flavor::Flavor;
 
-pub fn run(_global: bool) -> Result<()> {
+pub fn run(_global: bool, force: bool) -> Result<()> {
     println!("{} sldr", "Initializing".green().bold());
 
     let config = Config::default();
@@ -87,11 +87,13 @@ pub fn run(_global: bool) -> Result<()> {
 
     // Install bundled templates
     let template_dir = config.template_dir();
-    let installed = templates::install_templates(&template_dir, false)?;
+    let installed = templates::install_templates(&template_dir, force)?;
     if installed > 0 {
+        let verb = if force { "Updated" } else { "Installed" };
         println!(
-            "  {} Installed {} templates to {}",
+            "  {} {} {} templates in {}",
             "+".green(),
+            verb,
             installed,
             template_dir.display()
         );

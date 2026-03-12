@@ -202,6 +202,10 @@ enum Commands {
         /// Initialize globally (~/.config/sldr)
         #[arg(long)]
         global: bool,
+
+        /// Overwrite existing templates and config with bundled versions
+        #[arg(long)]
+        force: bool,
     },
 
     /// Slide management commands
@@ -369,7 +373,7 @@ fn main() -> anyhow::Result<()> {
 
         Commands::Config { key, value, edit } => commands::config::run(key, value, edit),
 
-        Commands::Init { global } => commands::init::run(global),
+        Commands::Init { global, force } => commands::init::run(global, force),
 
         Commands::Slides { command } => match command {
             SlidesCommands::Derive {
