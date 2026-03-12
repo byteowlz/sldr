@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/sldr-core",
+    "crates/sldr-renderer",
     "crates/sldr-cli",
     "crates/sldr-server",
     "crates/schema-gen",
@@ -56,8 +57,15 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 notify = "8.2"
 tempfile = "3"
 
+# Markdown parsing
+pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }
+
+# Syntax highlighting
+syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }
+
 # Internal crates
 sldr-core = { path = "crates/sldr-core" }
+sldr-renderer = { path = "crates/sldr-renderer" }
 
 # ============================================
 # STANDARD PRESET - rust-magic-linter
