@@ -1,4 +1,4 @@
-//! Build command - assemble a presentation from a skeleton
+//! Build command - assemble a presentation from a skeleton into self-contained HTML
 
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -6,16 +6,15 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use sldr_core::config::Config;
 use sldr_core::flavor::{Flavor, FlavorCollection};
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::presentation::{PresentationBuilder, Skeleton};
+use sldr_core::presentation::Skeleton;
 use sldr_core::slide::SlideCollection;
-use std::process::Command;
-use tracing::info;
+use sldr_renderer::{HtmlRenderer, RenderConfig};
 
 pub fn run(
     skeleton_name: &str,
     flavor: Option<String>,
     pdf: bool,
-    pptx: bool,
+    _pptx: bool,
     output: Option<String>,
 ) -> Result<()> {
     let config = Config::load()?;
@@ -28,7 +27,6 @@ pub fn run(
 
     // Load skeleton
     let skeleton = load_skeleton(&config, skeleton_name)?;
-    info!("Loaded skeleton with {} slides", skeleton.slides.len());
 
     // Determine flavor
     let flavor_name = flavor
@@ -67,40 +65,65 @@ pub fn run(
         |o| Config::expand_path(&o),
     );
 
-    // Build presentation
+    // Build HTML presentation using sldr-renderer
     let title = skeleton
         .title
         .clone()
         .unwrap_or_else(|| skeleton.name.clone());
-    let presentation = PresentationBuilder::new(&skeleton.name)
-        .title(title)
-        .flavor(flavor)
-        .slidev_config(skeleton.slidev_config.clone())
-        .output_dir(&output_dir)
-        .add_slides(resolved_slides)
-        .build();
 
-    presentation.write()?;
+    let transition = skeleton
+        .slidev_config
+        .transition
+        .clone()
+        .unwrap_or_else(|| "fade".to_string());
+
+    let aspect_ratio = skeleton
+        .slidev_config
+        .aspect_ratio
+        .clone()
+        .unwrap_or_else(|| "16/9".to_string());
+
+    let render_config = RenderConfig {
+        title,
+        transition,
+        aspect_ratio,
+        speaker_notes: true,
+    };
+
+    let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
+    renderer.add_slides(&resolved_slides);
+
+    // Write to output_dir/index.html
+    std::fs::create_dir_all(&output_dir)?;
+    let output_path = output_dir.join("index.html");
+    renderer.render_to_file(&output_path)?;
 
     println!(
         "\n{} Presentation written to {}",
         "Success!".green().bold(),
-        output_dir.display().to_string().cyan()
+        output_path.display().to_string().cyan()
     );
 
     // Show next steps
     println!("\n{}", "Next steps:".dimmed());
-    println!("  cd {} && bun install && bun dev", output_dir.display());
+    println!(
+        "  Open {} in your browser",
+        output_path.display().to_string().underline()
+    );
+    println!("  Or run: sldr open {}", skeleton_name);
 
-    // Export if requested
-    if pdf || pptx {
-        export_presentation(&output_dir, pdf, pptx)?;
+    if pdf {
+        println!(
+            "\n  {} PDF export via headless browser not yet implemented",
+            "i".blue()
+        );
+        println!("  For now, use Ctrl+P in the browser (print styles are built in)");
     }
 
     Ok(())
 }
 
-fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
+pub fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
     let skeleton_dir = config.skeleton_dir();
     let matcher = SldrMatcher::new(config.matching.clone());
 
@@ -137,7 +160,6 @@ fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
             anyhow::bail!("Skeleton not found");
         }
         ResolveResult::Multiple(matches) => {
-            // Interactive selection
             let options: Vec<&str> = matches.iter().map(|m| m.value.as_str()).collect();
             let selection = Select::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Multiple skeletons match '{name}'. Select one:"))
@@ -152,14 +174,13 @@ fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
     Skeleton::load(&skeleton_path).context(format!("Failed to load skeleton: {skeleton_name}"))
 }
 
-fn load_flavor(config: &Config, name: &str) -> Result<Flavor> {
+pub fn load_flavor(config: &Config, name: &str) -> Result<Flavor> {
     let flavor_dir = config.flavor_dir();
     let matcher = SldrMatcher::new(config.matching.clone());
 
     let collection = FlavorCollection::load_from_dir(&flavor_dir)?;
 
     if collection.flavors.is_empty() {
-        // Return default flavor if none exist
         println!("  {} No flavors found, using built-in default", "i".blue());
         return Ok(Flavor::default());
     }
@@ -192,7 +213,7 @@ fn load_flavor(config: &Config, name: &str) -> Result<Flavor> {
     }
 }
 
-fn resolve_with_interactive(
+pub fn resolve_with_interactive(
     matcher: &SldrMatcher,
     slide_ref: &str,
     slides: &SlideCollection,
@@ -229,69 +250,10 @@ fn resolve_with_interactive(
                 .interact()?;
 
             if selection == items.len() - 1 {
-                Ok(None) // Skip
+                Ok(None)
             } else {
                 Ok(slides.find(&matches[selection].value).cloned())
             }
         }
     }
-}
-
-fn export_presentation(output_dir: &std::path::Path, pdf: bool, pptx: bool) -> Result<()> {
-    println!("\n{}", "Exporting...".green().bold());
-
-    // Check if node_modules exists
-    let node_modules = output_dir.join("node_modules");
-    if !node_modules.exists() {
-        println!("  {} Installing dependencies...", "i".blue());
-        let status = Command::new("bun")
-            .arg("install")
-            .current_dir(output_dir)
-            .status()
-            .context("Failed to run bun install. Is bun installed?")?;
-
-        if !status.success() {
-            anyhow::bail!("bun install failed");
-        }
-    }
-
-    if pdf {
-        println!("  {} Exporting to PDF...", ">".cyan());
-        let status = Command::new("bun")
-            .args(["run", "export-pdf"])
-            .current_dir(output_dir)
-            .status()
-            .context("Failed to export PDF")?;
-
-        if status.success() {
-            println!(
-                "  {} PDF exported to {}/slides-export.pdf",
-                "+".green(),
-                output_dir.display()
-            );
-        } else {
-            println!("  {} PDF export failed", "!".red());
-        }
-    }
-
-    if pptx {
-        println!("  {} Exporting to PPTX...", ">".cyan());
-        let status = Command::new("bun")
-            .args(["run", "export-pptx"])
-            .current_dir(output_dir)
-            .status()
-            .context("Failed to export PPTX")?;
-
-        if status.success() {
-            println!(
-                "  {} PPTX exported to {}/slides-export.pptx",
-                "+".green(),
-                output_dir.display()
-            );
-        } else {
-            println!("  {} PPTX export failed", "!".red());
-        }
-    }
-
-    Ok(())
 }
