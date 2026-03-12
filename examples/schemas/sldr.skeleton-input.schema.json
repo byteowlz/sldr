@@ -32,10 +32,10 @@
       }
     },
     "slidev_config": {
-      "description": "Slidev configuration",
+      "description": "Rendering configuration",
       "anyOf": [
         {
-          "$ref": "#/$defs/SlidevConfig"
+          "$ref": "#/$defs/RenderOpts"
         },
         {
           "type": "null"
@@ -54,8 +54,8 @@
     "slides"
   ],
   "$defs": {
-    "SlidevConfig": {
-      "description": "Presentation rendering configuration\n\nKept as `SlidevConfig` in serialization for backwards compatibility\nwith existing skeleton.toml files. Controls transition style, aspect\nratio, and other rendering options for the HTML output.",
+    "RenderOpts": {
+      "description": "Presentation rendering configuration\n\nSerialized as `slidev_config` for backwards compatibility with existing\nskeleton.toml files. Controls transition style, aspect ratio, and other\nrendering options for the self-contained HTML output.",
       "type": "object",
       "properties": {
         "aspect_ratio": {

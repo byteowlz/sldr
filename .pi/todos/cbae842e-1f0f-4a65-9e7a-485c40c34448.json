@@ -1,41 +1,41 @@
 {
   "todos": [
     {
-      "id": "s1",
-      "content": "Audit schema-gen output vs current Rust structs (config, flavor, skeleton, slide)",
+      "id": "r1",
+      "content": "Remove dead legacy code: to_slidev_markdown(), generate_package_json(), .slidev-* CSS",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "s2",
-      "content": "Audit example config.toml / flavor.toml / skeleton.toml against schema",
+      "id": "r2",
+      "content": "Rename SlidevConfig -> RenderConfig internally (keep serde compat)",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "s3",
-      "content": "Audit skill/SKILL.md and AGENTS.md / AGENTS_USE.md docs",
+      "id": "r3",
+      "content": "Update all doc comments and descriptions referencing slidev",
       "status": "completed",
       "priority": "high"
     },
     {
-      "id": "s4",
-      "content": "Audit README.md for staleness",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "id": "s5",
-      "content": "Copy updated schemas to ../schemas/sldr/",
-      "status": "completed",
-      "priority": "high"
-    },
-    {
-      "id": "s6",
-      "content": "Run copy_config_schema.sh or equivalent",
+      "id": "r4",
+      "content": "Update schema descriptions (generated from doc comments)",
       "status": "completed",
       "priority": "medium"
+    },
+    {
+      "id": "r5",
+      "content": "Regenerate schemas and copy to schemas repo",
+      "status": "completed",
+      "priority": "medium"
+    },
+    {
+      "id": "r6",
+      "content": "Verify build compiles and tests pass",
+      "status": "completed",
+      "priority": "high"
     }
   ],
-  "updated_at": "2026-03-12T14:29:53.412Z"
+  "updated_at": "2026-03-12T15:09:11.085Z"
 }

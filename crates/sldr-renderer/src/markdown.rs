@@ -88,7 +88,7 @@ fn markdown_to_html(input: &str) -> String {
                 code_content.clear();
                 code_lang = match kind {
                     CodeBlockKind::Fenced(lang) => {
-                        // Strip any slidev-style annotations like {all|1-3}
+                        // Strip any build annotations like {all|1-3}
                         let lang_str = lang.as_ref();
                         lang_str
                             .split_once(['{', ' '])

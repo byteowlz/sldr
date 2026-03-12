@@ -1,6 +1,6 @@
 //! Preview session manager - serves self-contained HTML presentations
 //!
-//! Replaces the old SlidevManager. Instead of spawning bun/node processes,
+//! Preview session manager. Instead of spawning bun/node processes,
 //! we serve the rendered HTML directly via axum.
 
 use std::collections::HashMap;
