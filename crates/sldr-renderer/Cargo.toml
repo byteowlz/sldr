@@ -1,0 +1,25 @@
+[package]
+name = "sldr-renderer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "HTML slide renderer for sldr - compiles markdown slides into self-contained HTML"
+
+[lints]
+workspace = true
+
+[dependencies]
+sldr-core.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+
+# Markdown parsing
+pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }
+
+# Syntax highlighting
+syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }
+
+# Serialization (for reading slide metadata)
+serde.workspace = true
+serde_json.workspace = true

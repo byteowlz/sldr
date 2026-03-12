@@ -1,11 +1,29 @@
 {
   "todos": [
     {
-      "id": "single-flavor-doc",
-      "content": "Document single vs multi-flavor embedding in presenter.js and add single-flavor test HTML",
+      "id": "p2-renderer-crate",
+      "content": "trx-8crj.2: Create sldr-renderer crate (Cargo.toml, lib.rs, pulldown-cmark, syntect, HTML compiler)",
+      "status": "completed",
+      "priority": "high"
+    },
+    {
+      "id": "p2-wire-build",
+      "content": "trx-8crj.5: Wire sldr build/open/preview to output HTML instead of slidev markdown",
       "status": "in_progress",
-      "priority": "medium"
+      "priority": "high"
+    },
+    {
+      "id": "p2-cleanup",
+      "content": "trx-8crj.9: Remove slidev dependency (SlidevManager, npm deps, package.json generation)",
+      "status": "pending",
+      "priority": "high"
+    },
+    {
+      "id": "p2-verify",
+      "content": "Verify: remote-build check, build a test presentation end-to-end",
+      "status": "pending",
+      "priority": "high"
     }
   ],
-  "updated_at": "2026-03-12T09:42:17.595Z"
+  "updated_at": "2026-03-12T11:37:17.792Z"
 }
