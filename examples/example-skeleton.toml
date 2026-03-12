@@ -35,7 +35,7 @@ flavor = "default"
 # Transition effect between slides: "fade", "slide-left", "slide-right", "none"
 transition = "fade"
 
-# Aspect ratio (e.g., "16/9", "4/3")
+# Aspect ratio hint for PDF/PPTX export (HTML output is fully responsive)
 aspect_ratio = "16/9"
 
 # Start in dark mode
