@@ -3,7 +3,7 @@
 //! Builds the presentation, serves it on a local port, watches for file
 //! changes, and triggers browser reload via Server-Sent Events (SSE).
 
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -21,7 +21,7 @@ use tokio::sync::broadcast;
 use tokio::sync::RwLock;
 
 /// JavaScript snippet injected into the HTML for live reload via SSE
-const LIVE_RELOAD_SCRIPT: &str = r#"
+const LIVE_RELOAD_SCRIPT: &str = r"
 <script>
 (function() {
   var es = new EventSource('/__sldr_reload');
@@ -36,7 +36,7 @@ const LIVE_RELOAD_SCRIPT: &str = r#"
   };
 })();
 </script>
-"#;
+";
 
 pub fn run(
     skeleton_name: &str,
@@ -154,7 +154,7 @@ pub fn run(
                                     Ok(()) => {
                                         yield Ok::<_, std::convert::Infallible>(Event::default().data("reload"));
                                     }
-                                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                                    Err(broadcast::error::RecvError::Lagged(_)) => {},
                                     Err(broadcast::error::RecvError::Closed) => break,
                                 }
                             }
@@ -212,13 +212,13 @@ pub fn run(
                         let new_html = inject_live_reload(&new_html);
                         *html_for_watcher.write().await = new_html;
                         let _ = reload_tx_for_watcher.send(());
-                        eprintln!(
+                        println!(
                             "  {} Rebuilt and reloaded",
                             "~".green()
                         );
                     }
                     Err(err) => {
-                        eprintln!(
+                        println!(
                             "  {} Rebuild failed: {}",
                             "!".red(),
                             err
@@ -294,13 +294,12 @@ fn rebuild_presentation(
 
     let mut resolved = Vec::new();
     for slide_ref in &skeleton.slides {
-        match matcher.resolve(slide_ref, &slides.names()) {
-            sldr_core::fuzzy::ResolveResult::Found(result) => {
-                if let Some(slide) = slides.find(&result.value) {
-                    resolved.push(slide.clone());
-                }
+        if let sldr_core::fuzzy::ResolveResult::Found(result) =
+            matcher.resolve(slide_ref, &slides.names())
+        {
+            if let Some(slide) = slides.find(&result.value) {
+                resolved.push(slide.clone());
             }
-            _ => {}
         }
     }
 
@@ -308,9 +307,9 @@ fn rebuild_presentation(
 }
 
 fn spawn_file_watcher(
-    slide_dir: &PathBuf,
-    skeleton_dir: &PathBuf,
-    flavor_dir: &PathBuf,
+    slide_dir: &Path,
+    skeleton_dir: &Path,
+    flavor_dir: &Path,
     tx: tokio::sync::mpsc::Sender<()>,
 ) -> Result<RecommendedWatcher> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {

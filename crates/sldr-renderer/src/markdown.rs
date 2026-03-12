@@ -91,7 +91,7 @@ fn markdown_to_html(input: &str) -> String {
                         // Strip any slidev-style annotations like {all|1-3}
                         let lang_str = lang.as_ref();
                         lang_str
-                            .split_once(|c: char| c == '{' || c == ' ')
+                            .split_once(['{', ' '])
                             .map_or(lang_str, |(base, _)| base)
                             .to_string()
                     }
@@ -102,29 +102,24 @@ fn markdown_to_html(input: &str) -> String {
                 in_code_block = false;
 
                 // Try syntax highlighting
-                let highlighted = if !code_lang.is_empty() {
-                    if let Some(syntax) = ss.find_syntax_by_token(&code_lang) {
-                        highlighted_html_for_string(&code_content, &ss, syntax, theme).ok()
-                    } else {
-                        None
-                    }
+                let highlighted = if code_lang.is_empty() {
+                    None
+                } else if let Some(syntax) = ss.find_syntax_by_token(&code_lang) {
+                    highlighted_html_for_string(&code_content, &ss, syntax, theme).ok()
                 } else {
                     None
                 };
 
-                match highlighted {
-                    Some(html) => {
-                        // syntect wraps in <pre style="..."><code>...</code></pre>
-                        // Replace with our class-based approach
-                        let html = inject_code_class(&html);
-                        output.push_str(&html);
-                    }
-                    None => {
-                        // Fallback: plain code block
-                        output.push_str("<pre class=\"sldr-code\"><code>");
-                        output.push_str(&html_escape(&code_content));
-                        output.push_str("</code></pre>\n");
-                    }
+                if let Some(html) = highlighted {
+                    // syntect wraps in <pre style="..."><code>...</code></pre>
+                    // Replace with our class-based approach
+                    let html = inject_code_class(&html);
+                    output.push_str(&html);
+                } else {
+                    // Fallback: plain code block
+                    output.push_str("<pre class=\"sldr-code\"><code>");
+                    output.push_str(&html_escape(&code_content));
+                    output.push_str("</code></pre>\n");
                 }
             }
             Event::Text(text) => {
@@ -152,7 +147,7 @@ fn markdown_to_html(input: &str) -> String {
                 write_open_tag(&mut output, &tag);
             }
             Event::End(tag) => {
-                write_close_tag(&mut output, &tag);
+                write_close_tag(&mut output, tag);
             }
             Event::Rule => {
                 output.push_str("<hr />\n");
@@ -240,9 +235,7 @@ fn write_open_tag(out: &mut String, tag: &Tag<'_>) {
             out.push_str(name.as_ref());
             out.push_str("\">\n");
         }
-        Tag::HtmlBlock => {}
-        Tag::MetadataBlock(_) => {}
-        Tag::CodeBlock(_) => {} // handled in main loop
+        Tag::HtmlBlock | Tag::MetadataBlock(_) | Tag::CodeBlock(_) => {} // handled in main loop
         Tag::DefinitionList => out.push_str("<dl>\n"),
         Tag::DefinitionListTitle => out.push_str("<dt>"),
         Tag::DefinitionListDefinition => out.push_str("<dd>"),
@@ -250,17 +243,17 @@ fn write_open_tag(out: &mut String, tag: &Tag<'_>) {
 }
 
 /// Write a closing HTML tag
-fn write_close_tag(out: &mut String, tag: &TagEnd) {
+fn write_close_tag(out: &mut String, tag: TagEnd) {
     match tag {
         TagEnd::Paragraph => out.push_str("</p>\n"),
         TagEnd::Heading(level) => {
             out.push_str("</h");
-            out.push_str(&(*level as u8).to_string());
+            out.push_str(&(level as u8).to_string());
             out.push_str(">\n");
         }
         TagEnd::BlockQuote(_) => out.push_str("</blockquote>\n"),
         TagEnd::List(ordered) => {
-            if *ordered {
+            if ordered {
                 out.push_str("</ol>\n");
             } else {
                 out.push_str("</ul>\n");
@@ -277,9 +270,7 @@ fn write_close_tag(out: &mut String, tag: &TagEnd) {
         TagEnd::TableRow => out.push_str("</tr>\n"),
         TagEnd::TableCell => out.push_str("</td>\n"),
         TagEnd::FootnoteDefinition => out.push_str("</div>\n"),
-        TagEnd::HtmlBlock => {}
-        TagEnd::MetadataBlock(_) => {}
-        TagEnd::CodeBlock => {} // handled in main loop
+        TagEnd::HtmlBlock | TagEnd::MetadataBlock(_) | TagEnd::CodeBlock => {} // handled elsewhere
         TagEnd::DefinitionList => out.push_str("</dl>\n"),
         TagEnd::DefinitionListTitle => out.push_str("</dt>\n"),
         TagEnd::DefinitionListDefinition => out.push_str("</dd>\n"),

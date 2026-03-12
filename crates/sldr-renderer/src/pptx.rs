@@ -38,33 +38,33 @@ pub fn create_pptx(images: &[impl AsRef<Path>], output: &Path) -> Result<()> {
     let slide_count = images.len();
 
     // [Content_Types].xml
-    zip.start_file("[Content_Types].xml", options.clone())?;
+    zip.start_file("[Content_Types].xml", options)?;
     zip.write_all(content_types_xml(slide_count).as_bytes())?;
 
     // _rels/.rels
-    zip.start_file("_rels/.rels", options.clone())?;
+    zip.start_file("_rels/.rels", options)?;
     zip.write_all(root_rels_xml().as_bytes())?;
 
     // ppt/presentation.xml
-    zip.start_file("ppt/presentation.xml", options.clone())?;
+    zip.start_file("ppt/presentation.xml", options)?;
     zip.write_all(presentation_xml(slide_count).as_bytes())?;
 
     // ppt/_rels/presentation.xml.rels
-    zip.start_file("ppt/_rels/presentation.xml.rels", options.clone())?;
+    zip.start_file("ppt/_rels/presentation.xml.rels", options)?;
     zip.write_all(presentation_rels_xml(slide_count).as_bytes())?;
 
     // Slide master
-    zip.start_file("ppt/slideMasters/slideMaster1.xml", options.clone())?;
+    zip.start_file("ppt/slideMasters/slideMaster1.xml", options)?;
     zip.write_all(slide_master_xml().as_bytes())?;
 
-    zip.start_file("ppt/slideMasters/_rels/slideMaster1.xml.rels", options.clone())?;
+    zip.start_file("ppt/slideMasters/_rels/slideMaster1.xml.rels", options)?;
     zip.write_all(slide_master_rels_xml().as_bytes())?;
 
     // Slide layout
-    zip.start_file("ppt/slideLayouts/slideLayout1.xml", options.clone())?;
+    zip.start_file("ppt/slideLayouts/slideLayout1.xml", options)?;
     zip.write_all(slide_layout_xml().as_bytes())?;
 
-    zip.start_file("ppt/slideLayouts/_rels/slideLayout1.xml.rels", options.clone())?;
+    zip.start_file("ppt/slideLayouts/_rels/slideLayout1.xml.rels", options)?;
     zip.write_all(slide_layout_rels_xml().as_bytes())?;
 
     // Slides and their images
@@ -72,20 +72,20 @@ pub fn create_pptx(images: &[impl AsRef<Path>], output: &Path) -> Result<()> {
         let slide_num = i + 1;
 
         // Slide XML
-        zip.start_file(format!("ppt/slides/slide{slide_num}.xml"), options.clone())?;
+        zip.start_file(format!("ppt/slides/slide{slide_num}.xml"), options)?;
         zip.write_all(slide_xml(slide_num).as_bytes())?;
 
         // Slide relationships
         zip.start_file(
             format!("ppt/slides/_rels/slide{slide_num}.xml.rels"),
-            options.clone(),
+            options,
         )?;
         zip.write_all(slide_rels_xml(slide_num).as_bytes())?;
 
         // Image file
         let img_data = std::fs::read(img_path.as_ref())
             .with_context(|| format!("Failed to read image: {}", img_path.as_ref().display()))?;
-        zip.start_file(format!("ppt/media/image{slide_num}.png"), options.clone())?;
+        zip.start_file(format!("ppt/media/image{slide_num}.png"), options)?;
         zip.write_all(&img_data)?;
     }
 
