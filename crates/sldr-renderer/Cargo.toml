@@ -23,3 +23,6 @@ syntect = { version = "5.2", default-features = false, features = ["default-fanc
 # Serialization (for reading slide metadata)
 serde.workspace = true
 serde_json.workspace = true
+
+# PPTX generation (ZIP archive)
+zip = { version = "2", default-features = false, features = ["deflate"] }

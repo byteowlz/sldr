@@ -61,10 +61,9 @@ Templates to create:
 ...
 
 
-### [trx-8crj.8] [task] PPTX export from rendered HTML (P3, task)
-
 ## Closed
 
+- [trx-8crj.8] [task] PPTX export from rendered HTML (closed 2026-03-12)
 - [trx-8crj.11] [task] Contenteditable slide editing mode (inline text editing, floating toolbar, save/download) (closed 2026-03-12)
 - [trx-8crj.7] [task] PDF export via headless Chrome/Playwright (closed 2026-03-12)
 - [trx-8crj.6] [task] Implement sldr watch with live-reload for HTML preview (closed 2026-03-12)
