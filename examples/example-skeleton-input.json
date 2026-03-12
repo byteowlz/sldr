@@ -11,9 +11,7 @@
   ],
   "flavor": "default",
   "slidev_config": {
-    "theme": "default",
-    "drawings": true,
-    "transition": "slide-left",
+    "transition": "fade",
     "aspect_ratio": "16/9"
   }
 }

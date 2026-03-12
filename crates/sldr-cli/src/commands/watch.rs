@@ -65,7 +65,7 @@ pub fn run(
     let port = port.unwrap_or_else(|| {
         config
             .config
-            .slidev_port
+            .dev_port
             .parse::<u16>()
             .unwrap_or(3030)
     });

@@ -18,8 +18,8 @@ flavor_dir = "~/.config/sldr/flavors"
 # Default flavor to use when none is specified
 default_flavor = "default"
 
-# Port for slidev server
-slidev_port = "3030"
+# Port for the local dev/watch server (sldr watch)
+dev_port = "3030"
 
 # Preferred AI agent for slide generation
 # Possible values: "opencode", "claude code", "codex"

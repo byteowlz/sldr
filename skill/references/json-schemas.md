@@ -37,13 +37,9 @@ Used with `sldr skeleton create --file`:
   "description": "Optional description",
   "flavor": "default",
   "slidev_config": {
-    "theme": "default",
-    "transition": "slide-left",
+    "transition": "fade",
     "aspect_ratio": "16/9",
-    "canvas_width": 1280,
-    "drawings": true,
-    "dark_mode": false,
-    "record": false
+    "dark_mode": false
   }
 }
 ```

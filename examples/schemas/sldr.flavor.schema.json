@@ -22,16 +22,29 @@
       }
     },
     "colors": {
-      "description": "Color scheme",
+      "description": "Color scheme (light mode / default)",
       "$ref": "#/$defs/ColorScheme",
       "default": {
         "accent": null,
         "background": null,
         "code_background": null,
+        "code_text": null,
         "primary": null,
         "secondary": null,
         "text": null
       }
+    },
+    "dark_colors": {
+      "description": "Dark mode color overrides (merged on top of colors when dark mode is active)",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ColorScheme"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "description": {
       "description": "Description of the flavor",
@@ -121,6 +134,14 @@
         },
         "code_background": {
           "description": "Code block background",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "code_text": {
+          "description": "Code text color",
           "type": [
             "string",
             "null"

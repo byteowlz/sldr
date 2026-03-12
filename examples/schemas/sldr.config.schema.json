@@ -9,8 +9,8 @@
       "default": {
         "agent": "opencode",
         "default_flavor": "default",
+        "dev_port": "3030",
         "flavor_dir": "~/.config/sldr/flavors",
-        "slidev_port": "3030",
         "template_dir": "~/.config/sldr/templates"
       }
     },
@@ -52,15 +52,15 @@
           "type": "string",
           "default": "default"
         },
+        "dev_port": {
+          "description": "Port for the local dev/watch server",
+          "type": "string",
+          "default": "3030"
+        },
         "flavor_dir": {
           "description": "Directory containing flavors (themes/styles)",
           "type": "string",
           "default": "~/.config/sldr/flavors"
-        },
-        "slidev_port": {
-          "description": "Port for slidev server",
-          "type": "string",
-          "default": "3030"
         },
         "template_dir": {
           "description": "Directory containing slide templates",

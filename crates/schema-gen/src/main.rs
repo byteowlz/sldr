@@ -123,8 +123,8 @@ flavor_dir = "~/.config/sldr/flavors"
 # Default flavor to use when none is specified
 default_flavor = "default"
 
-# Port for slidev server
-slidev_port = "3030"
+# Port for the local dev/watch server (sldr watch)
+dev_port = "3030"
 
 # Preferred AI agent for slide generation
 # Possible values: "opencode", "claude code", "codex"
@@ -281,28 +281,17 @@ slides = [
 # Default flavor to use for styling
 flavor = "default"
 
-# Slidev configuration overrides
+# Rendering configuration
+# (key kept as slidev_config for backwards compat with existing skeletons)
 [slidev_config]
-# Theme to use (slidev theme name)
-theme = "default"
-
-# Enable/disable drawing feature
-drawings = true
-
-# Transition effect between slides
-transition = "slide-left"
+# Transition effect between slides: "fade", "slide-left", "slide-right", "none"
+transition = "fade"
 
 # Aspect ratio (e.g., "16/9", "4/3")
 aspect_ratio = "16/9"
 
-# Canvas width in pixels
-canvas_width = 1280
-
-# Enable dark mode
+# Start in dark mode
 dark_mode = false
-
-# Enable slide recording
-record = false
 "##;
     fs::write(&output_path, content).expect("Failed to write skeleton example");
     println!("  ✓ Generated skeleton example: {:?}", output_path);
@@ -388,9 +377,7 @@ fn generate_skeleton_input_example(examples_dir: &PathBuf) {
   ],
   "flavor": "default",
   "slidev_config": {
-    "theme": "default",
-    "drawings": true,
-    "transition": "slide-left",
+    "transition": "fade",
     "aspect_ratio": "16/9"
   }
 }

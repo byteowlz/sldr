@@ -2,19 +2,20 @@
 name: sldr-presentations
 description: |
   Create markdown-based presentations using sldr CLI. Use this skill when asked to:
-  create slides, build presentations, manage presentation skeletons, or work with slidev-powered presentations.
-  Triggers: "create a presentation", "make slides", "build a talk", "presentation about X", "sldr".
+  create slides, build presentations, manage presentation skeletons, or work with
+  self-contained HTML presentations. Triggers: "create a presentation", "make slides",
+  "build a talk", "presentation about X", "sldr".
 ---
 
 # sldr Presentations Skill
 
-sldr is a CLI tool for creating modular, reusable markdown presentations powered by slidev.
+sldr is a CLI tool for creating modular, reusable markdown presentations rendered as self-contained HTML files. No runtime dependencies (no node/npm/bun) - a single binary produces a single HTML file.
 
 ## Key Concepts
 
 - **Slides**: Individual markdown files in `~/sldr/slides/` (can be in subdirectories)
 - **Skeletons**: TOML files in `~/sldr/skeletons/` that define which slides to include
-- **Flavors**: Style definitions in `~/.config/sldr/flavors/` (colors, fonts, backgrounds)
+- **Flavors**: Style definitions in `~/.config/sldr/flavors/` (colors, fonts, backgrounds, dark mode)
 - **Templates**: Slide templates in `~/.config/sldr/templates/` (layouts like cover, two-cols, code)
 
 ## Agent Workflow
@@ -51,7 +52,7 @@ sldr slides create --file /tmp/slides.json --json
 }
 ```
 
-**Available layouts**: `default`, `cover`, `two-cols`, `two-cols-header`, `image`, `image-left`, `image-right`, `center`, `quote`, `section`, `end`
+**Available layouts**: `default`, `cover`, `two-cols`, `two-cols-header`, `image`, `image-left`, `image-right`, `center`, `quote`, `section`, `intro`, `end`
 
 **Flags**:
 - `--file PATH`: Read JSON from file (recommended over stdin)
@@ -98,7 +99,26 @@ Returns list of found/missing slides.
 sldr build presentation-name --flavor default
 ```
 
-Creates a slidev project in `~/sldr/presentations/presentation-name/`.
+Creates `index.html` in `~/sldr/presentations/presentation-name/`. Open it directly in any browser - no server needed.
+
+### Additional Commands
+
+```bash
+# Dev server with live-reload (rebuilds on file changes)
+sldr watch presentation-name --flavor default
+
+# Export to PDF (requires Chrome/Chromium)
+sldr export presentation-name --format pdf
+
+# Export to PPTX (screenshots each slide)
+sldr export presentation-name --format pptx
+
+# Open built presentation in browser
+sldr open presentation-name
+
+# Quick single-slide preview
+sldr preview slide-name
+```
 
 ## JSON Output Format
 
@@ -132,9 +152,6 @@ sldr ls flavors         # List available flavors
 
 # Create missing slides from skeleton
 sldr slides derive skeleton-name --template default
-
-# Open presentation in browser
-sldr open presentation-name
 ```
 
 ## Slide Content Tips
@@ -142,7 +159,20 @@ sldr open presentation-name
 - Start content with `# Title` for headings
 - Use `::left::` and `::right::` for two-column layouts
 - Code blocks: Use standard markdown fenced code blocks
-- Images: Reference from `/public/` directory in slidev project
+- Speaker notes: Add `<!-- notes -->` followed by note text, or `<!-- notes: inline note -->`
+
+## Presenter Shortcuts (in the generated HTML)
+
+| Key | Action |
+|-----|--------|
+| Arrow keys / Space | Navigate slides |
+| O | Overview grid |
+| S | Speaker notes window |
+| F | Fullscreen |
+| D | Dark/light mode toggle |
+| T | Flavor selector (multi-flavor) |
+| E | Edit mode (inline text editing) |
+| Ctrl+S (edit mode) | Download modified HTML |
 
 ## Example: Complete Workflow
 
@@ -189,6 +219,12 @@ sldr skeleton create --file /tmp/skeleton.json --json
 # 5. Validate
 sldr skeleton validate rust-talk --json
 
-# 6. Build
+# 6. Build (produces ~/sldr/presentations/rust-talk/index.html)
 sldr build rust-talk
+
+# 7. Open in browser
+sldr open rust-talk
+
+# Or use dev server with live-reload
+sldr watch rust-talk
 ```
