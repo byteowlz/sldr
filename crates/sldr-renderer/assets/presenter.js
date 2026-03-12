@@ -337,44 +337,38 @@
   // Slide display
   // ---------------------------------------------------------------------------
   function showSlide(index, dir, prevIndex) {
+    // Animate the entering slide
+    var enterSlide = slides[index];
+    enterSlide.classList.add("active");
+    enterSlide.removeAttribute("aria-hidden");
+
+    if (dir !== "none") {
+      var enterClass = getTransitionClass(dir, "enter");
+      enterSlide.classList.add(enterClass);
+      enterSlide.addEventListener("animationend", function () {
+        enterSlide.classList.remove(enterClass);
+      }, { once: true });
+    }
+
+    applyClickSteps(enterSlide, 0);
+
+    // Animate the exiting slide (if any)
+    if (dir !== "none" && prevIndex !== undefined && prevIndex !== index) {
+      var exitSlide = slides[prevIndex];
+      var exitClass = getTransitionClass(dir, "exit");
+      exitSlide.classList.add(exitClass);
+      exitSlide.addEventListener("animationend", function () {
+        exitSlide.classList.remove("active", exitClass);
+        exitSlide.setAttribute("aria-hidden", "true");
+      }, { once: true });
+    }
+
+    // Hide all other slides immediately (not entering, not animating out)
     for (var i = 0; i < total; i++) {
-      var slide = slides[i];
-      if (i === index) {
-        slide.classList.add("active");
-        slide.removeAttribute("aria-hidden");
-
-        if (dir !== "none") {
-          var enterClass = getTransitionClass(dir, "enter");
-          slide.classList.add(enterClass);
-          slide.addEventListener(
-            "animationend",
-            function handler() {
-              slide.classList.remove(enterClass);
-              slide.removeEventListener("animationend", handler);
-            },
-            { once: true }
-          );
-        }
-
-        applyClickSteps(slide, 0);
-      } else {
-        if (dir !== "none" && i === prevIndex) {
-          var exitClass = getTransitionClass(dir, "exit");
-          slide.classList.add(exitClass);
-          slide.addEventListener(
-            "animationend",
-            function exitHandler() {
-              slide.classList.remove("active", exitClass);
-              slide.setAttribute("aria-hidden", "true");
-              slide.removeEventListener("animationend", exitHandler);
-            },
-            { once: true }
-          );
-        } else {
-          slide.classList.remove("active");
-          slide.setAttribute("aria-hidden", "true");
-        }
-      }
+      if (i === index) continue;
+      if (dir !== "none" && i === prevIndex) continue;
+      slides[i].classList.remove("active");
+      slides[i].setAttribute("aria-hidden", "true");
     }
   }
 
