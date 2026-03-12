@@ -1,5 +1,7 @@
+//! HTTP API routes for sldr-server
+
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use axum::extract::{Path as AxumPath, Query, State};
@@ -14,12 +16,13 @@ use tracing::{info, warn};
 use sldr_core::config::Config;
 use sldr_core::flavor::FlavorCollection;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::presentation::{PresentationBuilder, Skeleton};
+use sldr_core::presentation::Skeleton;
 use sldr_core::slide::{Slide, SlideCollection, SlideMetadata};
+use sldr_renderer::{HtmlRenderer, RenderConfig};
 
 use crate::models::{
     BuildRequest, BuildResponse, CreateSkeletonRequest, CreateSlideRequest, FlavorsResponse,
-    PreviewResponse, SlideDetail, SlideSummary, SlidesResponse, SkeletonsResponse,
+    PreviewResponse, SkeletonsResponse, SlideDetail, SlideSummary, SlidesResponse,
     TemplateEditResponse, UpdateSlideRequest,
 };
 use crate::state::SldrState;
@@ -40,6 +43,7 @@ impl ApiError {
         }
     }
 
+    #[allow(dead_code)]
     fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self
@@ -189,7 +193,12 @@ async fn list_skeletons(State(state): State<SldrState>) -> ApiResult<SkeletonsRe
 
     if skeleton_dir.exists() {
         for entry in fs::read_dir(&skeleton_dir)
-            .with_context(|| format!("Failed to read skeleton directory {}", skeleton_dir.display()))
+            .with_context(|| {
+                format!(
+                    "Failed to read skeleton directory {}",
+                    skeleton_dir.display()
+                )
+            })
             .map_err(to_api_error("Failed to read skeletons"))?
         {
             let entry = entry.map_err(to_api_error("Failed to read skeleton entry"))?;
@@ -283,11 +292,13 @@ async fn build_presentation(
     Json(payload): Json<BuildRequest>,
 ) -> ApiResult<BuildResponse> {
     let config = state.config.as_ref();
-    let (name, output_dir) = build_from_skeleton(config, payload).await?;
+    let (name, output_dir, html_path) = build_html_from_skeleton(config, &payload)
+        .map_err(to_api_error("Build failed"))?;
 
     Ok(Json(BuildResponse {
         name,
         output_dir: output_dir.to_string_lossy().to_string(),
+        html_path: html_path.to_string_lossy().to_string(),
     }))
 }
 
@@ -310,12 +321,14 @@ async fn preview_skeleton(
         pptx: false,
     };
 
-    let (name, output_dir) = build_from_skeleton(state.config.as_ref(), payload).await?;
+    let (name, _output_dir, html_path) = build_html_from_skeleton(state.config.as_ref(), &payload)
+        .map_err(to_api_error("Build failed"))?;
+
     info!("Preview build complete for {}", name);
 
     let session = state
-        .slidev
-        .spawn_preview(output_dir)
+        .preview
+        .spawn_preview(html_path)
         .await
         .map_err(to_api_error("Failed to start preview"))?;
 
@@ -333,30 +346,152 @@ async fn edit_template(
     let template_path = resolve_template_path(&state.config, &name)
         .map_err(to_api_error("Failed to resolve template"))?;
 
+    // Create a temp dir and render the template as a single-slide presentation
     let temp_dir = tempfile::tempdir().map_err(to_api_error("Failed to create temp dir"))?;
-    let working_dir = temp_dir.path().to_path_buf();
 
     let content = fs::read_to_string(&template_path)
         .with_context(|| format!("Failed to read template {}", template_path.display()))
         .map_err(to_api_error("Failed to read template"))?;
 
-    fs::write(working_dir.join("slides.md"), content)
-        .with_context(|| format!("Failed to write working copy in {}", working_dir.display()))
-        .map_err(to_api_error("Failed to write working copy"))?;
+    // Create a temporary slide from the template content
+    let slide = Slide {
+        name: name.clone(),
+        path: template_path,
+        relative_path: format!("{name}.md"),
+        metadata: SlideMetadata::default(),
+        content,
+    };
 
-    write_slidev_package(&working_dir).map_err(to_api_error("Failed to write package.json"))?;
+    let render_config = RenderConfig {
+        title: format!("Edit: {name}"),
+        transition: "none".to_string(),
+        ..Default::default()
+    };
+
+    let mut renderer = HtmlRenderer::new(render_config)
+        .add_flavor(sldr_core::flavor::Flavor::default());
+    renderer.add_slide(&slide);
+
+    let html_path = temp_dir.path().join("index.html");
+    renderer
+        .render_to_file(&html_path)
+        .map_err(to_api_error("Failed to render template preview"))?;
 
     let session = state
-        .slidev
-        .spawn_template_edit(working_dir, template_path, temp_dir)
+        .preview
+        .spawn_preview_with_temp(html_path, temp_dir)
         .await
-        .map_err(to_api_error("Failed to start template edit"))?;
+        .map_err(to_api_error("Failed to start template edit preview"))?;
 
     Ok(Json(TemplateEditResponse {
         session_id: session.id,
         url: session.url,
         port: session.port,
     }))
+}
+
+/// Build a self-contained HTML presentation from a skeleton
+fn build_html_from_skeleton(
+    config: &Config,
+    payload: &BuildRequest,
+) -> Result<(String, PathBuf, PathBuf)> {
+    let skeleton_dir = config.skeleton_dir();
+    let skeleton_path = skeleton_dir.join(format!("{}.toml", payload.skeleton));
+
+    if !skeleton_path.exists() {
+        anyhow::bail!("Skeleton not found: {}", payload.skeleton);
+    }
+
+    let skeleton = Skeleton::load(&skeleton_path)
+        .with_context(|| format!("Failed to load skeleton {}", skeleton_path.display()))?;
+
+    let flavor_name = payload
+        .flavor
+        .clone()
+        .or_else(|| skeleton.flavor.clone())
+        .unwrap_or_else(|| config.config.default_flavor.clone());
+
+    let flavor = if let Ok(collection) = FlavorCollection::load_from_dir(&config.flavor_dir()) {
+        if collection.flavors.is_empty() {
+            sldr_core::flavor::Flavor::default()
+        } else {
+            collection
+                .flavors
+                .iter()
+                .find(|f| f.name == flavor_name)
+                .cloned()
+                .unwrap_or_else(sldr_core::flavor::Flavor::default)
+        }
+    } else {
+        sldr_core::flavor::Flavor::default()
+    };
+
+    let slides = SlideCollection::load_from_dir(&config.slide_dir())
+        .context("Failed to load slides")?;
+    let matcher = SldrMatcher::new(config.matching.clone());
+
+    let mut resolved = Vec::new();
+    for slide_ref in &skeleton.slides {
+        match matcher.resolve(slide_ref, &slides.names()) {
+            ResolveResult::Found(result) => {
+                let slide = slides
+                    .find(&result.value)
+                    .cloned()
+                    .with_context(|| format!("Slide not found: {}", result.value))?;
+                resolved.push(slide);
+            }
+            ResolveResult::NotFound => {
+                anyhow::bail!("Slide not found: {slide_ref}");
+            }
+            ResolveResult::Multiple(matches) => {
+                let suggestions: Vec<String> = matches.into_iter().map(|m| m.value).collect();
+                anyhow::bail!(
+                    "Multiple slides match '{}': {}",
+                    slide_ref,
+                    suggestions.join(", ")
+                );
+            }
+        }
+    }
+
+    let output_dir = payload
+        .output
+        .as_ref()
+        .map(|path| Config::expand_path(path))
+        .unwrap_or_else(|| config.output_dir().join(&skeleton.name));
+
+    let title = skeleton
+        .title
+        .clone()
+        .unwrap_or_else(|| skeleton.name.clone());
+
+    let transition = skeleton
+        .slidev_config
+        .transition
+        .clone()
+        .unwrap_or_else(|| "fade".to_string());
+
+    let aspect_ratio = skeleton
+        .slidev_config
+        .aspect_ratio
+        .clone()
+        .unwrap_or_else(|| "16/9".to_string());
+
+    let render_config = RenderConfig {
+        title,
+        transition,
+        aspect_ratio,
+        speaker_notes: true,
+    };
+
+    let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
+    renderer.add_slides(&resolved);
+
+    fs::create_dir_all(&output_dir)?;
+    let html_path = output_dir.join("index.html");
+    renderer.render_to_file(&html_path)?;
+
+    Ok((skeleton.name, output_dir, html_path))
 }
 
 fn build_slide_content(metadata: Option<SlideMetadata>, content: String) -> String {
@@ -387,146 +522,6 @@ fn ensure_md_extension(name: &str) -> String {
     }
 }
 
-async fn build_from_skeleton(
-    config: &Config,
-    payload: BuildRequest,
-) -> std::result::Result<(String, PathBuf), ApiError> {
-    let skeleton_dir = config.skeleton_dir();
-    let skeleton_path = skeleton_dir.join(format!("{}.toml", payload.skeleton));
-
-    if !skeleton_path.exists() {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Skeleton not found"));
-    }
-
-    let skeleton = Skeleton::load(&skeleton_path)
-        .with_context(|| format!("Failed to load skeleton {}", skeleton_path.display()))
-        .map_err(to_api_error("Failed to load skeleton"))?;
-
-    let flavor_name = payload
-        .flavor
-        .or_else(|| skeleton.flavor.clone())
-        .unwrap_or_else(|| config.config.default_flavor.clone());
-
-    let flavor = if let Ok(collection) = FlavorCollection::load_from_dir(&config.flavor_dir()) {
-        if collection.flavors.is_empty() {
-            sldr_core::flavor::Flavor::default()
-        } else {
-            collection
-                .flavors
-                .iter()
-                .find(|f| f.name == flavor_name)
-                .cloned()
-                .unwrap_or_else(sldr_core::flavor::Flavor::default)
-        }
-    } else {
-        sldr_core::flavor::Flavor::default()
-    };
-
-    let slides = SlideCollection::load_from_dir(&config.slide_dir())
-        .map_err(to_api_error("Failed to load slides"))?;
-    let matcher = SldrMatcher::new(config.matching.clone());
-
-    let mut resolved = Vec::new();
-    for slide_ref in &skeleton.slides {
-        match matcher.resolve(slide_ref, &slides.names()) {
-            ResolveResult::Found(result) => {
-                let slide = slides
-                    .find(&result.value)
-                    .cloned()
-                    .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Slide not found"))?;
-                resolved.push(slide);
-            }
-            ResolveResult::NotFound => {
-                return Err(ApiError::new(
-                    StatusCode::NOT_FOUND,
-                    format!("Slide not found: {slide_ref}"),
-                ));
-            }
-            ResolveResult::Multiple(matches) => {
-                let suggestions: Vec<String> = matches.into_iter().map(|m| m.value).collect();
-                return Err(ApiError::new(
-                    StatusCode::CONFLICT,
-                    format!("Multiple slides match {slide_ref}"),
-                )
-                .with_details(json!({ "suggestions": suggestions })));
-            }
-        }
-    }
-
-    let output_dir = payload
-        .output
-        .map(|path| Config::expand_path(&path))
-        .unwrap_or_else(|| config.output_dir().join(&skeleton.name));
-
-    let title = skeleton
-        .title
-        .clone()
-        .unwrap_or_else(|| skeleton.name.clone());
-    let presentation = PresentationBuilder::new(&skeleton.name)
-        .title(title)
-        .flavor(flavor)
-        .slidev_config(skeleton.slidev_config.clone())
-        .output_dir(&output_dir)
-        .add_slides(resolved)
-        .build();
-
-    presentation
-        .write()
-        .map_err(to_api_error("Failed to write presentation"))?;
-
-    if payload.pdf || payload.pptx {
-        export_presentation(&output_dir, payload.pdf, payload.pptx)
-            .await
-            .map_err(to_api_error("Failed to export presentation"))?;
-    }
-
-    Ok((skeleton.name, output_dir))
-}
-
-async fn export_presentation(output_dir: &Path, pdf: bool, pptx: bool) -> Result<()> {
-    let node_modules = output_dir.join("node_modules");
-    if !node_modules.exists() {
-        let status = tokio::process::Command::new("bun")
-            .arg("install")
-            .current_dir(output_dir)
-            .status()
-            .await
-            .context("Failed to run bun install")?;
-
-        if !status.success() {
-            anyhow::bail!("bun install failed");
-        }
-    }
-
-    if pdf {
-        let status = tokio::process::Command::new("bun")
-            .args(["run", "export-pdf"])
-            .current_dir(output_dir)
-            .status()
-            .await
-            .context("Failed to export PDF")?;
-
-        if !status.success() {
-            warn!("PDF export failed for {}", output_dir.display());
-        }
-    }
-
-    if pptx {
-        let status = tokio::process::Command::new("bun")
-            .args(["run", "export-pptx"])
-            .current_dir(output_dir)
-            .status()
-            .await
-            .context("Failed to export PPTX")?;
-
-        if !status.success() {
-            warn!("PPTX export failed for {}", output_dir.display());
-        }
-    }
-
-    Ok(())
-}
-
 fn resolve_template_path(config: &Config, name: &str) -> Result<PathBuf> {
     let template_dir = config.template_dir();
     let candidates = [
@@ -541,36 +536,6 @@ fn resolve_template_path(config: &Config, name: &str) -> Result<PathBuf> {
     }
 
     anyhow::bail!("Template not found: {name}");
-}
-
-fn write_slidev_package(dir: &Path) -> Result<()> {
-    let package_json = dir.join("package.json");
-    if package_json.exists() {
-        return Ok(());
-    }
-
-    let value = serde_json::json!({
-        "name": "sldr-template-edit",
-        "type": "module",
-        "private": true,
-        "scripts": {
-            "dev": "slidev --open=false",
-            "build": "slidev build",
-            "export": "slidev export",
-            "export-pdf": "slidev export --format pdf",
-            "export-pptx": "slidev export --format pptx"
-        },
-        "dependencies": {
-            "@slidev/cli": "^52.0.0",
-            "@slidev/theme-default": "latest",
-            "@slidev/theme-seriph": "latest",
-            "vue": "^3.5.0"
-        }
-    });
-
-    let content = serde_json::to_string_pretty(&value)?;
-    fs::write(package_json, content)?;
-    Ok(())
 }
 
 fn to_api_error<E>(context: &'static str) -> impl FnOnce(E) -> ApiError

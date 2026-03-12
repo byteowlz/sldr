@@ -1,3 +1,5 @@
+//! API request/response models
+
 use serde::{Deserialize, Serialize};
 use sldr_core::flavor::Flavor;
 use sldr_core::presentation::{Skeleton, SlidevConfig};
@@ -61,6 +63,7 @@ pub struct CreateSkeletonRequest {
     pub slides: Vec<String>,
     #[serde(default)]
     pub flavor: Option<String>,
+    /// Kept for backwards compatibility with existing API consumers
     #[serde(default)]
     pub slidev_config: SlidevConfig,
 }
@@ -87,6 +90,7 @@ pub struct BuildRequest {
 pub struct BuildResponse {
     pub name: String,
     pub output_dir: String,
+    pub html_path: String,
 }
 
 #[derive(Debug, Serialize)]

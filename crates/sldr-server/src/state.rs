@@ -1,21 +1,23 @@
+//! Server state - shared across all routes
+
 use std::sync::Arc;
 
 use anyhow::Result;
 use sldr_core::config::Config;
 
-use crate::slidev::SlidevManager;
+use crate::preview::PreviewManager;
 
 #[derive(Clone)]
 pub struct SldrState {
     pub config: Arc<Config>,
-    pub slidev: SlidevManager,
+    pub preview: PreviewManager,
 }
 
 impl SldrState {
     pub fn new(config: Config) -> Self {
         Self {
             config: Arc::new(config),
-            slidev: SlidevManager::new(),
+            preview: PreviewManager::new(),
         }
     }
 
