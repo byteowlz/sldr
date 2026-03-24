@@ -336,17 +336,59 @@
   // ---------------------------------------------------------------------------
   // Slide display
   // ---------------------------------------------------------------------------
+  // Track active animation cleanup functions
+  var pendingCleanups = [];
+
+  function cleanupAllAnimations() {
+    // Force-finish any pending animations before starting new ones
+    for (var i = 0; i < pendingCleanups.length; i++) {
+      pendingCleanups[i]();
+    }
+    pendingCleanups = [];
+  }
+
+  function removeTransitionClasses(el) {
+    el.classList.remove(
+      "tr-fade-enter", "tr-fade-exit",
+      "tr-slide-left-enter", "tr-slide-left-exit",
+      "tr-slide-right-enter", "tr-slide-right-exit",
+      "tr-none"
+    );
+  }
+
   function showSlide(index, dir, prevIndex) {
-    // Animate the entering slide
+    // Clean up any in-flight animations first to prevent stuck states
+    cleanupAllAnimations();
+
+    // Hide all slides except the one we are entering
+    for (var i = 0; i < total; i++) {
+      if (i === index) continue;
+      // Don't hide the previous slide yet if we are animating it out
+      if (dir !== "none" && i === prevIndex) continue;
+      removeTransitionClasses(slides[i]);
+      slides[i].classList.remove("active");
+      slides[i].setAttribute("aria-hidden", "true");
+    }
+
+    // Show the entering slide
     var enterSlide = slides[index];
+    removeTransitionClasses(enterSlide);
     enterSlide.classList.add("active");
     enterSlide.removeAttribute("aria-hidden");
 
     if (dir !== "none") {
       var enterClass = getTransitionClass(dir, "enter");
       enterSlide.classList.add(enterClass);
+
+      var enterCleanup = function () {
+        removeTransitionClasses(enterSlide);
+      };
+      pendingCleanups.push(enterCleanup);
+
       enterSlide.addEventListener("animationend", function () {
-        enterSlide.classList.remove(enterClass);
+        enterCleanup();
+        var idx = pendingCleanups.indexOf(enterCleanup);
+        if (idx !== -1) pendingCleanups.splice(idx, 1);
       }, { once: true });
     }
 
@@ -355,20 +397,23 @@
     // Animate the exiting slide (if any)
     if (dir !== "none" && prevIndex !== undefined && prevIndex !== index) {
       var exitSlide = slides[prevIndex];
+      removeTransitionClasses(exitSlide);
       var exitClass = getTransitionClass(dir, "exit");
+      exitSlide.classList.add("active");
       exitSlide.classList.add(exitClass);
-      exitSlide.addEventListener("animationend", function () {
-        exitSlide.classList.remove("active", exitClass);
-        exitSlide.setAttribute("aria-hidden", "true");
-      }, { once: true });
-    }
 
-    // Hide all other slides immediately (not entering, not animating out)
-    for (var i = 0; i < total; i++) {
-      if (i === index) continue;
-      if (dir !== "none" && i === prevIndex) continue;
-      slides[i].classList.remove("active");
-      slides[i].setAttribute("aria-hidden", "true");
+      var exitCleanup = function () {
+        removeTransitionClasses(exitSlide);
+        exitSlide.classList.remove("active");
+        exitSlide.setAttribute("aria-hidden", "true");
+      };
+      pendingCleanups.push(exitCleanup);
+
+      exitSlide.addEventListener("animationend", function () {
+        exitCleanup();
+        var idx = pendingCleanups.indexOf(exitCleanup);
+        if (idx !== -1) pendingCleanups.splice(idx, 1);
+      }, { once: true });
     }
   }
 

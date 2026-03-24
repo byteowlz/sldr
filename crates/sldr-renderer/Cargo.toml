@@ -24,5 +24,10 @@ syntect = { version = "5.2", default-features = false, features = ["default-fanc
 serde.workspace = true
 serde_json.workspace = true
 
+# Image processing and embedding
+image.workspace = true
+base64.workspace = true
+dirs = "6.0"
+
 # PPTX generation (ZIP archive)
 zip = { version = "2", default-features = false, features = ["deflate"] }

@@ -4,6 +4,7 @@ pub mod add;
 pub mod build;
 pub mod config;
 pub mod export;
+pub mod flavor_builder;
 pub mod init;
 pub mod json_output;
 pub mod list;

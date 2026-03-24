@@ -11,7 +11,8 @@ use sldr_core::flavor::Flavor;
 use sldr_core::slide::Slide;
 use tracing::info;
 
-use crate::markdown::render_markdown;
+use crate::markdown::{render_markdown, MediaConfig};
+use crate::media::{self, ImageMode, MediaEmbed};
 use crate::template::wrap_slide;
 
 /// Base CSS embedded at compile time from assets/base.css
@@ -35,6 +36,12 @@ pub struct RenderConfig {
 
     /// Whether to include speaker notes support
     pub speaker_notes: bool,
+
+    /// How to handle local images in slides
+    pub image_mode: ImageMode,
+
+    /// Output directory (used for creating assets/ subdirectory in external mode)
+    pub output_dir: Option<std::path::PathBuf>,
 }
 
 impl Default for RenderConfig {
@@ -44,6 +51,8 @@ impl Default for RenderConfig {
             transition: "fade".to_string(),
             aspect_ratio: "16/9".to_string(),
             speaker_notes: true,
+            image_mode: ImageMode::Embed,
+            output_dir: None,
         }
     }
 }
@@ -51,6 +60,7 @@ impl Default for RenderConfig {
 /// A slide after markdown -> HTML conversion
 struct RenderedSlide {
     html: String,
+    layout: String,
 }
 
 /// Main renderer that compiles everything into a self-contained HTML file
@@ -96,17 +106,28 @@ impl HtmlRenderer {
         let index = self.slides.len();
 
         // Parse speaker notes from content (<!-- notes: ... --> convention)
-        // For now, speaker notes come from a separate section below ---
-        // or can be embedded in the slide metadata later
         let notes = extract_speaker_notes(&slide.content);
 
-        // Render markdown to HTML
-        let rendered = render_markdown(&slide.content);
+        // Build media config from renderer config and slide path
+        let assets_dir = self.config.output_dir.as_ref().map(|d| d.join("assets"));
+        let slide_dir = slide.path.parent().map(std::path::Path::to_path_buf);
+
+        let media_config = MediaConfig {
+            image_mode: self.config.image_mode,
+            slide_dir,
+            assets_dir,
+        };
+
+        // Render markdown to HTML with media embedding
+        let rendered = render_markdown(&slide.content, &media_config);
 
         // Wrap in layout template
         let html = wrap_slide(index, layout, rendered, notes.as_deref());
 
-        self.slides.push(RenderedSlide { html });
+        self.slides.push(RenderedSlide {
+            html,
+            layout: layout.to_string(),
+        });
     }
 
     /// Add multiple slides in order
@@ -133,6 +154,11 @@ impl HtmlRenderer {
         );
         html.push_str("  <meta name=\"generator\" content=\"sldr\">\n");
 
+        // Google Fonts - default font pairing (flavor can override via CSS vars)
+        html.push_str("  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n");
+        html.push_str("  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n");
+        html.push_str("  <link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Fira+Code:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap\" rel=\"stylesheet\">\n");
+
         // Base CSS (inlined)
         html.push_str("  <style>\n");
         html.push_str(BASE_CSS);
@@ -151,10 +177,11 @@ impl HtmlRenderer {
         );
         html.push('\n');
 
-        // All slides
+        // All slides (with logo injection)
         for slide in &self.slides {
+            let slide_html = self.inject_logos(&slide.html, &slide.layout);
             html.push_str("    ");
-            html.push_str(&slide.html);
+            html.push_str(&slide_html);
             html.push('\n');
         }
 
@@ -192,6 +219,86 @@ impl HtmlRenderer {
         info!("Wrote presentation to {}", path.display());
 
         Ok(())
+    }
+
+    /// Generate logo overlay HTML for a specific slide layout.
+    ///
+    /// Resolves logo files from the flavor's assets directory, embeds them
+    /// (as WebP/SVG data URIs or external refs based on image_mode), and
+    /// returns positioned `<img>` tags.
+    fn generate_logo_html(&self, layout: &str) -> String {
+        let Some(flavor) = self.flavors.first() else {
+            return String::new();
+        };
+
+        if flavor.logos.is_empty() {
+            return String::new();
+        }
+
+        let assets_dir = flavor
+            .source_dir
+            .as_ref()
+            .map(|d| d.join("assets"));
+
+        let mut logo_html = String::new();
+
+        for logo in &flavor.logos {
+            if !logo.applies_to_layout(layout) {
+                continue;
+            }
+
+            // Resolve the logo file from the flavor's assets directory
+            let logo_src = if let Some(ref assets) = assets_dir {
+                let logo_path = assets.join(&logo.file);
+                if logo_path.exists() {
+                    let embed = media::process_media_src(
+                        &logo_path.to_string_lossy(),
+                        assets.parent(),
+                        self.config.image_mode,
+                        self.config.output_dir.as_ref().map(|d| d.join("assets")).as_deref(),
+                    );
+                    match embed {
+                        MediaEmbed::DataUri(uri) => uri,
+                        MediaEmbed::External(url) => url,
+                        MediaEmbed::AssetFile { html_src, .. } => html_src,
+                        MediaEmbed::NotFound(_) => continue,
+                    }
+                } else {
+                    tracing::warn!("Logo file not found: {}", logo_path.display());
+                    continue;
+                }
+            } else {
+                // No assets dir, try the file path directly
+                logo.file.clone()
+            };
+
+            let style = logo.to_css_position();
+            let _ = writeln!(
+                logo_html,
+                "    <img class=\"sldr-logo\" src=\"{logo_src}\" alt=\"\" style=\"{style}\">"
+            );
+        }
+
+        logo_html
+    }
+
+    /// Inject logo overlays into a slide's HTML (before the closing </section>)
+    fn inject_logos(&self, slide_html: &str, layout: &str) -> String {
+        let logo_html = self.generate_logo_html(layout);
+        if logo_html.is_empty() {
+            return slide_html.to_string();
+        }
+
+        // Insert logo HTML before </section>
+        if let Some(pos) = slide_html.rfind("</section>") {
+            let mut result = String::with_capacity(slide_html.len() + logo_html.len());
+            result.push_str(&slide_html[..pos]);
+            result.push_str(&logo_html);
+            result.push_str(&slide_html[pos..]);
+            result
+        } else {
+            slide_html.to_string()
+        }
     }
 
     /// Write flavor <style> blocks into the head

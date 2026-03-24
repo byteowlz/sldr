@@ -44,6 +44,10 @@ pub struct Flavor {
     #[serde(default)]
     pub background: BackgroundConfig,
 
+    /// Logo placements - positioned logo overlays on slides
+    #[serde(default)]
+    pub logos: Vec<LogoPlacement>,
+
     /// Path to additional assets (logos, images)
     #[serde(default)]
     pub assets_dir: Option<String>,
@@ -122,6 +126,97 @@ pub struct BackgroundConfig {
     pub opacity: Option<f32>,
 }
 
+/// A logo placement slot.
+///
+/// Defines where a logo should appear, at what size/opacity,
+/// and on which slide layouts. The actual logo file is resolved
+/// from the flavor's assets directory at build time.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LogoPlacement {
+    /// Filename in the flavor's assets directory (e.g. "company-logo.svg")
+    pub file: String,
+
+    /// Named position preset: "top-left", "top-right", "top-center",
+    /// "bottom-left", "bottom-right", "bottom-center"
+    #[serde(default = "default_logo_position")]
+    pub position: String,
+
+    /// Custom X offset (CSS value, e.g. "5%", "20px"). Overrides position preset.
+    #[serde(default)]
+    pub x: Option<String>,
+
+    /// Custom Y offset (CSS value, e.g. "5%", "20px"). Overrides position preset.
+    #[serde(default)]
+    pub y: Option<String>,
+
+    /// Logo width (CSS value, e.g. "120px", "8vw")
+    #[serde(default = "default_logo_width")]
+    pub width: String,
+
+    /// Opacity 0.0-1.0
+    #[serde(default = "default_logo_opacity")]
+    pub opacity: f32,
+
+    /// Which layouts this logo appears on.
+    /// Use ["all"] for every slide, or specific layouts like ["default", "two-cols"].
+    #[serde(default = "default_logo_templates")]
+    pub templates: Vec<String>,
+}
+
+fn default_logo_position() -> String {
+    "top-right".to_string()
+}
+
+fn default_logo_width() -> String {
+    "100px".to_string()
+}
+
+fn default_logo_opacity() -> f32 {
+    0.8
+}
+
+fn default_logo_templates() -> Vec<String> {
+    vec!["all".to_string()]
+}
+
+impl LogoPlacement {
+    /// Convert the position preset + custom offsets into inline CSS for
+    /// absolute positioning within a slide.
+    pub fn to_css_position(&self) -> String {
+        // Custom x/y override the preset
+        if self.x.is_some() || self.y.is_some() {
+            let x = self.x.as_deref().unwrap_or("auto");
+            let y = self.y.as_deref().unwrap_or("auto");
+            return format!(
+                "position:absolute;left:{x};top:{y};width:{w};opacity:{o};z-index:10;pointer-events:none;",
+                w = self.width,
+                o = self.opacity,
+            );
+        }
+
+        let (pos_css, transform) = match self.position.as_str() {
+            "top-left" => ("top:3%;left:3%;", ""),
+            "top-center" => ("top:3%;left:50%;", "transform:translateX(-50%);"),
+            "top-right" => ("top:3%;right:3%;", ""),
+            "bottom-left" => ("bottom:3%;left:3%;", ""),
+            "bottom-center" => ("bottom:3%;left:50%;", "transform:translateX(-50%);"),
+            "bottom-right" => ("bottom:3%;right:3%;", ""),
+            _ => ("top:3%;right:3%;", ""), // fallback to top-right
+        };
+
+        format!(
+            "position:absolute;{pos_css}{transform}width:{w};opacity:{o};z-index:10;pointer-events:none;",
+            w = self.width,
+            o = self.opacity,
+        )
+    }
+
+    /// Check if this logo should appear on a given layout
+    pub fn applies_to_layout(&self, layout: &str) -> bool {
+        self.templates.iter().any(|t| t == "all" || t == layout)
+    }
+}
+
 impl Default for Flavor {
     fn default() -> Self {
         Self {
@@ -132,6 +227,7 @@ impl Default for Flavor {
             dark_colors: None,
             typography: Typography::default(),
             background: BackgroundConfig::default(),
+            logos: Vec::new(),
             assets_dir: None,
             source_dir: None,
         }
