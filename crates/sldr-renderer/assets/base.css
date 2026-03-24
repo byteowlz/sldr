@@ -1,14 +1,15 @@
 /**
  * sldr Base Stylesheet
  *
- * Core layout, typography, transitions, overview grid, progress bar, toolbar
- * (dark/light toggle + flavor selector), and print styles for the
- * self-contained HTML presenter.
+ * Presentation-grade layout, typography, transitions, overview grid,
+ * progress bar, toolbar (dark/light toggle + flavor selector), edit mode,
+ * and print styles for the self-contained HTML presenter.
+ *
+ * Design philosophy: viewport-relative sizing, visual hierarchy through
+ * depth tiers, atmospheric backgrounds, and generous whitespace.
  *
  * Flavor CSS custom properties override defaults via :root.
  * Dark mode inverts via html.dark overrides.
- *
- * All selectors use .sldr-* namespace to avoid collisions.
  */
 
 /* === Reset === */
@@ -20,15 +21,35 @@
   padding: 0;
 }
 
+/* === Root palette (defaults - flavors override these) === */
+:root {
+  --sldr-primary: #60a5fa;
+  --sldr-secondary: #818cf8;
+  --sldr-background: #0f172a;
+  --sldr-surface: #1e293b;
+  --sldr-surface2: #283548;
+  --sldr-border: rgba(148, 163, 184, 0.08);
+  --sldr-border-bright: rgba(148, 163, 184, 0.16);
+  --sldr-text: #f1f5f9;
+  --sldr-text-dim: #94a3b8;
+  --sldr-accent: #60a5fa;
+  --sldr-accent-dim: rgba(96, 165, 250, 0.08);
+  --sldr-code-background: #0a0f1e;
+  --sldr-code-text: #e2e8f0;
+  --sldr-heading-font: 'DM Sans', system-ui, sans-serif;
+  --sldr-body-font: 'DM Sans', system-ui, sans-serif;
+  --sldr-code-font: 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+}
+
 html,
 body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--sldr-background, #ffffff);
-  color: var(--sldr-text, #1f2937);
-  font-family: var(--sldr-body-font, system-ui, -apple-system, "Segoe UI", sans-serif);
-  font-size: var(--sldr-base-size, 18px);
+  background: var(--sldr-background);
+  color: var(--sldr-text);
+  font-family: var(--sldr-body-font);
+  font-size: clamp(16px, 1.8vw, 22px);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -39,6 +60,7 @@ body {
 html.dark {
   --sldr-background: #0f0f23;
   --sldr-text: #e0e0e0;
+  --sldr-text-dim: #7a7a7a;
   --sldr-code-background: #1e1e2e;
   --sldr-code-text: #cdd6f4;
 }
@@ -56,9 +78,9 @@ html.dark {
   position: absolute;
   inset: 0;
   display: none;
-  padding: 48px 64px;
-  background: var(--sldr-background, #ffffff);
-  color: var(--sldr-text, #1f2937);
+  padding: clamp(40px, 6vh, 80px) clamp(48px, 7vw, 120px);
+  background: var(--sldr-background);
+  color: var(--sldr-text);
   overflow: hidden;
   transition: background 0.3s ease, color 0.3s ease;
 }
@@ -72,25 +94,100 @@ html.dark {
   display: none;
 }
 
+/* Atmospheric backgrounds - subtle glow variation per slide */
+.sldr-slide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sldr-slide:nth-child(3n+1)::before {
+  background: radial-gradient(ellipse at 15% 85%, var(--sldr-accent-dim, rgba(96, 165, 250, 0.06)) 0%, transparent 50%);
+}
+
+.sldr-slide:nth-child(3n+2)::before {
+  background: radial-gradient(ellipse at 85% 20%, rgba(129, 140, 248, 0.05) 0%, transparent 50%);
+}
+
+.sldr-slide:nth-child(3n)::before {
+  background: radial-gradient(ellipse at 50% 90%, var(--sldr-accent-dim, rgba(96, 165, 250, 0.05)) 0%, transparent 45%);
+}
+
+/* Content container - takes full height, positions children */
 .sldr-content {
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
+  min-height: 0;
 }
 
-/* === Layout: cover === */
+
+/* =========================================================================
+ * Layout: default — title at top, content fills remaining space
+ * ========================================================================= */
+.sldr-slide[data-layout="default"] .sldr-content {
+  justify-content: flex-start;
+  gap: clamp(16px, 2.5vh, 32px);
+}
+
+/* Push content down from the title */
+.sldr-slide[data-layout="default"] .sldr-content > *:first-child {
+  margin-bottom: clamp(8px, 1.5vh, 24px);
+}
+
+
+/* =========================================================================
+ * Layout: cover — centered hero title
+ * ========================================================================= */
 .sldr-slide[data-layout="cover"] {
   justify-content: center;
   align-items: center;
   text-align: center;
 }
 
+.sldr-slide[data-layout="cover"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, var(--sldr-accent-dim, rgba(96, 165, 250, 0.12)) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 80%, rgba(129, 140, 248, 0.06) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .sldr-slide[data-layout="cover"] .sldr-content {
   justify-content: center;
   align-items: center;
+  max-width: 85%;
+  z-index: 1;
 }
 
-/* === Layout: center === */
+.sldr-slide[data-layout="cover"] h1 {
+  font-size: clamp(40px, 7vw, 96px);
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1.05;
+  text-wrap: balance;
+  margin-bottom: clamp(12px, 2vh, 32px);
+}
+
+.sldr-slide[data-layout="cover"] p {
+  font-size: clamp(16px, 2.5vw, 28px);
+  color: var(--sldr-text-dim, var(--sldr-text));
+  opacity: 0.7;
+  max-width: 70%;
+  text-wrap: balance;
+}
+
+
+/* =========================================================================
+ * Layout: center
+ * ========================================================================= */
 .sldr-slide[data-layout="center"] {
   justify-content: center;
   align-items: center;
@@ -100,35 +197,86 @@ html.dark {
 .sldr-slide[data-layout="center"] .sldr-content {
   justify-content: center;
   align-items: center;
+  max-width: 80%;
 }
 
-/* === Layout: section === */
+
+/* =========================================================================
+ * Layout: section — big bold divider
+ * ========================================================================= */
 .sldr-slide[data-layout="section"] {
   justify-content: center;
   align-items: flex-start;
 }
 
-.sldr-slide[data-layout="section"] h1 {
-  font-size: 3em;
+.sldr-slide[data-layout="section"] .sldr-content {
+  justify-content: center;
+  gap: clamp(8px, 1.5vh, 20px);
 }
 
-/* === Layout: two-cols === */
+.sldr-slide[data-layout="section"] h1 {
+  font-size: clamp(36px, 8vw, 100px);
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1.05;
+}
+
+.sldr-slide[data-layout="section"] p {
+  font-size: clamp(16px, 2.2vw, 26px);
+  color: var(--sldr-text-dim, var(--sldr-text));
+  opacity: 0.6;
+}
+
+
+/* =========================================================================
+ * Layout: two-cols — title on top, two columns fill remaining space
+ * ========================================================================= */
+.sldr-slide[data-layout="two-cols"] .sldr-content {
+  justify-content: flex-start;
+  gap: clamp(12px, 2vh, 28px);
+}
+
 .sldr-slide[data-layout="two-cols"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  gap: clamp(32px, 4vw, 80px);
   flex: 1;
+  align-content: start;
+  min-height: 0;
 }
 
-/* === Layout: two-cols-header === */
+.sldr-slide[data-layout="two-cols"] .sldr-col {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1vh, 14px);
+  background: var(--sldr-surface, #1e293b);
+  border: 1px solid var(--sldr-border, rgba(148, 163, 184, 0.08));
+  border-radius: 12px;
+  padding: clamp(20px, 3vh, 36px) clamp(20px, 2.5vw, 36px);
+}
+
+
+/* =========================================================================
+ * Layout: two-cols-header
+ * ========================================================================= */
+.sldr-slide[data-layout="two-cols-header"] .sldr-content {
+  justify-content: flex-start;
+  gap: clamp(12px, 2vh, 28px);
+}
+
 .sldr-slide[data-layout="two-cols-header"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  gap: clamp(32px, 4vw, 80px);
   flex: 1;
+  align-content: start;
+  min-height: 0;
 }
 
-/* === Layout: image (full bleed) === */
+
+/* =========================================================================
+ * Layout: image (full bleed)
+ * ========================================================================= */
 .sldr-slide[data-layout="image"] {
   padding: 0;
 }
@@ -139,7 +287,10 @@ html.dark {
   object-fit: cover;
 }
 
-/* === Layout: image-left === */
+
+/* =========================================================================
+ * Layout: image-left
+ * ========================================================================= */
 .sldr-slide[data-layout="image-left"] .sldr-columns {
   display: grid;
   grid-template-columns: 45% 1fr;
@@ -158,13 +309,16 @@ html.dark {
 }
 
 .sldr-slide[data-layout="image-left"] .sldr-col-content {
-  padding: 48px 48px 48px 32px;
+  padding: clamp(32px, 5vh, 60px) clamp(32px, 4vw, 60px);
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-/* === Layout: image-right === */
+
+/* =========================================================================
+ * Layout: image-right
+ * ========================================================================= */
 .sldr-slide[data-layout="image-right"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 45%;
@@ -173,7 +327,7 @@ html.dark {
 }
 
 .sldr-slide[data-layout="image-right"] .sldr-col-content {
-  padding: 48px 32px 48px 48px;
+  padding: clamp(32px, 5vh, 60px) clamp(32px, 4vw, 60px);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -189,86 +343,158 @@ html.dark {
   object-fit: cover;
 }
 
-/* === Layout: quote === */
+
+/* =========================================================================
+ * Layout: quote — dramatic centered quote
+ * ========================================================================= */
 .sldr-slide[data-layout="quote"] {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: clamp(60px, 10vh, 120px) clamp(60px, 12vw, 200px);
+}
+
+.sldr-slide[data-layout="quote"] .sldr-content {
   justify-content: center;
   align-items: center;
 }
 
 .sldr-slide[data-layout="quote"] blockquote {
-  font-size: 1.5em;
+  font-size: clamp(28px, 4.5vw, 56px);
+  font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
-  border-left: 4px solid var(--sldr-primary, #3b82f6);
-  padding: 16px 32px;
-  max-width: 80%;
+  font-weight: 400;
+  line-height: 1.3;
+  border-left: none;
+  padding: 0;
+  margin: 0 0 clamp(20px, 4vh, 48px);
+  max-width: 85%;
+  text-wrap: balance;
+  color: var(--sldr-text);
+  text-transform: none;
+  letter-spacing: -0.5px;
+}
+
+.sldr-slide[data-layout="quote"] blockquote p {
+  font-size: inherit;
+  font-family: inherit;
+  font-style: inherit;
+  line-height: inherit;
+  text-transform: none;
+  letter-spacing: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+.sldr-slide[data-layout="quote"] blockquote::before {
+  content: '\201C';
+  display: block;
+  font-size: clamp(100px, 18vw, 220px);
+  line-height: 0.6;
+  opacity: 0.07;
+  font-family: Georgia, serif;
+  color: var(--sldr-accent);
+  margin-bottom: clamp(12px, 3vh, 36px);
+}
+
+/* Attribution and commentary below the quote */
+.sldr-slide[data-layout="quote"] .sldr-content > p {
+  font-family: var(--sldr-code-font);
+  font-size: clamp(12px, 1.5vw, 16px);
+  font-style: normal;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--sldr-text-dim, var(--sldr-text));
+  opacity: 0.6;
+  text-wrap: balance;
 }
 
 .sldr-slide[data-layout="quote"] .sldr-attribution {
-  margin-top: 16px;
+  font-family: var(--sldr-code-font);
+  font-size: clamp(11px, 1.4vw, 15px);
   font-style: normal;
-  font-size: 0.7em;
-  color: var(--sldr-secondary, #6366f1);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--sldr-secondary, var(--sldr-primary));
 }
 
-/* === Layout: end === */
+
+/* =========================================================================
+ * Layout: end
+ * ========================================================================= */
 .sldr-slide[data-layout="end"] {
   justify-content: center;
   align-items: center;
   text-align: center;
 }
 
-/* === Typography === */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--sldr-heading-font, inherit);
-  color: var(--sldr-primary, inherit);
-  line-height: 1.2;
-  margin-bottom: 0.5em;
+
+/* =========================================================================
+ * Typography — presentation-grade sizing
+ * ========================================================================= */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--sldr-heading-font);
+  color: var(--sldr-primary);
+  line-height: 1.15;
+  margin-bottom: 0;
   transition: color 0.3s ease;
 }
 
 h1 {
-  font-size: 2.5em;
+  font-size: clamp(30px, 4.5vw, 56px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
 h2 {
-  font-size: 1.8em;
+  font-size: clamp(22px, 3vw, 38px);
+  font-weight: 600;
 }
 
 h3 {
-  font-size: 1.4em;
+  font-size: clamp(18px, 2.2vw, 28px);
+  font-weight: 600;
 }
 
 h4 {
-  font-size: 1.2em;
+  font-size: clamp(16px, 1.8vw, 24px);
+  font-weight: 600;
 }
 
 p {
-  margin-bottom: 0.75em;
+  margin-bottom: 0.6em;
+  font-size: clamp(15px, 2vw, 22px);
+  line-height: 1.65;
 }
 
-ul,
-ol {
-  padding-left: 1.5em;
-  margin-bottom: 0.75em;
+ul, ol {
+  padding-left: 1.2em;
+  margin-bottom: 0.6em;
 }
 
 li {
-  margin-bottom: 0.3em;
+  margin-bottom: clamp(6px, 1vh, 14px);
+  font-size: clamp(15px, 2vw, 22px);
+  line-height: 1.55;
+  padding-left: 0.3em;
 }
 
 li::marker {
-  color: var(--sldr-primary, #3b82f6);
+  color: var(--sldr-primary);
+}
+
+/* Numbered list markers with accent color */
+ol li::marker {
+  color: var(--sldr-primary);
+  font-weight: 600;
 }
 
 a {
-  color: var(--sldr-accent, var(--sldr-primary, #3b82f6));
+  color: var(--sldr-accent, var(--sldr-primary));
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
 }
 
 a:hover {
@@ -277,6 +503,8 @@ a:hover {
 
 strong {
   font-weight: 700;
+  color: var(--sldr-text);
+  letter-spacing: -0.01em;
 }
 
 em {
@@ -284,78 +512,114 @@ em {
 }
 
 blockquote {
-  border-left: 3px solid var(--sldr-primary, #3b82f6);
-  padding-left: 16px;
-  margin: 0.75em 0;
-  opacity: 0.9;
+  border-left: 3px solid var(--sldr-primary);
+  padding-left: clamp(16px, 2vw, 28px);
+  margin: 0.8em 0;
+  color: var(--sldr-text-dim, #94a3b8);
 }
 
-/* === Code blocks === */
+
+/* =========================================================================
+ * Code blocks — prominent, readable at distance
+ * ========================================================================= */
 pre.sldr-code {
-  background: var(--sldr-code-background, #1e1e2e);
-  color: var(--sldr-code-text, #cdd6f4);
-  border-radius: 8px;
-  padding: 16px 20px;
+  background: var(--sldr-code-background);
+  color: var(--sldr-code-text);
+  border-radius: 12px;
+  border: 1px solid var(--sldr-border-bright, rgba(148, 163, 184, 0.12));
+  padding: clamp(16px, 2.5vh, 32px) clamp(20px, 2.5vw, 32px);
   overflow-x: auto;
-  font-size: 0.85em;
-  line-height: 1.5;
-  margin: 0.75em 0;
+  font-size: clamp(13px, 1.4vw, 17px);
+  line-height: 1.7;
+  margin: clamp(10px, 1.5vh, 20px) 0;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
   transition: background 0.3s ease, color 0.3s ease;
 }
 
 code {
-  font-family: var(--sldr-code-font, "JetBrains Mono", "Fira Code", "Cascadia Code", monospace);
+  font-family: var(--sldr-code-font);
 }
 
 /* Inline code */
 :not(pre) > code {
-  background: var(--sldr-code-background, #f3f4f6);
-  color: var(--sldr-code-text, #1f2937);
-  padding: 2px 6px;
+  background: var(--sldr-accent-dim, rgba(96, 165, 250, 0.1));
+  color: var(--sldr-accent, #60a5fa);
+  padding: 2px 8px;
   border-radius: 4px;
-  font-size: 0.9em;
+  font-size: 0.85em;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-html.dark :not(pre) > code {
-  background: #2a2a3e;
-  color: #cdd6f4;
-}
 
-/* === Tables === */
+/* =========================================================================
+ * Tables
+ * ========================================================================= */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0.75em 0;
-  font-size: 0.9em;
+  margin: 0.6em 0;
+  font-size: clamp(13px, 1.6vw, 19px);
+  background: var(--sldr-surface, #1e293b);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--sldr-border, rgba(148, 163, 184, 0.08));
 }
 
 th {
-  background: var(--sldr-primary, #3b82f6);
-  color: #ffffff;
-  padding: 10px 14px;
+  background: var(--sldr-surface2, #283548);
+  color: var(--sldr-text-dim, #94a3b8);
+  padding: clamp(10px, 1.5vh, 16px) clamp(14px, 2vw, 22px);
   text-align: left;
   font-weight: 600;
+  font-size: clamp(10px, 1.2vw, 13px);
+  font-family: var(--sldr-code-font);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--sldr-border-bright, rgba(148, 163, 184, 0.16));
   transition: background 0.3s ease;
 }
 
 td {
-  padding: 8px 14px;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  padding: clamp(8px, 1.2vh, 14px) clamp(14px, 2vw, 22px);
+  border-bottom: 1px solid var(--sldr-border, rgba(148, 163, 184, 0.06));
+}
+
+tr:nth-child(even) {
+  background: var(--sldr-surface2, rgba(148, 163, 184, 0.03));
 }
 
 tr:hover td {
-  background: rgba(128, 128, 128, 0.05);
+  background: var(--sldr-accent-dim, rgba(96, 165, 250, 0.06));
 }
 
-/* === Images === */
+
+/* =========================================================================
+ * Images
+ * ========================================================================= */
 .sldr-content img {
   max-width: 100%;
   height: auto;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-/* === Click-through builds === */
+
+/* =========================================================================
+ * Logo overlays — positioned by inline styles from flavor config
+ * ========================================================================= */
+.sldr-logo {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  height: auto;
+  max-height: 15%;
+  object-fit: contain;
+  transition: opacity 0.3s ease;
+}
+
+
+/* =========================================================================
+ * Click-through builds
+ * ========================================================================= */
 [data-click-step] {
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
@@ -372,9 +636,12 @@ tr:hover td {
   transform: translateY(0);
 }
 
-/* === Transitions === */
 
-/* Entering slide must render above exiting slide for proper layering */
+/* =========================================================================
+ * Transitions
+ * ========================================================================= */
+
+/* Entering slide renders above exiting slide */
 .tr-fade-enter,
 .tr-slide-left-enter,
 .tr-slide-right-enter {
@@ -441,22 +708,28 @@ tr:hover td {
   to { transform: translateX(100%); }
 }
 
-/* === Progress bar === */
+
+/* =========================================================================
+ * Progress bar
+ * ========================================================================= */
 .sldr-progress {
   position: fixed;
   bottom: 0;
   left: 0;
   height: 3px;
-  background: var(--sldr-primary, #3b82f6);
+  background: var(--sldr-primary);
   transition: width 0.3s ease, background 0.3s ease;
   z-index: 100;
 }
 
-/* === Navigation UI (page number) === */
+
+/* =========================================================================
+ * Navigation UI (page number)
+ * ========================================================================= */
 .sldr-nav {
   position: fixed;
-  bottom: 8px;
-  right: 16px;
+  bottom: clamp(8px, 1.5vh, 16px);
+  right: clamp(12px, 2vw, 24px);
   z-index: 100;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -469,19 +742,23 @@ body:hover .sldr-nav {
 
 .sldr-page-num {
   font-size: 12px;
-  color: var(--sldr-text, #1f2937);
+  color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.5;
   font-variant-numeric: tabular-nums;
-  font-family: var(--sldr-code-font, monospace);
+  font-family: var(--sldr-code-font);
 }
 
-/* === Speaker notes (hidden in presentation) === */
+
+/* =========================================================================
+ * Speaker notes (hidden in presentation)
+ * ========================================================================= */
 .sldr-notes {
   display: none;
 }
 
+
 /* =========================================================================
- * Toolbar - bottom-left bar with dark/light toggle + flavor selector
+ * Toolbar — bottom-left bar with dark/light toggle + flavor selector
  * ========================================================================= */
 .sldr-toolbar {
   position: fixed;
@@ -501,25 +778,23 @@ body:hover .sldr-toolbar {
   pointer-events: auto;
 }
 
-/* Also show when flavor panel is open */
 .sldr-toolbar:has(.sldr-flavor-panel-open) {
   opacity: 1;
   pointer-events: auto;
 }
 
-/* Toolbar buttons */
 .sldr-toolbar-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  border: 1px solid rgba(128, 128, 128, 0.25);
+  border: 1px solid var(--sldr-border, rgba(128, 128, 128, 0.2));
   border-radius: 6px;
-  background: rgba(128, 128, 128, 0.1);
-  color: var(--sldr-text, #1f2937);
+  background: rgba(128, 128, 128, 0.08);
+  color: var(--sldr-text);
   cursor: pointer;
   font-size: 13px;
-  font-family: var(--sldr-body-font, system-ui, sans-serif);
+  font-family: var(--sldr-body-font);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: background 0.2s, border-color 0.2s, color 0.3s ease;
@@ -527,8 +802,8 @@ body:hover .sldr-toolbar {
 }
 
 .sldr-toolbar-btn:hover {
-  background: rgba(128, 128, 128, 0.2);
-  border-color: rgba(128, 128, 128, 0.4);
+  background: rgba(128, 128, 128, 0.16);
+  border-color: rgba(128, 128, 128, 0.3);
 }
 
 .sldr-toolbar-btn svg {
@@ -542,7 +817,10 @@ body:hover .sldr-toolbar {
   white-space: nowrap;
 }
 
-/* === Flavor panel (dropdown above toolbar) === */
+
+/* =========================================================================
+ * Flavor panel (dropdown above toolbar)
+ * ========================================================================= */
 .sldr-flavor-panel {
   position: absolute;
   bottom: calc(100% + 8px);
@@ -551,7 +829,7 @@ body:hover .sldr-toolbar {
   max-height: 320px;
   overflow-y: auto;
   background: rgba(30, 30, 46, 0.95);
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  border: 1px solid rgba(128, 128, 128, 0.2);
   border-radius: 8px;
   padding: 4px;
   display: none;
@@ -563,8 +841,8 @@ body:hover .sldr-toolbar {
 
 html:not(.dark) .sldr-flavor-panel {
   background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(128, 128, 128, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border-color: rgba(128, 128, 128, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .sldr-flavor-panel.sldr-flavor-panel-open {
@@ -582,7 +860,7 @@ html:not(.dark) .sldr-flavor-panel {
   color: #e0e0e0;
   cursor: pointer;
   font-size: 13px;
-  font-family: var(--sldr-body-font, system-ui, sans-serif);
+  font-family: var(--sldr-body-font);
   text-align: left;
   transition: background 0.15s;
   white-space: nowrap;
@@ -593,11 +871,11 @@ html:not(.dark) .sldr-flavor-item {
 }
 
 .sldr-flavor-item:hover {
-  background: rgba(128, 128, 128, 0.15);
+  background: rgba(128, 128, 128, 0.12);
 }
 
 .sldr-flavor-item.sldr-flavor-active {
-  background: var(--sldr-primary, #6366f1);
+  background: var(--sldr-primary);
   color: #ffffff;
 }
 
@@ -605,12 +883,15 @@ html:not(.dark) .sldr-flavor-item {
   opacity: 0.9;
 }
 
-/* === Overview grid === */
+
+/* =========================================================================
+ * Overview grid
+ * ========================================================================= */
 .sldr-overview {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.92);
   display: none;
   overflow-y: auto;
   padding: 24px;
@@ -641,12 +922,12 @@ html:not(.dark) .sldr-flavor-item {
 }
 
 .sldr-overview-thumb:hover {
-  border-color: var(--sldr-primary, #3b82f6);
+  border-color: var(--sldr-primary);
   transform: scale(1.03);
 }
 
 .sldr-overview-thumb.sldr-overview-current {
-  border-color: var(--sldr-primary, #3b82f6);
+  border-color: var(--sldr-primary);
 }
 
 .sldr-overview-content {
@@ -672,7 +953,10 @@ html:not(.dark) .sldr-flavor-item {
   font-variant-numeric: tabular-nums;
 }
 
-/* === Edit mode === */
+
+/* =========================================================================
+ * Edit mode
+ * ========================================================================= */
 .sldr-edit-mode .sldr-editable {
   outline: 2px dashed rgba(99, 102, 241, 0.4);
   outline-offset: 4px;
@@ -683,7 +967,7 @@ html:not(.dark) .sldr-flavor-item {
 }
 
 .sldr-edit-mode .sldr-editable:focus {
-  outline-color: var(--sldr-primary, #6366f1);
+  outline-color: var(--sldr-primary);
   outline-style: solid;
 }
 
@@ -691,7 +975,6 @@ html:not(.dark) .sldr-flavor-item {
   outline-color: rgba(99, 102, 241, 0.6);
 }
 
-/* Edit mode indicator - top border */
 .sldr-edit-mode::after {
   content: "";
   position: fixed;
@@ -699,11 +982,10 @@ html:not(.dark) .sldr-flavor-item {
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--sldr-primary, #6366f1);
+  background: var(--sldr-primary);
   z-index: 300;
 }
 
-/* Floating edit toolbar */
 .sldr-edit-toolbar {
   position: fixed;
   top: 12px;
@@ -715,7 +997,7 @@ html:not(.dark) .sldr-flavor-item {
   gap: 4px;
   padding: 6px 12px;
   background: rgba(30, 30, 46, 0.95);
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  border: 1px solid rgba(128, 128, 128, 0.2);
   border-radius: 8px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -724,8 +1006,8 @@ html:not(.dark) .sldr-flavor-item {
 
 html:not(.dark) .sldr-edit-toolbar {
   background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(128, 128, 128, 0.2);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  border-color: rgba(128, 128, 128, 0.15);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
 }
 
 .sldr-edit-toolbar-visible {
@@ -736,9 +1018,9 @@ html:not(.dark) .sldr-edit-toolbar {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--sldr-primary, #6366f1);
+  color: var(--sldr-primary);
   padding: 0 8px 0 4px;
-  font-family: var(--sldr-code-font, monospace);
+  font-family: var(--sldr-code-font);
 }
 
 .sldr-edit-btn {
@@ -748,14 +1030,14 @@ html:not(.dark) .sldr-edit-toolbar {
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
-  border: 1px solid rgba(128, 128, 128, 0.2);
+  border: 1px solid rgba(128, 128, 128, 0.15);
   border-radius: 5px;
   background: transparent;
-  color: var(--sldr-text, #e0e0e0);
+  color: var(--sldr-text);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  font-family: var(--sldr-body-font, system-ui, sans-serif);
+  font-family: var(--sldr-body-font);
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -764,19 +1046,19 @@ html:not(.dark) .sldr-edit-btn {
 }
 
 .sldr-edit-btn:hover {
-  background: rgba(128, 128, 128, 0.15);
-  border-color: rgba(128, 128, 128, 0.4);
+  background: rgba(128, 128, 128, 0.12);
+  border-color: rgba(128, 128, 128, 0.3);
 }
 
 .sldr-edit-sep {
   width: 1px;
   height: 20px;
-  background: rgba(128, 128, 128, 0.3);
+  background: rgba(128, 128, 128, 0.2);
   margin: 0 4px;
 }
 
 .sldr-edit-save {
-  color: var(--sldr-primary, #6366f1);
+  color: var(--sldr-primary);
   font-weight: 700;
 }
 
@@ -784,10 +1066,12 @@ html:not(.dark) .sldr-edit-btn {
   color: #ef4444;
 }
 
-/* === Print styles === */
+
+/* =========================================================================
+ * Print styles
+ * ========================================================================= */
 @media print {
-  html,
-  body {
+  html, body {
     overflow: visible;
     height: auto;
     width: auto;
@@ -812,6 +1096,11 @@ html:not(.dark) .sldr-edit-btn {
 
   .sldr-slide[aria-hidden="true"] {
     display: block !important;
+  }
+
+  .sldr-slide::before,
+  .sldr-slide::after {
+    display: none !important;
   }
 
   .sldr-progress,

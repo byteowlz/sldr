@@ -107,6 +107,7 @@ pub fn run(
         transition: transition.clone(),
         aspect_ratio: aspect_ratio.clone(),
         speaker_notes: true,
+        ..Default::default()
     };
 
     let html = build_html(&render_config, &flavor, &resolved_slides)?;

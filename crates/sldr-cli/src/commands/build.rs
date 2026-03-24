@@ -16,6 +16,7 @@ pub fn run(
     pdf: bool,
     _pptx: bool,
     output: Option<String>,
+    images: &str,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -83,11 +84,18 @@ pub fn run(
         .clone()
         .unwrap_or_else(|| "16/9".to_string());
 
+    let image_mode = match images {
+        "external" => sldr_renderer::ImageMode::External,
+        _ => sldr_renderer::ImageMode::Embed,
+    };
+
     let render_config = RenderConfig {
         title,
         transition,
         aspect_ratio,
         speaker_notes: true,
+        image_mode,
+        output_dir: Some(output_dir.clone()),
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);

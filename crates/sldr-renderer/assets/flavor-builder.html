@@ -1,0 +1,2608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sldr Flavor Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   FLAVOR BUILDER UI
+   ================================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --ui-bg: #0c0e14;
+  --ui-surface: #14161e;
+  --ui-surface2: #1c1f2b;
+  --ui-border: rgba(148,163,184,0.08);
+  --ui-border-bright: rgba(148,163,184,0.18);
+  --ui-text: #e2e8f0;
+  --ui-text-dim: #64748b;
+  --ui-accent: #60a5fa;
+  --ui-accent-dim: rgba(96,165,250,0.12);
+  --ui-danger: #f87171;
+  --ui-success: #34d399;
+  --ui-font: 'DM Sans', system-ui, sans-serif;
+  --ui-mono: 'Fira Code', monospace;
+}
+
+html,body {
+  width:100%;height:100%;overflow:hidden;
+  background:var(--ui-bg);color:var(--ui-text);
+  font-family:var(--ui-font);font-size:13px;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* === Main layout: sidebar + preview === */
+.builder-layout {
+  display:grid;
+  grid-template-columns: 340px 1fr;
+  height:100vh;
+}
+
+/* === Sidebar === */
+.sidebar {
+  background:var(--ui-surface);
+  border-right:1px solid var(--ui-border-bright);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+
+.sidebar-header {
+  padding:20px 20px 16px;
+  border-bottom:1px solid var(--ui-border);
+  flex-shrink:0;
+}
+
+.sidebar-header h1 {
+  font-size:16px;font-weight:700;
+  letter-spacing:-0.3px;
+  color:var(--ui-text);
+  display:flex;align-items:center;gap:8px;
+}
+
+.sidebar-header h1 span {
+  color:var(--ui-accent);font-family:var(--ui-mono);
+  font-size:12px;font-weight:500;
+  background:var(--ui-accent-dim);padding:2px 8px;
+  border-radius:4px;
+}
+
+.sidebar-scroll {
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:16px 20px 100px;
+}
+
+.sidebar-scroll::-webkit-scrollbar {width:4px}
+.sidebar-scroll::-webkit-scrollbar-track {background:transparent}
+.sidebar-scroll::-webkit-scrollbar-thumb {background:var(--ui-border-bright);border-radius:4px}
+
+/* === Control sections === */
+.ctrl-section {
+  margin-bottom:20px;
+}
+
+.ctrl-section-title {
+  font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--ui-text-dim);
+  margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+
+.ctrl-section-title button {
+  background:none;border:none;color:var(--ui-accent);
+  cursor:pointer;font-size:10px;font-family:var(--ui-mono);
+  padding:2px 6px;border-radius:3px;
+  transition:background 0.15s;
+}
+.ctrl-section-title button:hover {
+  background:var(--ui-accent-dim);
+}
+
+/* === Individual controls === */
+.ctrl-row {
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:8px;
+}
+
+.ctrl-label {
+  font-size:11px;color:var(--ui-text-dim);
+  min-width:90px;flex-shrink:0;
+  font-family:var(--ui-mono);
+}
+
+.ctrl-color {
+  width:28px;height:28px;border:2px solid var(--ui-border-bright);
+  border-radius:6px;cursor:pointer;padding:0;
+  background:transparent;flex-shrink:0;
+  transition:border-color 0.15s;
+}
+.ctrl-color:hover {border-color:var(--ui-accent)}
+.ctrl-color::-webkit-color-swatch-wrapper {padding:0}
+.ctrl-color::-webkit-color-swatch {border:none;border-radius:4px}
+
+.ctrl-hex {
+  background:var(--ui-surface2);border:1px solid var(--ui-border);
+  border-radius:4px;color:var(--ui-text);
+  font-family:var(--ui-mono);font-size:11px;
+  padding:5px 8px;width:80px;
+  transition:border-color 0.15s;
+}
+.ctrl-hex:focus {outline:none;border-color:var(--ui-accent)}
+
+/* Sliders */
+.ctrl-slider-wrap {
+  flex:1;display:flex;align-items:center;gap:8px;
+}
+
+input[type="range"] {
+  -webkit-appearance:none;appearance:none;
+  flex:1;height:4px;border-radius:2px;
+  background:var(--ui-surface2);outline:none;
+  cursor:pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance:none;appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--ui-accent);cursor:pointer;
+  border:2px solid var(--ui-bg);
+  box-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
+input[type="range"]::-moz-range-thumb {
+  width:14px;height:14px;border-radius:50%;
+  background:var(--ui-accent);cursor:pointer;
+  border:2px solid var(--ui-bg);
+}
+
+.ctrl-slider-val {
+  font-family:var(--ui-mono);font-size:10px;
+  color:var(--ui-text-dim);min-width:32px;text-align:right;
+}
+
+/* Select dropdowns */
+.ctrl-select {
+  background:var(--ui-surface2);border:1px solid var(--ui-border);
+  border-radius:4px;color:var(--ui-text);
+  font-family:var(--ui-font);font-size:11px;
+  padding:5px 8px;flex:1;cursor:pointer;
+  transition:border-color 0.15s;
+}
+.ctrl-select:focus {outline:none;border-color:var(--ui-accent)}
+
+/* === Action buttons === */
+.sidebar-actions {
+  position:absolute;bottom:0;left:0;right:0;
+  padding:16px 20px;
+  background:linear-gradient(transparent 0%, var(--ui-surface) 30%);
+  display:flex;gap:8px;
+  width:340px;
+}
+
+.btn {
+  flex:1;padding:10px 16px;border:none;border-radius:8px;
+  font-family:var(--ui-font);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+
+.btn-primary {
+  background:var(--ui-accent);color:#0c0e14;
+}
+.btn-primary:hover {filter:brightness(1.1)}
+
+.btn-secondary {
+  background:var(--ui-surface2);color:var(--ui-text);
+  border:1px solid var(--ui-border-bright);
+}
+.btn-secondary:hover {background:var(--ui-border-bright)}
+
+.btn-danger {
+  background:rgba(248,113,113,0.1);color:var(--ui-danger);
+  border:1px solid rgba(248,113,113,0.2);
+}
+.btn-danger:hover {background:rgba(248,113,113,0.2)}
+
+.btn-icon {
+  width:36px;height:36px;flex:0 0 36px;
+  padding:0;display:flex;align-items:center;justify-content:center;
+  background:var(--ui-surface2);border:1px solid var(--ui-border);
+  border-radius:8px;color:var(--ui-text);cursor:pointer;
+  font-size:16px;transition:all 0.15s;
+}
+.btn-icon:hover {border-color:var(--ui-accent);color:var(--ui-accent)}
+
+/* === Save dialog === */
+.save-row {
+  display:flex;gap:8px;margin-bottom:12px;
+}
+
+.save-input {
+  flex:1;background:var(--ui-surface2);border:1px solid var(--ui-border);
+  border-radius:6px;color:var(--ui-text);
+  font-family:var(--ui-mono);font-size:12px;
+  padding:8px 12px;
+  transition:border-color 0.15s;
+}
+.save-input:focus {outline:none;border-color:var(--ui-accent)}
+
+/* Toast notification */
+.toast {
+  position:fixed;bottom:24px;right:24px;
+  background:var(--ui-surface2);border:1px solid var(--ui-border-bright);
+  border-radius:10px;padding:12px 20px;
+  font-size:13px;color:var(--ui-text);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  transform:translateY(100px);opacity:0;
+  transition:all 0.3s cubic-bezier(0.16,1,0.3,1);
+  z-index:9999;
+}
+.toast.show {transform:translateY(0);opacity:1}
+.toast.success {border-color:var(--ui-success);color:var(--ui-success)}
+.toast.error {border-color:var(--ui-danger);color:var(--ui-danger)}
+
+/* === Preview area === */
+.preview-area {
+  display:flex;flex-direction:column;
+  background:var(--ui-bg);overflow:hidden;
+}
+
+.preview-toolbar {
+  display:flex;align-items:center;gap:12px;
+  padding:10px 20px;border-bottom:1px solid var(--ui-border);
+  flex-shrink:0;
+}
+
+.preview-toolbar .template-tabs {
+  display:flex;gap:2px;flex:1;flex-wrap:wrap;
+}
+
+.template-tab {
+  padding:5px 12px;border:none;border-radius:5px;
+  background:transparent;color:var(--ui-text-dim);
+  font-family:var(--ui-mono);font-size:10px;font-weight:500;
+  cursor:pointer;transition:all 0.15s;
+  text-transform:lowercase;
+}
+.template-tab:hover {color:var(--ui-text);background:var(--ui-surface2)}
+.template-tab.active {color:var(--ui-accent);background:var(--ui-accent-dim)}
+
+.preview-container {
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:24px;overflow:hidden;
+}
+
+/* The slide preview frame */
+.preview-frame {
+  width:100%;max-width:1100px;
+  aspect-ratio:16/9;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 8px 48px rgba(0,0,0,0.5), 0 0 0 1px var(--ui-border-bright);
+  position:relative;
+}
+
+/* The actual slide rendered inside */
+.preview-slide {
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  transition:background 0.3s, color 0.3s;
+}
+
+/* Atmospheric glow */
+.preview-slide::before {
+  content:'';position:absolute;inset:0;
+  pointer-events:none;z-index:0;
+}
+
+.preview-slide .sldr-content {
+  flex:1;display:flex;flex-direction:column;
+  position:relative;z-index:1;min-height:0;
+}
+
+/* === Preset cards === */
+.preset-grid {
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  margin-bottom:12px;
+}
+
+.preset-card {
+  padding:10px;border-radius:8px;
+  border:1px solid var(--ui-border);
+  background:var(--ui-surface2);
+  cursor:pointer;transition:all 0.15s;
+  text-align:center;
+}
+.preset-card:hover {border-color:var(--ui-accent)}
+.preset-card.active {border-color:var(--ui-accent);background:var(--ui-accent-dim)}
+
+.preset-card .preset-preview {
+  height:32px;border-radius:4px;margin-bottom:6px;
+  display:flex;gap:2px;overflow:hidden;
+}
+.preset-card .preset-preview span {
+  flex:1;display:block;
+}
+
+.preset-card .preset-name {
+  font-size:10px;font-weight:600;color:var(--ui-text);
+}
+
+/* === Font preview === */
+.font-preview {
+  font-size:12px;margin-top:4px;padding:6px 10px;
+  background:var(--ui-surface2);border-radius:4px;
+  border:1px solid var(--ui-border);
+  color:var(--ui-text-dim);
+  transition:all 0.2s;
+}
+
+/* Separator */
+.ctrl-sep {
+  height:1px;background:var(--ui-border);margin:16px 0;
+}
+
+/* Mode toggle */
+.mode-toggle {
+  display:flex;gap:2px;
+  background:var(--ui-surface2);border-radius:8px;
+  padding:3px;border:1px solid var(--ui-border);
+}
+.mode-btn {
+  flex:1;padding:7px 16px;border:none;border-radius:6px;
+  background:transparent;color:var(--ui-text-dim);
+  font-family:var(--ui-font);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;
+}
+.mode-btn:hover {color:var(--ui-text)}
+.mode-btn.active {
+  background:var(--ui-accent);color:#0c0e14;
+  box-shadow:0 2px 8px rgba(96,165,250,0.25);
+}
+.mode-btn[data-mode="dark"].active {
+  background:#334155;color:#f1f5f9;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+.mode-hint {
+  text-align:center;font-size:10px;color:var(--ui-text-dim);
+  margin-top:6px;font-family:var(--ui-mono);
+}
+
+/* Logo slot cards */
+.logo-slot {
+  background:var(--ui-surface2);border:1px solid var(--ui-border);
+  border-radius:8px;padding:10px;margin-bottom:8px;
+  position:relative;transition:border-color 0.15s;
+}
+.logo-slot.selected {border-color:var(--ui-accent)}
+.logo-slot-header {
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;
+}
+.logo-slot-name {
+  font-family:var(--ui-mono);font-size:11px;font-weight:500;
+  color:var(--ui-text);
+}
+.logo-slot-remove {
+  background:none;border:none;color:var(--ui-danger);
+  cursor:pointer;font-size:14px;padding:2px 6px;
+  border-radius:4px;transition:background 0.15s;line-height:1;
+}
+.logo-slot-remove:hover {background:rgba(248,113,113,0.15)}
+
+.logo-slot .ctrl-row {margin-bottom:6px}
+.logo-slot .ctrl-label {min-width:64px;font-size:10px}
+.logo-slot .ctrl-select,.logo-slot .ctrl-hex {font-size:10px;padding:4px 6px}
+
+.logo-slot-templates {
+  display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;
+}
+.logo-tmpl-tag {
+  font-size:9px;font-family:var(--ui-mono);
+  padding:2px 6px;border-radius:3px;cursor:pointer;
+  border:1px solid var(--ui-border);background:transparent;
+  color:var(--ui-text-dim);transition:all 0.15s;
+}
+.logo-tmpl-tag.active {
+  background:var(--ui-accent-dim);color:var(--ui-accent);
+  border-color:var(--ui-accent);
+}
+.logo-tmpl-tag:hover {border-color:var(--ui-accent)}
+
+/* Logo position readout */
+.logo-slot-pos {
+  font-family:var(--ui-mono);font-size:9px;
+  color:var(--ui-text-dim);margin-top:4px;
+  display:flex;gap:12px;
+}
+.logo-slot-pos span {color:var(--ui-accent)}
+
+/* Logo upload zone */
+.logo-upload-zone {
+  border:1.5px dashed var(--ui-border-bright);
+  border-radius:6px;padding:8px;margin-bottom:6px;
+  display:flex;align-items:center;gap:8px;
+  cursor:pointer;transition:all 0.15s;
+  position:relative;overflow:hidden;
+}
+.logo-upload-zone:hover,.logo-upload-zone.dragover {
+  border-color:var(--ui-accent);background:var(--ui-accent-dim);
+}
+.logo-upload-zone input[type="file"] {
+  position:absolute;inset:0;opacity:0;cursor:pointer;
+}
+.logo-upload-zone .upload-thumb {
+  width:32px;height:32px;border-radius:4px;
+  object-fit:contain;flex-shrink:0;
+  background:rgba(255,255,255,0.05);
+}
+.logo-upload-zone .upload-label {
+  font-size:10px;color:var(--ui-text-dim);
+  font-family:var(--ui-mono);
+}
+.logo-upload-zone .upload-label strong {
+  color:var(--ui-accent);
+}
+
+/* ================================================================
+   DRAGGABLE LOGO PREVIEWS ON SLIDE
+   ================================================================ */
+.preview-logo {
+  position:absolute;z-index:20;cursor:grab;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(96,165,250,0.08);
+  border:1.5px dashed rgba(96,165,250,0.5);
+  border-radius:4px;padding:4px 10px;
+  font-family:var(--ui-mono);font-size:9px;
+  color:var(--ui-accent);
+  user-select:none;-webkit-user-select:none;
+  transition:border-color 0.1s, box-shadow 0.1s;
+  min-height:28px;
+}
+.preview-logo:hover {
+  border-color:var(--ui-accent);
+  box-shadow:0 0 0 2px rgba(96,165,250,0.15);
+}
+.preview-logo.dragging {
+  cursor:grabbing;
+  border-color:var(--ui-accent);
+  box-shadow:0 0 12px rgba(96,165,250,0.3);
+  z-index:30;
+}
+.preview-logo.selected {
+  border-color:var(--ui-accent);
+  box-shadow:0 0 0 2px rgba(96,165,250,0.25);
+}
+/* Resize handle */
+.preview-logo .resize-handle {
+  position:absolute;bottom:-4px;right:-4px;
+  width:10px;height:10px;
+  background:var(--ui-accent);border-radius:2px;
+  cursor:se-resize;opacity:0;transition:opacity 0.15s;
+}
+.preview-logo:hover .resize-handle,
+.preview-logo.selected .resize-handle {opacity:1}
+
+/* ================================================================
+   SNAP GUIDE LINES
+   ================================================================ */
+.snap-guide {
+  position:absolute;z-index:15;pointer-events:none;
+  background:var(--ui-accent);opacity:0;
+  transition:opacity 0.08s;
+}
+.snap-guide.visible {opacity:0.6}
+.snap-guide.h {height:1px;left:0;right:0}
+.snap-guide.v {width:1px;top:0;bottom:0}
+
+/* Margin safe zone overlay */
+.margin-overlay {
+  position:absolute;inset:0;z-index:14;pointer-events:none;
+  opacity:0;transition:opacity 0.15s;
+}
+.margin-overlay.visible {opacity:1}
+.margin-overlay-inner {
+  position:absolute;
+  border:1px dashed rgba(96,165,250,0.2);
+  border-radius:2px;
+}
+
+/* Coordinate tooltip near cursor during drag */
+.drag-coords {
+  position:fixed;z-index:9999;pointer-events:none;
+  background:var(--ui-surface2);border:1px solid var(--ui-accent);
+  border-radius:4px;padding:3px 8px;
+  font-family:var(--ui-mono);font-size:10px;color:var(--ui-accent);
+  white-space:nowrap;opacity:0;transition:opacity 0.08s;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+}
+.drag-coords.visible {opacity:1}
+</style>
+</head>
+<body>
+
+<div class="builder-layout">
+
+  <!-- ============================================================
+       SIDEBAR: Controls
+       ============================================================ -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>Flavor Builder <span>sldr</span></h1>
+    </div>
+
+    <div class="sidebar-scroll">
+
+      <!-- Presets -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">
+          Presets
+          <button onclick="randomizeFlavor()">Randomize</button>
+        </div>
+        <div class="preset-grid" id="presetGrid"></div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Mode Toggle -->
+      <div class="ctrl-section">
+        <div class="mode-toggle" id="modeToggle">
+          <button class="mode-btn active" data-mode="light" onclick="switchMode('light')">Light</button>
+          <button class="mode-btn" data-mode="dark" onclick="switchMode('dark')">Dark</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn btn-secondary" onclick="deriveOtherMode()" style="flex:1;padding:6px 10px;font-size:11px">
+            Derive other mode
+          </button>
+        </div>
+        <div class="mode-hint" id="modeHint">Editing light mode colors</div>
+      </div>
+
+      <!-- Colors (dynamically bound to active mode) -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">
+          Colors
+          <button onclick="randomizeColors()">Shuffle</button>
+        </div>
+
+        <div class="ctrl-row">
+          <span class="ctrl-label">background</span>
+          <input type="color" class="ctrl-color" data-var="background" value="#ffffff">
+          <input type="text" class="ctrl-hex" data-var="background" value="#ffffff">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">text</span>
+          <input type="color" class="ctrl-color" data-var="text" value="#1a1a2e">
+          <input type="text" class="ctrl-hex" data-var="text" value="#1a1a2e">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">primary</span>
+          <input type="color" class="ctrl-color" data-var="primary" value="#2563eb">
+          <input type="text" class="ctrl-hex" data-var="primary" value="#2563eb">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">secondary</span>
+          <input type="color" class="ctrl-color" data-var="secondary" value="#7c3aed">
+          <input type="text" class="ctrl-hex" data-var="secondary" value="#7c3aed">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">accent</span>
+          <input type="color" class="ctrl-color" data-var="accent" value="#2563eb">
+          <input type="text" class="ctrl-hex" data-var="accent" value="#2563eb">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">code bg</span>
+          <input type="color" class="ctrl-color" data-var="code_background" value="#f1f5f9">
+          <input type="text" class="ctrl-hex" data-var="code_background" value="#f1f5f9">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">code text</span>
+          <input type="color" class="ctrl-color" data-var="code_text" value="#1e293b">
+          <input type="text" class="ctrl-hex" data-var="code_text" value="#1e293b">
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Surface & Depth -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Surface &amp; Depth</div>
+
+        <div class="ctrl-row">
+          <span class="ctrl-label">surface</span>
+          <input type="color" class="ctrl-color" data-var="surface" value="#1e293b">
+          <input type="text" class="ctrl-hex" data-var="surface" value="#1e293b">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">surface2</span>
+          <input type="color" class="ctrl-color" data-var="surface2" value="#283548">
+          <input type="text" class="ctrl-hex" data-var="surface2" value="#283548">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">border</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="0" max="40" value="8" data-var="border-opacity">
+            <span class="ctrl-slider-val" id="borderOpVal">8%</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">glow</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="0" max="25" value="6" data-var="glow-intensity">
+            <span class="ctrl-slider-val" id="glowVal">6%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Typography -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Typography</div>
+
+        <div class="ctrl-row">
+          <span class="ctrl-label">heading</span>
+          <select class="ctrl-select font-select" data-var="heading-font" onchange="updateFont('heading',this.value)">
+          </select>
+        </div>
+        <div class="font-preview" id="headingPreview" style="font-family:'DM Sans',system-ui,sans-serif">
+          The quick brown fox jumps
+        </div>
+
+        <div class="ctrl-row" style="margin-top:10px">
+          <span class="ctrl-label">body</span>
+          <select class="ctrl-select font-select" data-var="body-font" onchange="updateFont('body',this.value)">
+          </select>
+        </div>
+        <div class="font-preview" id="bodyPreview" style="font-family:'DM Sans',system-ui,sans-serif">
+          The quick brown fox jumps over the lazy dog
+        </div>
+
+        <div class="ctrl-row" style="margin-top:10px">
+          <span class="ctrl-label">code</span>
+          <select class="ctrl-select font-select" data-var="code-font" onchange="updateFont('code',this.value)">
+          </select>
+        </div>
+        <div class="font-preview" id="codePreview" style="font-family:'Fira Code',monospace">
+          fn main() { println!("Hello"); }
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Logos -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">
+          Logos
+          <button onclick="addLogoSlot()">+ Add</button>
+        </div>
+        <div id="logoSlots"></div>
+        <div class="logo-hint" style="font-size:10px;color:var(--ui-text-dim);font-family:var(--ui-mono);margin-top:4px">
+          Place logo files in the flavor's <code style="font-size:10px">assets/</code> directory
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Spacing -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Spacing &amp; Layout</div>
+
+        <div class="ctrl-row">
+          <span class="ctrl-label">padding-x</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="3" max="14" value="7" data-var="padding-x">
+            <span class="ctrl-slider-val" id="padXVal">7vw</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">padding-y</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="3" max="14" value="6" data-var="padding-y">
+            <span class="ctrl-slider-val" id="padYVal">6vh</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">radius</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="0" max="24" value="12" data-var="border-radius">
+            <span class="ctrl-slider-val" id="radiusVal">12px</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">col gap</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="1" max="10" value="4" data-var="col-gap">
+            <span class="ctrl-slider-val" id="colGapVal">4vw</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Save -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Save Flavor</div>
+        <div class="save-row">
+          <input type="text" class="save-input" id="flavorName" placeholder="my-flavor" value="">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="saveFlavor()" style="flex:1">
+            Save
+          </button>
+          <button class="btn btn-secondary" onclick="exportToml()" style="flex:1">
+            Export TOML
+          </button>
+        </div>
+      </div>
+
+    </div><!-- sidebar-scroll -->
+  </div><!-- sidebar -->
+
+  <!-- ============================================================
+       PREVIEW AREA
+       ============================================================ -->
+  <div class="preview-area">
+    <div class="preview-toolbar">
+      <div class="template-tabs" id="templateTabs"></div>
+      <button class="btn-icon" onclick="randomizeFlavor()" title="Randomize everything">&#x1f3b2;</button>
+    </div>
+
+    <div class="preview-container">
+      <div class="preview-frame">
+        <div class="preview-slide" id="previewSlide">
+          <!-- Slide content rendered here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ================================================================
+// STATE
+// ================================================================
+const state = {
+  // Light mode colors (the default / [colors] section in flavor.toml)
+  light_colors: {
+    background: '#ffffff',
+    text: '#1a1a2e',
+    primary: '#2563eb',
+    secondary: '#7c3aed',
+    accent: '#2563eb',
+    code_background: '#f1f5f9',
+    code_text: '#1e293b',
+    surface: '#f1f5f9',
+    surface2: '#e2e8f0',
+  },
+  // Dark mode colors ([dark_colors] section in flavor.toml)
+  dark_colors: {
+    background: '#0f172a',
+    text: '#f1f5f9',
+    primary: '#60a5fa',
+    secondary: '#818cf8',
+    accent: '#60a5fa',
+    code_background: '#0a0f1e',
+    code_text: '#e2e8f0',
+    surface: '#1e293b',
+    surface2: '#283548',
+  },
+  // Which mode is being edited / previewed
+  activeMode: 'light',
+  typography: {
+    heading_font: "'DM Sans', system-ui, sans-serif",
+    body_font: "'DM Sans', system-ui, sans-serif",
+    code_font: "'Fira Code', monospace",
+  },
+  spacing: {
+    padding_x: 7,
+    padding_y: 6,
+    border_radius: 12,
+    col_gap: 4,
+    border_opacity: 8,
+    glow_intensity: 6,
+  },
+  activeTemplate: 'default',
+  logos: [],
+  // Tracks next logo ID for stable references
+  nextLogoId: 1,
+};
+
+// Convenience getter for the active color set
+function activeColors() {
+  return state.activeMode === 'dark' ? state.dark_colors : state.light_colors;
+}
+
+// Switch between light/dark editing
+function switchMode(mode) {
+  state.activeMode = mode;
+
+  // Update toggle buttons
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  document.getElementById('modeHint').textContent = `Editing ${mode} mode colors`;
+
+  // Update color inputs to show the active mode's values
+  syncColorInputsFromState();
+  applyState();
+}
+
+// Push the active mode's color values into the UI inputs
+function syncColorInputsFromState() {
+  const colors = activeColors();
+  Object.keys(colors).forEach(key => {
+    const colorInput = document.querySelector(`.ctrl-color[data-var="${key}"]`);
+    const hexInput = document.querySelector(`.ctrl-hex[data-var="${key}"]`);
+    if (colorInput) colorInput.value = colors[key];
+    if (hexInput) hexInput.value = colors[key];
+  });
+}
+
+// ================================================================
+// DERIVE COMPLEMENTARY MODE
+// ================================================================
+// Given one mode's colors, derive the other mode using the same hues
+// but inverted lightness for backgrounds/text and adjusted for surfaces.
+
+function hexToHsl(hex) {
+  let r = parseInt(hex.slice(1,3),16)/255;
+  let g = parseInt(hex.slice(3,5),16)/255;
+  let b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h = 0, s = 0, l = (max+min)/2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    if (max === r) h = ((g-b)/d + (g<b?6:0))/6;
+    else if (max === g) h = ((b-r)/d+2)/6;
+    else h = ((r-g)/d+4)/6;
+  }
+  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)];
+}
+
+function deriveComplement(src, target) {
+  // Same primary/secondary/accent hues, adjusted lightness for the target mode
+  const isDarkTarget = target === state.dark_colors;
+
+  // Background: invert lightness
+  const [bgH, bgS, bgL] = hexToHsl(src.background);
+  target.background = hslToHex(bgH, Math.min(bgS + 10, 50), isDarkTarget ? Math.max(100 - bgL - 5, 5) : Math.min(100 - bgL + 5, 98));
+
+  // Text: invert lightness
+  const [txH, txS, txL] = hexToHsl(src.text);
+  target.text = hslToHex(txH, txS, isDarkTarget ? Math.min(100 - txL + 10, 96) : Math.max(100 - txL - 10, 8));
+
+  // Primary: same hue/sat, adjust lightness for contrast against new bg
+  const [pH, pS, pL] = hexToHsl(src.primary);
+  target.primary = hslToHex(pH, pS, isDarkTarget ? Math.min(pL + 20, 78) : Math.max(pL - 15, 28));
+
+  // Secondary: same treatment
+  const [sH, sS, sL] = hexToHsl(src.secondary);
+  target.secondary = hslToHex(sH, sS, isDarkTarget ? Math.min(sL + 20, 78) : Math.max(sL - 15, 28));
+
+  // Accent: same treatment
+  const [aH, aS, aL] = hexToHsl(src.accent);
+  target.accent = hslToHex(aH, aS, isDarkTarget ? Math.min(aL + 18, 75) : Math.max(aL - 12, 30));
+
+  // Surface: derived from new background, slightly offset
+  const [nbH, nbS, nbL] = hexToHsl(target.background);
+  target.surface = hslToHex(nbH, Math.max(nbS - 3, 0), isDarkTarget ? nbL + 7 : nbL - 4);
+  target.surface2 = hslToHex(nbH, Math.max(nbS - 3, 0), isDarkTarget ? nbL + 12 : nbL - 8);
+
+  // Code: slightly deeper than background
+  target.code_background = hslToHex(nbH, Math.min(nbS + 5, 50), isDarkTarget ? Math.max(nbL - 3, 2) : Math.min(nbL + 2, 96));
+  target.code_text = hslToHex(txH, Math.max(txS - 5, 0), isDarkTarget ? Math.min(100 - txL + 5, 92) : Math.max(100 - txL - 5, 15));
+}
+
+// Derive the OTHER mode from the CURRENT mode's colors
+function deriveOtherMode() {
+  if (state.activeMode === 'light') {
+    deriveComplement(state.light_colors, state.dark_colors);
+    showToast('Dark mode derived from light mode palette', 'success');
+  } else {
+    deriveComplement(state.dark_colors, state.light_colors);
+    showToast('Light mode derived from dark mode palette', 'success');
+  }
+}
+
+// ================================================================
+// FONT CATALOG
+// ================================================================
+// Organized by category. Each entry has displayName, CSS value, and Google Fonts spec for loading.
+const FONTS = {
+  heading: [
+    // --- Sans-Serif (Modern / Clean) ---
+    { name: 'DM Sans',            css: "'DM Sans', system-ui, sans-serif",               google: 'DM+Sans:wght@400;500;600;700' },
+    { name: 'Inter',              css: "'Inter', system-ui, sans-serif",                  google: 'Inter:wght@400;500;600;700' },
+    { name: 'Space Grotesk',      css: "'Space Grotesk', system-ui, sans-serif",          google: 'Space+Grotesk:wght@400;500;600;700' },
+    { name: 'Plus Jakarta Sans',  css: "'Plus Jakarta Sans', system-ui, sans-serif",      google: 'Plus+Jakarta+Sans:wght@400;500;600;700' },
+    { name: 'Outfit',             css: "'Outfit', system-ui, sans-serif",                 google: 'Outfit:wght@400;500;600;700' },
+    { name: 'Sora',               css: "'Sora', system-ui, sans-serif",                   google: 'Sora:wght@400;500;600;700' },
+    { name: 'Manrope',            css: "'Manrope', system-ui, sans-serif",                google: 'Manrope:wght@400;500;600;700' },
+    { name: 'Nunito Sans',        css: "'Nunito Sans', system-ui, sans-serif",            google: 'Nunito+Sans:wght@400;600;700' },
+    { name: 'Rubik',              css: "'Rubik', system-ui, sans-serif",                  google: 'Rubik:wght@400;500;600;700' },
+    { name: 'Work Sans',          css: "'Work Sans', system-ui, sans-serif",              google: 'Work+Sans:wght@400;500;600;700' },
+    { name: 'Figtree',            css: "'Figtree', system-ui, sans-serif",                google: 'Figtree:wght@400;500;600;700' },
+    { name: 'Lexend',             css: "'Lexend', system-ui, sans-serif",                 google: 'Lexend:wght@400;500;600;700' },
+    { name: 'Albert Sans',        css: "'Albert Sans', system-ui, sans-serif",            google: 'Albert+Sans:wght@400;500;600;700' },
+    { name: 'Geist',              css: "'Geist', system-ui, sans-serif",                  google: 'Geist:wght@400;500;600;700' },
+    // --- Sans-Serif (Geometric / Bold) ---
+    { name: 'Poppins',            css: "'Poppins', system-ui, sans-serif",                google: 'Poppins:wght@400;500;600;700' },
+    { name: 'Montserrat',         css: "'Montserrat', system-ui, sans-serif",             google: 'Montserrat:wght@400;500;600;700' },
+    { name: 'Raleway',            css: "'Raleway', system-ui, sans-serif",                google: 'Raleway:wght@400;500;600;700' },
+    { name: 'Oswald',             css: "'Oswald', sans-serif",                            google: 'Oswald:wght@400;500;600;700' },
+    { name: 'Archivo',            css: "'Archivo', system-ui, sans-serif",                google: 'Archivo:wght@400;500;600;700' },
+    { name: 'Urbanist',           css: "'Urbanist', system-ui, sans-serif",               google: 'Urbanist:wght@400;500;600;700' },
+    { name: 'Exo 2',              css: "'Exo 2', system-ui, sans-serif",                  google: 'Exo+2:wght@400;500;600;700' },
+    { name: 'Barlow',             css: "'Barlow', system-ui, sans-serif",                 google: 'Barlow:wght@400;500;600;700' },
+    { name: 'Josefin Sans',       css: "'Josefin Sans', sans-serif",                      google: 'Josefin+Sans:wght@400;500;600;700' },
+    // --- Serif (Editorial / Elegant) ---
+    { name: 'Instrument Serif',   css: "'Instrument Serif', Georgia, serif",              google: 'Instrument+Serif:ital@0;1' },
+    { name: 'Playfair Display',   css: "'Playfair Display', Georgia, serif",              google: 'Playfair+Display:wght@400;500;600;700' },
+    { name: 'Crimson Pro',        css: "'Crimson Pro', Georgia, serif",                   google: 'Crimson+Pro:wght@400;500;600;700' },
+    { name: 'Fraunces',           css: "'Fraunces', Georgia, serif",                      google: 'Fraunces:wght@400;500;600;700' },
+    { name: 'Libre Baskerville',  css: "'Libre Baskerville', Georgia, serif",             google: 'Libre+Baskerville:wght@400;700' },
+    { name: 'Merriweather',       css: "'Merriweather', Georgia, serif",                  google: 'Merriweather:wght@400;700' },
+    { name: 'Lora',               css: "'Lora', Georgia, serif",                          google: 'Lora:wght@400;500;600;700' },
+    { name: 'Source Serif 4',     css: "'Source Serif 4', Georgia, serif",                google: 'Source+Serif+4:wght@400;500;600;700' },
+    { name: 'DM Serif Display',   css: "'DM Serif Display', Georgia, serif",              google: 'DM+Serif+Display' },
+    { name: 'Cormorant Garamond', css: "'Cormorant Garamond', Garamond, serif",           google: 'Cormorant+Garamond:wght@400;500;600;700' },
+    { name: 'Spectral',           css: "'Spectral', Georgia, serif",                      google: 'Spectral:wght@400;500;600;700' },
+    { name: 'EB Garamond',        css: "'EB Garamond', Garamond, serif",                  google: 'EB+Garamond:wght@400;500;600;700' },
+    // --- Display / Decorative ---
+    { name: 'Bebas Neue',         css: "'Bebas Neue', sans-serif",                        google: 'Bebas+Neue' },
+    { name: 'Righteous',          css: "'Righteous', sans-serif",                         google: 'Righteous' },
+    { name: 'Staatliches',        css: "'Staatliches', sans-serif",                       google: 'Staatliches' },
+    { name: 'Anton',              css: "'Anton', sans-serif",                             google: 'Anton' },
+    { name: 'Big Shoulders Display', css: "'Big Shoulders Display', sans-serif",          google: 'Big+Shoulders+Display:wght@400;500;600;700' },
+    // --- Monospace (as headings) ---
+    { name: 'JetBrains Mono',     css: "'JetBrains Mono', monospace",                     google: 'JetBrains+Mono:wght@400;500;600;700' },
+    { name: 'Fira Code',          css: "'Fira Code', monospace",                          google: 'Fira+Code:wght@400;500;600;700' },
+    { name: 'Space Mono',         css: "'Space Mono', monospace",                         google: 'Space+Mono:wght@400;700' },
+    // --- System ---
+    { name: 'System UI',          css: "system-ui, sans-serif",                           google: null },
+  ],
+
+  body: [
+    { name: 'DM Sans',            css: "'DM Sans', system-ui, sans-serif",               google: 'DM+Sans:wght@400;500;600;700' },
+    { name: 'Inter',              css: "'Inter', system-ui, sans-serif",                  google: 'Inter:wght@400;500;600;700' },
+    { name: 'Source Sans 3',      css: "'Source Sans 3', system-ui, sans-serif",          google: 'Source+Sans+3:wght@400;500;600;700' },
+    { name: 'IBM Plex Sans',      css: "'IBM Plex Sans', system-ui, sans-serif",          google: 'IBM+Plex+Sans:wght@400;500;600;700' },
+    { name: 'Plus Jakarta Sans',  css: "'Plus Jakarta Sans', system-ui, sans-serif",      google: 'Plus+Jakarta+Sans:wght@400;500;600;700' },
+    { name: 'Nunito Sans',        css: "'Nunito Sans', system-ui, sans-serif",            google: 'Nunito+Sans:wght@400;600;700' },
+    { name: 'Open Sans',          css: "'Open Sans', system-ui, sans-serif",              google: 'Open+Sans:wght@400;500;600;700' },
+    { name: 'Lato',               css: "'Lato', system-ui, sans-serif",                   google: 'Lato:wght@400;700' },
+    { name: 'Roboto',             css: "'Roboto', system-ui, sans-serif",                 google: 'Roboto:wght@400;500;700' },
+    { name: 'Noto Sans',          css: "'Noto Sans', system-ui, sans-serif",              google: 'Noto+Sans:wght@400;500;600;700' },
+    { name: 'Outfit',             css: "'Outfit', system-ui, sans-serif",                 google: 'Outfit:wght@400;500;600;700' },
+    { name: 'Manrope',            css: "'Manrope', system-ui, sans-serif",                google: 'Manrope:wght@400;500;600;700' },
+    { name: 'Rubik',              css: "'Rubik', system-ui, sans-serif",                  google: 'Rubik:wght@400;500;600;700' },
+    { name: 'Work Sans',          css: "'Work Sans', system-ui, sans-serif",              google: 'Work+Sans:wght@400;500;600;700' },
+    { name: 'Figtree',            css: "'Figtree', system-ui, sans-serif",                google: 'Figtree:wght@400;500;600;700' },
+    { name: 'Lexend',             css: "'Lexend', system-ui, sans-serif",                 google: 'Lexend:wght@400;500;600;700' },
+    { name: 'Albert Sans',        css: "'Albert Sans', system-ui, sans-serif",            google: 'Albert+Sans:wght@400;500;600;700' },
+    { name: 'Karla',              css: "'Karla', system-ui, sans-serif",                  google: 'Karla:wght@400;500;600;700' },
+    { name: 'Cabin',              css: "'Cabin', system-ui, sans-serif",                  google: 'Cabin:wght@400;500;600;700' },
+    { name: 'Barlow',             css: "'Barlow', system-ui, sans-serif",                 google: 'Barlow:wght@400;500;600;700' },
+    { name: 'Geist',              css: "'Geist', system-ui, sans-serif",                  google: 'Geist:wght@400;500;600;700' },
+    // --- Serif ---
+    { name: 'Crimson Pro',        css: "'Crimson Pro', Georgia, serif",                   google: 'Crimson+Pro:wght@400;500;600;700' },
+    { name: 'Lora',               css: "'Lora', Georgia, serif",                          google: 'Lora:wght@400;500;600;700' },
+    { name: 'Source Serif 4',     css: "'Source Serif 4', Georgia, serif",                google: 'Source+Serif+4:wght@400;500;600;700' },
+    { name: 'Libre Baskerville',  css: "'Libre Baskerville', Georgia, serif",             google: 'Libre+Baskerville:wght@400;700' },
+    { name: 'Merriweather',       css: "'Merriweather', Georgia, serif",                  google: 'Merriweather:wght@400;700' },
+    { name: 'EB Garamond',        css: "'EB Garamond', Garamond, serif",                  google: 'EB+Garamond:wght@400;500;600;700' },
+    { name: 'Spectral',           css: "'Spectral', Georgia, serif",                      google: 'Spectral:wght@400;500;600;700' },
+    { name: 'Literata',           css: "'Literata', Georgia, serif",                      google: 'Literata:wght@400;500;600;700' },
+    { name: 'Cormorant Garamond', css: "'Cormorant Garamond', Garamond, serif",           google: 'Cormorant+Garamond:wght@400;500;600;700' },
+    // --- System ---
+    { name: 'System UI',          css: "system-ui, sans-serif",                           google: null },
+  ],
+
+  code: [
+    { name: 'Fira Code',          css: "'Fira Code', monospace",                          google: 'Fira+Code:wght@400;500;600' },
+    { name: 'JetBrains Mono',     css: "'JetBrains Mono', monospace",                     google: 'JetBrains+Mono:wght@400;500;600' },
+    { name: 'Source Code Pro',    css: "'Source Code Pro', monospace",                     google: 'Source+Code+Pro:wght@400;500;600' },
+    { name: 'IBM Plex Mono',      css: "'IBM Plex Mono', monospace",                      google: 'IBM+Plex+Mono:wght@400;500;600' },
+    { name: 'Inconsolata',        css: "'Inconsolata', monospace",                        google: 'Inconsolata:wght@400;500;600;700' },
+    { name: 'Cascadia Code',      css: "'Cascadia Code', monospace",                      google: null },
+    { name: 'Space Mono',         css: "'Space Mono', monospace",                         google: 'Space+Mono:wght@400;700' },
+    { name: 'Roboto Mono',        css: "'Roboto Mono', monospace",                        google: 'Roboto+Mono:wght@400;500;600;700' },
+    { name: 'Ubuntu Mono',        css: "'Ubuntu Mono', monospace",                        google: 'Ubuntu+Mono:wght@400;700' },
+    { name: 'Martian Mono',       css: "'Martian Mono', monospace",                       google: 'Martian+Mono:wght@400;500;600;700' },
+    { name: 'Red Hat Mono',       css: "'Red Hat Mono', monospace",                       google: 'Red+Hat+Mono:wght@400;500;600;700' },
+    { name: 'Geist Mono',         css: "'Geist Mono', monospace",                         google: 'Geist+Mono:wght@400;500;600;700' },
+    { name: 'Anonymous Pro',      css: "'Anonymous Pro', monospace",                      google: 'Anonymous+Pro:wght@400;700' },
+    { name: 'DM Mono',            css: "'DM Mono', monospace",                            google: 'DM+Mono:wght@400;500' },
+    { name: 'SF Mono',            css: "'SF Mono', monospace",                            google: null },
+    { name: 'System Mono',        css: "monospace",                                       google: null },
+  ],
+};
+
+// Track which Google Fonts we've already loaded via <link> tags
+const loadedFonts = new Set(['DM+Sans:wght@400;500;600;700', 'Fira+Code:wght@400;500;600', 'Instrument+Serif:ital@0;1']);
+
+function loadGoogleFont(googleSpec) {
+  if (!googleSpec || loadedFonts.has(googleSpec)) return;
+  loadedFonts.add(googleSpec);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${googleSpec}&display=swap`;
+  document.head.appendChild(link);
+}
+
+// Populate all three font <select> elements from the FONTS catalog
+function populateFontSelects() {
+  const categories = { heading: 'heading-font', body: 'body-font', code: 'code-font' };
+  const currentVals = {
+    heading: state.typography.heading_font,
+    body: state.typography.body_font,
+    code: state.typography.code_font,
+  };
+
+  for (const [cat, dataVar] of Object.entries(categories)) {
+    const fonts = FONTS[cat];
+    const select = document.querySelector(`.font-select[data-var="${dataVar}"]`);
+    if (!select) continue;
+    select.innerHTML = '';
+
+    let lastType = '';
+    for (const font of fonts) {
+      // Detect type for group separators
+      const isSerif = font.css.includes('serif') && !font.css.includes('sans-serif');
+      const isMono = font.css.includes('monospace');
+      const isDisplay = ['Bebas Neue','Righteous','Staatliches','Anton','Big Shoulders Display'].includes(font.name);
+      const isSystem = font.name.startsWith('System');
+      let type = isSystem ? 'system' : isDisplay ? 'display' : isMono ? 'mono' : isSerif ? 'serif' : 'sans';
+
+      if (type !== lastType && cat !== 'code') {
+        const sep = document.createElement('option');
+        sep.disabled = true;
+        sep.textContent = `\u2500\u2500 ${type} \u2500\u2500`;
+        sep.style.cssText = 'font-size:9px;color:var(--ui-text-dim)';
+        select.appendChild(sep);
+        lastType = type;
+      }
+
+      const opt = document.createElement('option');
+      opt.value = font.css;
+      opt.textContent = font.name;
+      if (font.css === currentVals[cat]) opt.selected = true;
+      select.appendChild(opt);
+    }
+  }
+}
+
+// Preload a font from the catalog when selected
+function preloadFont(category, cssValue) {
+  const fonts = FONTS[category] || [];
+  const font = fonts.find(f => f.css === cssValue);
+  if (font && font.google) loadGoogleFont(font.google);
+}
+
+// ================================================================
+// PRESETS
+// ================================================================
+const PRESETS = [
+  {
+    name: 'Midnight',
+    light: { background:'#ffffff', text:'#0f172a', primary:'#2563eb', secondary:'#6366f1', accent:'#2563eb', code_background:'#f1f5f9', code_text:'#1e293b', surface:'#f1f5f9', surface2:'#e2e8f0' },
+    dark:  { background:'#0f172a', text:'#f1f5f9', primary:'#60a5fa', secondary:'#818cf8', accent:'#60a5fa', code_background:'#0a0f1e', code_text:'#e2e8f0', surface:'#1e293b', surface2:'#283548' },
+  },
+  {
+    name: 'Nord',
+    light: { background:'#eceff4', text:'#2e3440', primary:'#5e81ac', secondary:'#81a1c1', accent:'#5e81ac', code_background:'#e5e9f0', code_text:'#2e3440', surface:'#e5e9f0', surface2:'#d8dee9' },
+    dark:  { background:'#2e3440', text:'#eceff4', primary:'#88c0d0', secondary:'#81a1c1', accent:'#88c0d0', code_background:'#242933', code_text:'#d8dee9', surface:'#3b4252', surface2:'#434c5e' },
+  },
+  {
+    name: 'Dracula',
+    light: { background:'#f8f8f2', text:'#282a36', primary:'#7c3aed', secondary:'#db2777', accent:'#16a34a', code_background:'#f0f0ee', code_text:'#282a36', surface:'#ededeb', surface2:'#e4e4e0' },
+    dark:  { background:'#282a36', text:'#f8f8f2', primary:'#bd93f9', secondary:'#ff79c6', accent:'#50fa7b', code_background:'#1e1f29', code_text:'#f8f8f2', surface:'#343746', surface2:'#3e4155' },
+  },
+  {
+    name: 'Solarized',
+    light: { background:'#fdf6e3', text:'#657b83', primary:'#268bd2', secondary:'#2aa198', accent:'#b58900', code_background:'#eee8d5', code_text:'#586e75', surface:'#eee8d5', surface2:'#e6dfcb' },
+    dark:  { background:'#002b36', text:'#fdf6e3', primary:'#268bd2', secondary:'#2aa198', accent:'#b58900', code_background:'#001e27', code_text:'#93a1a1', surface:'#073642', surface2:'#0a4050' },
+  },
+  {
+    name: 'Rose Pine',
+    light: { background:'#faf4ed', text:'#575279', primary:'#907aa9', secondary:'#d7827e', accent:'#ea9d34', code_background:'#f2e9e1', code_text:'#575279', surface:'#f2e9e1', surface2:'#e8ddd4' },
+    dark:  { background:'#191724', text:'#e0def4', primary:'#c4a7e7', secondary:'#ebbcba', accent:'#f6c177', code_background:'#12101e', code_text:'#e0def4', surface:'#1f1d2e', surface2:'#26233a' },
+  },
+  {
+    name: 'Catppuccin',
+    light: { background:'#eff1f5', text:'#4c4f69', primary:'#1e66f5', secondary:'#8839ef', accent:'#ea76cb', code_background:'#e6e9ef', code_text:'#4c4f69', surface:'#e6e9ef', surface2:'#ccd0da' },
+    dark:  { background:'#1e1e2e', text:'#cdd6f4', primary:'#89b4fa', secondary:'#cba6f7', accent:'#f5c2e7', code_background:'#181825', code_text:'#cdd6f4', surface:'#2a2a3c', surface2:'#313244' },
+  },
+  {
+    name: 'Gruvbox',
+    light: { background:'#fbf1c7', text:'#3c3836', primary:'#d79921', secondary:'#98971a', accent:'#d65d0e', code_background:'#f2e5bc', code_text:'#3c3836', surface:'#f2e5bc', surface2:'#ebdbb2' },
+    dark:  { background:'#282828', text:'#ebdbb2', primary:'#fabd2f', secondary:'#b8bb26', accent:'#fe8019', code_background:'#1d2021', code_text:'#ebdbb2', surface:'#3c3836', surface2:'#504945' },
+  },
+  {
+    name: 'Paper',
+    light: { background:'#faf7f5', text:'#1a1a2e', primary:'#c0583a', secondary:'#5a8a6a', accent:'#c0583a', code_background:'#f0ece8', code_text:'#2d2d44', surface:'#f0ece8', surface2:'#e6e0da' },
+    dark:  { background:'#1a1a2e', text:'#faf7f5', primary:'#e07a5f', secondary:'#81b29a', accent:'#e07a5f', code_background:'#12121f', code_text:'#e8e4e0', surface:'#252538', surface2:'#2f2f44' },
+  },
+  {
+    name: 'Ocean',
+    light: { background:'#f0f4f8', text:'#0d1b2a', primary:'#0077b6', secondary:'#00b4d8', accent:'#0077b6', code_background:'#e2e8f0', code_text:'#1b2838', surface:'#e2e8f0', surface2:'#d4dde8' },
+    dark:  { background:'#0d1b2a', text:'#e0e1dd', primary:'#48cae4', secondary:'#00b4d8', accent:'#90e0ef', code_background:'#091525', code_text:'#caf0f8', surface:'#1b2838', surface2:'#243447' },
+  },
+  {
+    name: 'Amber Term',
+    light: { background:'#fdf8ef', text:'#3d2800', primary:'#b47600', secondary:'#d48800', accent:'#b47600', code_background:'#f5eddf', code_text:'#3d2800', surface:'#f5eddf', surface2:'#ece3d2' },
+    dark:  { background:'#0a0a0a', text:'#ffb000', primary:'#ffb000', secondary:'#ff8c00', accent:'#ffd000', code_background:'#050505', code_text:'#ffb000', surface:'#141414', surface2:'#1e1e1e' },
+  },
+];
+
+// ================================================================
+// TEMPLATE CONTENT (sample slides)
+// ================================================================
+const TEMPLATES = {
+  default: {
+    label: 'default',
+    layout: 'default',
+    html: `
+      <div class="sldr-content">
+        <h1>Memory Safety in Practice</h1>
+        <p>Ownership and borrowing rules prevent data races, null pointer dereferences, and buffer overflows at compile time.</p>
+        <ul>
+          <li>Zero-cost abstractions with compile-time checks</li>
+          <li>No garbage collector needed</li>
+          <li>Thread safety guaranteed by the type system</li>
+          <li>Pattern matching for exhaustive error handling</li>
+        </ul>
+      </div>
+    `,
+  },
+  cover: {
+    label: 'cover',
+    layout: 'cover',
+    html: `
+      <div class="sldr-content">
+        <h1>The Rise of Systems Programming</h1>
+        <p>How modern languages are reshaping infrastructure, one safe abstraction at a time</p>
+      </div>
+    `,
+  },
+  'two-cols': {
+    label: 'two-cols',
+    layout: 'two-cols',
+    html: `
+      <div class="sldr-content">
+        <h2>Before vs After</h2>
+        <div class="sldr-columns">
+          <div class="sldr-col">
+            <h3>Traditional Approach</h3>
+            <ul>
+              <li>Manual memory management</li>
+              <li>Runtime null checks</li>
+              <li>Data race debugging</li>
+              <li>Undefined behavior</li>
+            </ul>
+          </div>
+          <div class="sldr-col">
+            <h3>Modern Approach</h3>
+            <ul>
+              <li>Ownership system</li>
+              <li>Option/Result types</li>
+              <li>Send + Sync traits</li>
+              <li>Defined semantics</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    `,
+  },
+  section: {
+    label: 'section',
+    layout: 'section',
+    html: `
+      <div class="sldr-content">
+        <h1>Core Concepts</h1>
+        <p>Understanding the building blocks</p>
+      </div>
+    `,
+  },
+  quote: {
+    label: 'quote',
+    layout: 'quote',
+    html: `
+      <div class="sldr-content">
+        <blockquote><p>The best way to predict the future is to invent it.</p></blockquote>
+        <p>Alan Kay</p>
+      </div>
+    `,
+  },
+  center: {
+    label: 'center',
+    layout: 'center',
+    html: `
+      <div class="sldr-content">
+        <h1>Thank You</h1>
+        <p>Questions and discussion welcome</p>
+      </div>
+    `,
+  },
+  code: {
+    label: 'code',
+    layout: 'default',
+    html: `
+      <div class="sldr-content">
+        <h2>Error Handling</h2>
+        <pre class="sldr-code" style="background:var(--sldr-code-background);color:var(--sldr-code-text)"><code>fn read_config(path: &str) -> Result&lt;Config&gt; {
+    let content = std::fs::read_to_string(path)
+        .context("Failed to read config file")?;
+
+    let config: Config = toml::from_str(&content)
+        .context("Invalid TOML format")?;
+
+    Ok(config)
+}</code></pre>
+        <p>The <code>?</code> operator propagates errors cleanly up the call stack.</p>
+      </div>
+    `,
+  },
+  end: {
+    label: 'end',
+    layout: 'end',
+    html: `
+      <div class="sldr-content">
+        <h1>Fin.</h1>
+        <p>github.com/example/project</p>
+      </div>
+    `,
+  },
+  table: {
+    label: 'table',
+    layout: 'default',
+    html: `
+      <div class="sldr-content">
+        <h2>Performance Comparison</h2>
+        <table>
+          <thead><tr><th>Language</th><th>Build Time</th><th>Runtime</th><th>Memory</th></tr></thead>
+          <tbody>
+            <tr><td>C++</td><td>45s</td><td>1.2ms</td><td>8 MB</td></tr>
+            <tr><td>Rust</td><td>62s</td><td>1.1ms</td><td>6 MB</td></tr>
+            <tr><td>Go</td><td>8s</td><td>3.4ms</td><td>24 MB</td></tr>
+            <tr><td>Java</td><td>12s</td><td>4.2ms</td><td>120 MB</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `,
+  },
+};
+
+// ================================================================
+// INITIALIZATION
+// ================================================================
+function init() {
+  populateFontSelects();
+  renderPresets();
+  renderTemplateTabs();
+  renderLogoSlots();
+  bindColorControls();
+  bindSliderControls();
+  applyState();
+  showTemplate('default');
+}
+
+function renderPresets() {
+  const grid = document.getElementById('presetGrid');
+  grid.innerHTML = PRESETS.map((p, i) => `
+    <div class="preset-card" onclick="applyPreset(${i})" data-preset="${i}">
+      <div class="preset-preview">
+        <span style="background:${p.light.background}"></span>
+        <span style="background:${p.light.primary}"></span>
+        <span style="background:${p.dark.background}"></span>
+        <span style="background:${p.dark.primary}"></span>
+      </div>
+      <div class="preset-name">${p.name}</div>
+    </div>
+  `).join('');
+}
+
+function renderTemplateTabs() {
+  const tabs = document.getElementById('templateTabs');
+  tabs.innerHTML = Object.keys(TEMPLATES).map(key => `
+    <button class="template-tab${key === state.activeTemplate ? ' active' : ''}"
+            onclick="showTemplate('${key}')">${TEMPLATES[key].label}</button>
+  `).join('');
+}
+
+// ================================================================
+// CONTROLS BINDING
+// ================================================================
+function bindColorControls() {
+  document.querySelectorAll('.ctrl-color').forEach(input => {
+    input.addEventListener('input', e => {
+      const varName = e.target.dataset.var;
+      const hex = e.target.value;
+      activeColors()[varName] = hex;
+
+      // Sync hex input
+      const hexInput = document.querySelector(`.ctrl-hex[data-var="${varName}"]`);
+      if (hexInput) hexInput.value = hex;
+
+      applyState();
+    });
+  });
+
+  document.querySelectorAll('.ctrl-hex').forEach(input => {
+    input.addEventListener('input', e => {
+      const varName = e.target.dataset.var;
+      let hex = e.target.value;
+      if (!hex.startsWith('#')) hex = '#' + hex;
+      if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+        activeColors()[varName] = hex;
+        const colorInput = document.querySelector(`.ctrl-color[data-var="${varName}"]`);
+        if (colorInput) colorInput.value = hex;
+        applyState();
+      }
+    });
+  });
+}
+
+function bindSliderControls() {
+  document.querySelectorAll('input[type="range"]').forEach(slider => {
+    slider.addEventListener('input', e => {
+      const varName = e.target.dataset.var;
+      const val = parseInt(e.target.value);
+      switch (varName) {
+        case 'padding-x': state.spacing.padding_x = val; document.getElementById('padXVal').textContent = val + 'vw'; break;
+        case 'padding-y': state.spacing.padding_y = val; document.getElementById('padYVal').textContent = val + 'vh'; break;
+        case 'border-radius': state.spacing.border_radius = val; document.getElementById('radiusVal').textContent = val + 'px'; break;
+        case 'col-gap': state.spacing.col_gap = val; document.getElementById('colGapVal').textContent = val + 'vw'; break;
+        case 'border-opacity': state.spacing.border_opacity = val; document.getElementById('borderOpVal').textContent = val + '%'; break;
+        case 'glow-intensity': state.spacing.glow_intensity = val; document.getElementById('glowVal').textContent = val + '%'; break;
+      }
+      applyState();
+    });
+  });
+}
+
+// ================================================================
+// APPLY STATE TO PREVIEW
+// ================================================================
+function applyState() {
+  const slide = document.getElementById('previewSlide');
+  const s = activeColors();
+  const sp = state.spacing;
+  const t = state.typography;
+
+  // Colors
+  slide.style.setProperty('--sldr-background', s.background);
+  slide.style.setProperty('--sldr-text', s.text);
+  slide.style.setProperty('--sldr-primary', s.primary);
+  slide.style.setProperty('--sldr-secondary', s.secondary);
+  slide.style.setProperty('--sldr-accent', s.accent);
+  slide.style.setProperty('--sldr-code-background', s.code_background);
+  slide.style.setProperty('--sldr-code-text', s.code_text);
+  slide.style.setProperty('--sldr-surface', s.surface);
+  slide.style.setProperty('--sldr-surface2', s.surface2);
+  slide.style.setProperty('--sldr-text-dim', dimColor(s.text, 0.55));
+  slide.style.setProperty('--sldr-accent-dim', hexToRgba(s.accent, sp.glow_intensity / 100));
+  slide.style.setProperty('--sldr-border', `rgba(148,163,184,${sp.border_opacity / 100})`);
+  slide.style.setProperty('--sldr-border-bright', `rgba(148,163,184,${Math.min(sp.border_opacity * 2, 40) / 100})`);
+
+  // Typography
+  slide.style.setProperty('--sldr-heading-font', t.heading_font);
+  slide.style.setProperty('--sldr-body-font', t.body_font);
+  slide.style.setProperty('--sldr-code-font', t.code_font);
+
+  // Background + slide-level styles
+  slide.style.background = s.background;
+  slide.style.color = s.text;
+  slide.style.fontFamily = t.body_font;
+  slide.style.padding = `clamp(40px, ${sp.padding_y}vh, 80px) clamp(48px, ${sp.padding_x}vw, 120px)`;
+
+  // Atmospheric glow
+  const glowAlpha = sp.glow_intensity / 100;
+  slide.style.setProperty('--glow-alpha', glowAlpha);
+
+  // Update derived inline styles
+  slide.querySelectorAll('h1,h2,h3,h4').forEach(el => {
+    el.style.fontFamily = t.heading_font;
+    el.style.color = s.primary;
+  });
+
+  slide.querySelectorAll('p, li').forEach(el => {
+    el.style.color = s.text;
+    el.style.fontFamily = t.body_font;
+  });
+
+  slide.querySelectorAll('li::marker').forEach?.(el => {
+    el.style.color = s.primary;
+  });
+
+  slide.querySelectorAll('pre.sldr-code').forEach(el => {
+    el.style.background = s.code_background;
+    el.style.color = s.code_text;
+    el.style.fontFamily = t.code_font;
+    el.style.borderRadius = sp.border_radius + 'px';
+    el.style.borderColor = `rgba(148,163,184,${Math.min(sp.border_opacity * 2, 40) / 100})`;
+  });
+
+  slide.querySelectorAll('code').forEach(el => {
+    el.style.fontFamily = t.code_font;
+  });
+
+  slide.querySelectorAll('.sldr-col').forEach(el => {
+    el.style.background = s.surface;
+    el.style.borderColor = `rgba(148,163,184,${sp.border_opacity / 100})`;
+    el.style.borderRadius = sp.border_radius + 'px';
+  });
+
+  slide.querySelectorAll('.sldr-columns').forEach(el => {
+    el.style.gap = `clamp(32px, ${sp.col_gap}vw, 80px)`;
+  });
+
+  slide.querySelectorAll('table').forEach(el => {
+    el.style.background = s.surface;
+    el.style.borderColor = `rgba(148,163,184,${sp.border_opacity / 100})`;
+    el.style.borderRadius = sp.border_radius + 'px';
+  });
+
+  slide.querySelectorAll('th').forEach(el => {
+    el.style.background = s.surface2;
+    el.style.color = dimColor(s.text, 0.55);
+    el.style.fontFamily = t.code_font;
+  });
+
+  slide.querySelectorAll('td').forEach(el => {
+    el.style.color = s.text;
+    el.style.borderColor = `rgba(148,163,184,${sp.border_opacity / 200})`;
+  });
+
+  slide.querySelectorAll('blockquote').forEach(el => {
+    el.style.borderColor = s.primary;
+  });
+
+  // Quote layout special
+  if (state.activeTemplate === 'quote') {
+    slide.querySelectorAll('blockquote, blockquote p').forEach(el => {
+      el.style.fontFamily = "'Instrument Serif', Georgia, serif";
+      el.style.fontStyle = 'italic';
+      el.style.color = s.text;
+    });
+  }
+
+  // Inline code
+  slide.querySelectorAll(':not(pre) > code').forEach(el => {
+    el.style.background = hexToRgba(s.accent, 0.1);
+    el.style.color = s.accent;
+  });
+
+  // Update atmospheric glow
+  updateGlow();
+
+  // Update logo previews
+  renderLogoPreview();
+}
+
+function updateGlow() {
+  const slide = document.getElementById('previewSlide');
+  const glowAlpha = state.spacing.glow_intensity / 100;
+  const accent = state.colors.accent;
+
+  // Remove existing glow overlay
+  let glow = slide.querySelector('.preview-glow');
+  if (!glow) {
+    glow = document.createElement('div');
+    glow.className = 'preview-glow';
+    glow.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:0;transition:opacity 0.3s';
+    slide.insertBefore(glow, slide.firstChild);
+  }
+  glow.style.background = `radial-gradient(ellipse at 15% 85%, ${hexToRgba(accent, glowAlpha)} 0%, transparent 50%)`;
+}
+
+// ================================================================
+// TEMPLATE SWITCHING
+// ================================================================
+function showTemplate(key) {
+  state.activeTemplate = key;
+  const tmpl = TEMPLATES[key];
+  const slide = document.getElementById('previewSlide');
+  slide.setAttribute('data-layout', tmpl.layout);
+  slide.innerHTML = tmpl.html;
+  applyState();
+
+  // Update tabs
+  document.querySelectorAll('.template-tab').forEach(t => t.classList.remove('active'));
+  const activeTab = [...document.querySelectorAll('.template-tab')].find(t => t.textContent.trim() === tmpl.label);
+  if (activeTab) activeTab.classList.add('active');
+}
+
+// ================================================================
+// PRESETS
+// ================================================================
+function applyPreset(index) {
+  const p = PRESETS[index];
+  Object.assign(state.light_colors, p.light);
+  Object.assign(state.dark_colors, p.dark);
+
+  // Update UI inputs to show the active mode's colors
+  syncColorInputsFromState();
+
+  // Highlight active preset
+  document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+  const card = document.querySelector(`.preset-card[data-preset="${index}"]`);
+  if (card) card.classList.add('active');
+
+  applyState();
+}
+
+// ================================================================
+// RANDOMIZER
+// ================================================================
+function randomizeFlavor() {
+  randomizeColors();
+
+  // Random spacing
+  state.spacing.padding_x = 4 + Math.floor(Math.random() * 8);
+  state.spacing.padding_y = 3 + Math.floor(Math.random() * 8);
+  state.spacing.border_radius = Math.floor(Math.random() * 20);
+  state.spacing.col_gap = 2 + Math.floor(Math.random() * 6);
+  state.spacing.border_opacity = 2 + Math.floor(Math.random() * 20);
+  state.spacing.glow_intensity = Math.floor(Math.random() * 18);
+
+  // Update slider positions
+  updateSliders();
+  applyState();
+}
+
+function randomizeColors() {
+  // Generate a cohesive light palette, then derive dark from same hues
+  const hue = Math.floor(Math.random() * 360);
+  const primaryHue = hue + Math.floor(Math.random() * 40 - 20);
+  const secHue = (hue + 30 + Math.floor(Math.random() * 60)) % 360;
+  const accentHue = Math.random() > 0.5 ? primaryHue : (hue + 120 + Math.floor(Math.random() * 80)) % 360;
+
+  // Generate light mode from scratch
+  const bgS = 5 + Math.random() * 15;
+  state.light_colors.background = hslToHex(hue, bgS, 95 + Math.random() * 4);
+  state.light_colors.text = hslToHex((hue + 180) % 360, 20 + Math.random() * 30, 10 + Math.random() * 15);
+  state.light_colors.surface = hslToHex(hue, bgS - 2, 90 + Math.random() * 5);
+  state.light_colors.surface2 = hslToHex(hue, bgS - 2, 85 + Math.random() * 5);
+  state.light_colors.code_background = hslToHex(hue, bgS, 92 + Math.random() * 4);
+  state.light_colors.code_text = hslToHex((hue + 180) % 360, 15, 20 + Math.random() * 10);
+  state.light_colors.primary = hslToHex(primaryHue, 60 + Math.random() * 30, 35 + Math.random() * 20);
+  state.light_colors.secondary = hslToHex(secHue, 50 + Math.random() * 35, 35 + Math.random() * 20);
+  state.light_colors.accent = hslToHex(accentHue, 55 + Math.random() * 35, 40 + Math.random() * 15);
+
+  // Derive dark mode from the same palette
+  deriveComplement(state.light_colors, state.dark_colors);
+
+  // Update inputs for the active mode
+  syncColorInputsFromState();
+
+  // Clear preset highlight
+  document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+
+  applyState();
+}
+
+function updateSliders() {
+  const sp = state.spacing;
+  setSlider('padding-x', sp.padding_x, sp.padding_x + 'vw', 'padXVal');
+  setSlider('padding-y', sp.padding_y, sp.padding_y + 'vh', 'padYVal');
+  setSlider('border-radius', sp.border_radius, sp.border_radius + 'px', 'radiusVal');
+  setSlider('col-gap', sp.col_gap, sp.col_gap + 'vw', 'colGapVal');
+  setSlider('border-opacity', sp.border_opacity, sp.border_opacity + '%', 'borderOpVal');
+  setSlider('glow-intensity', sp.glow_intensity, sp.glow_intensity + '%', 'glowVal');
+}
+
+function setSlider(varName, val, label, labelId) {
+  const slider = document.querySelector(`input[type="range"][data-var="${varName}"]`);
+  if (slider) slider.value = val;
+  const lbl = document.getElementById(labelId);
+  if (lbl) lbl.textContent = label;
+}
+
+// ================================================================
+// FONT UPDATES
+// ================================================================
+function updateFont(type, value) {
+  // Load the font from Google Fonts if needed
+  preloadFont(type, value);
+
+  switch (type) {
+    case 'heading':
+      state.typography.heading_font = value;
+      document.getElementById('headingPreview').style.fontFamily = value;
+      break;
+    case 'body':
+      state.typography.body_font = value;
+      document.getElementById('bodyPreview').style.fontFamily = value;
+      break;
+    case 'code':
+      state.typography.code_font = value;
+      document.getElementById('codePreview').style.fontFamily = value;
+      break;
+  }
+  applyState();
+}
+
+// ================================================================
+// LOGO MANAGEMENT
+// ================================================================
+const POSITIONS = ['top-left','top-center','top-right','bottom-left','bottom-center','bottom-right'];
+const ALL_LAYOUTS = ['all','default','cover','two-cols','section','quote','center','code','end','table'];
+
+function addLogoSlot() {
+  const id = state.nextLogoId++;
+  // Stagger default position based on how many logos exist
+  const offsetY = 5 + (state.logos.length * 8);
+  state.logos.push({
+    id,
+    file: 'logo.svg',
+    position: 'custom',
+    x: (100 - 5 - 10) + '%',  // near right margin
+    y: Math.min(offsetY, 85) + '%',
+    width: '100px',
+    opacity: 0.8,
+    templates: ['all'],
+    dataUri: null,  // populated when image is uploaded/pasted
+  });
+  selectedLogoId = id;
+  renderLogoSlots();
+  applyState();
+}
+
+function removeLogoSlot(id) {
+  state.logos = state.logos.filter(l => l.id !== id);
+  renderLogoSlots();
+  applyState();
+}
+
+function updateLogo(id, field, value) {
+  const logo = state.logos.find(l => l.id === id);
+  if (!logo) return;
+  logo[field] = value;
+  renderLogoSlots();
+  applyState();
+}
+
+function toggleLogoTemplate(id, tmpl) {
+  const logo = state.logos.find(l => l.id === id);
+  if (!logo) return;
+
+  if (tmpl === 'all') {
+    // Toggle between "all" and empty
+    logo.templates = logo.templates.includes('all') ? [] : ['all'];
+  } else {
+    // Remove "all" if selecting specific templates
+    logo.templates = logo.templates.filter(t => t !== 'all');
+    if (logo.templates.includes(tmpl)) {
+      logo.templates = logo.templates.filter(t => t !== tmpl);
+    } else {
+      logo.templates.push(tmpl);
+    }
+  }
+  renderLogoSlots();
+  applyState();
+}
+
+function renderLogoSlots() {
+  const container = document.getElementById('logoSlots');
+  if (!container) return;
+
+  container.innerHTML = state.logos.map(logo => {
+    const hasImage = logo.dataUri;
+    const thumbHtml = hasImage
+      ? `<img class="upload-thumb" src="${logo.dataUri}" alt="${logo.file}">`
+      : `<div class="upload-thumb" style="display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--ui-text-dim)">+</div>`;
+
+    return `
+    <div class="logo-slot${logo.id === selectedLogoId ? ' selected' : ''}"
+         data-logo-id="${logo.id}"
+         onclick="highlightSidebarSlot(${logo.id})">
+      <div class="logo-slot-header">
+        <span class="logo-slot-name">${logo.file}</span>
+        <button class="logo-slot-remove" onclick="event.stopPropagation();removeLogoSlot(${logo.id})">&times;</button>
+      </div>
+
+      <div class="logo-upload-zone" data-logo-id="${logo.id}"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="event.preventDefault();this.classList.remove('dragover');handleLogoDrop(event,${logo.id})">
+        ${thumbHtml}
+        <span class="upload-label">
+          ${hasImage ? `<strong>${logo.file}</strong>` : 'Drop image, <strong>click</strong>, or <strong>paste</strong>'}
+        </span>
+        <input type="file" accept="image/*"
+               onclick="event.stopPropagation()"
+               onchange="handleLogoFileInput(event,${logo.id})">
+      </div>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">opacity</span>
+        <input type="range" min="0" max="100" value="${Math.round(logo.opacity*100)}" style="flex:1"
+               onclick="event.stopPropagation()"
+               oninput="updateLogo(${logo.id},'opacity',this.value/100)">
+        <span class="ctrl-slider-val">${Math.round(logo.opacity*100)}%</span>
+      </div>
+
+      <div class="logo-slot-pos" id="logo-pos-${logo.id}">
+        x: <span>${logo.x || 'auto'}</span> &nbsp;
+        y: <span>${logo.y || 'auto'}</span> &nbsp;
+        w: <span>${logo.width}</span>
+      </div>
+
+      <div class="logo-slot-templates">
+        ${ALL_LAYOUTS.map(t => `
+          <span class="logo-tmpl-tag${logo.templates.includes(t)?' active':''}"
+                onclick="event.stopPropagation();toggleLogoTemplate(${logo.id},'${t}')">${t}</span>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ================================================================
+// LOGO FILE UPLOAD / PASTE / DROP
+// ================================================================
+
+// Handle file input change (click to browse)
+function handleLogoFileInput(event, logoId) {
+  event.stopPropagation();
+  const file = event.target.files?.[0];
+  if (file) uploadLogoFile(file, logoId);
+}
+
+// Handle drag-and-drop onto a logo zone
+function handleLogoDrop(event, logoId) {
+  const file = event.dataTransfer?.files?.[0];
+  if (file && file.type.startsWith('image/')) {
+    uploadLogoFile(file, logoId);
+  }
+}
+
+// Handle paste (Ctrl+V) - uploads to the selected logo slot
+document.addEventListener('paste', async (e) => {
+  // Don't intercept paste into text inputs
+  if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (!file) continue;
+
+      // Paste into selected logo, or create a new one
+      let targetId = selectedLogoId;
+      if (!targetId || !state.logos.find(l => l.id === targetId)) {
+        addLogoSlot();
+        targetId = state.logos[state.logos.length - 1].id;
+      }
+
+      uploadLogoFile(file, targetId);
+      break;
+    }
+  }
+});
+
+// Core upload: read file -> base64 -> send to server -> update state
+async function uploadLogoFile(file, logoId) {
+  const logo = state.logos.find(l => l.id === logoId);
+  if (!logo) return;
+
+  // Read file as base64
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const dataUri = reader.result; // data:image/png;base64,...
+    const base64 = dataUri.split(',')[1];
+    const mime = file.type || 'image/png';
+    const filename = file.name || `logo-${logoId}.png`;
+
+    // Update state immediately for preview
+    logo.file = filename;
+    logo.dataUri = dataUri;
+    renderLogoSlots();
+    applyState();
+
+    // Upload to server
+    const flavorName = document.getElementById('flavorName').value || 'default';
+    try {
+      const res = await fetch('/api/logo/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flavor_name: flavorName, filename, data: base64, mime }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        logo.file = result.filename;
+        showToast(`Logo "${result.filename}" uploaded (${formatBytes(result.size)})`, 'success');
+        renderLogoSlots();
+      } else {
+        showToast('Upload failed: ' + await res.text(), 'error');
+      }
+    } catch (err) {
+      // Server not running - still works for preview with data URI
+      showToast('Saved locally (server not available for permanent save)', 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ================================================================
+// DRAG + SNAP LOGO PLACEMENT
+// ================================================================
+const SNAP_THRESHOLD = 8; // pixels to snap
+const MARGIN_PCT = 5;     // safe margin as percent
+
+let dragState = null;      // current drag operation
+let selectedLogoId = null; // which logo is selected in sidebar
+
+// Ensure guide elements exist in the preview frame
+function ensureGuides() {
+  const frame = document.querySelector('.preview-frame');
+  if (frame.querySelector('.snap-guide')) return;
+
+  // Horizontal guides: top margin, center, bottom margin
+  // Vertical guides: left margin, center, right margin
+  const guidePositions = [
+    { cls: 'h', id: 'guide-h-top',    style: `top:${MARGIN_PCT}%` },
+    { cls: 'h', id: 'guide-h-center', style: 'top:50%' },
+    { cls: 'h', id: 'guide-h-bottom', style: `bottom:${MARGIN_PCT}%` },
+    { cls: 'v', id: 'guide-v-left',   style: `left:${MARGIN_PCT}%` },
+    { cls: 'v', id: 'guide-v-center', style: 'left:50%' },
+    { cls: 'v', id: 'guide-v-right',  style: `right:${MARGIN_PCT}%` },
+  ];
+
+  for (const g of guidePositions) {
+    const el = document.createElement('div');
+    el.className = `snap-guide ${g.cls}`;
+    el.id = g.id;
+    el.style.cssText = g.style;
+    frame.appendChild(el);
+  }
+
+  // Margin overlay (shown during drag)
+  const overlay = document.createElement('div');
+  overlay.className = 'margin-overlay';
+  overlay.id = 'marginOverlay';
+  overlay.innerHTML = `<div class="margin-overlay-inner" style="
+    top:${MARGIN_PCT}%;left:${MARGIN_PCT}%;
+    right:${MARGIN_PCT}%;bottom:${MARGIN_PCT}%"></div>`;
+  frame.appendChild(overlay);
+
+  // Coordinate tooltip
+  const coords = document.createElement('div');
+  coords.className = 'drag-coords';
+  coords.id = 'dragCoords';
+  document.body.appendChild(coords);
+}
+
+function renderLogoPreview() {
+  const slide = document.getElementById('previewSlide');
+  // Remove old logos
+  slide.querySelectorAll('.preview-logo').forEach(el => el.remove());
+  ensureGuides();
+
+  const layout = state.activeTemplate;
+  state.logos.forEach(logo => {
+    const applies = logo.templates.includes('all') || logo.templates.includes(layout);
+    if (!applies) return;
+
+    const el = document.createElement('div');
+    el.className = 'preview-logo' + (logo.id === selectedLogoId ? ' selected' : '');
+    el.dataset.logoId = logo.id;
+
+    // Show actual image if we have a data URI, otherwise show filename
+    if (logo.dataUri) {
+      const img = document.createElement('img');
+      img.src = logo.dataUri;
+      img.alt = logo.file;
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;pointer-events:none;';
+      el.appendChild(img);
+      // When we have a real image, remove the dashed border placeholder look
+      el.style.background = 'none';
+      el.style.border = '1.5px solid transparent';
+      el.style.padding = '0';
+    } else {
+      el.textContent = logo.file;
+    }
+
+    // Position as percentage
+    const pos = resolveLogoPosition(logo);
+    el.style.left = pos.x + '%';
+    el.style.top = pos.y + '%';
+    el.style.width = logo.width;
+    el.style.opacity = logo.opacity;
+
+    // Resize handle
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    el.appendChild(handle);
+
+    // Click to select, drag to move
+    el.addEventListener('mousedown', e => {
+      if (e.target === handle) {
+        startResize(e, logo);
+      } else {
+        startDrag(e, logo);
+      }
+    });
+
+    slide.appendChild(el);
+  });
+}
+
+// Convert preset positions or custom x/y to numeric percentage {x, y}
+function resolveLogoPosition(logo) {
+  if (logo.x != null && logo.y != null) {
+    return {
+      x: parseFloat(logo.x) || 5,
+      y: parseFloat(logo.y) || 5,
+    };
+  }
+  switch (logo.position) {
+    case 'top-left':      return { x: MARGIN_PCT, y: MARGIN_PCT };
+    case 'top-center':    return { x: 50, y: MARGIN_PCT };
+    case 'top-right':     return { x: 100 - MARGIN_PCT - logoWidthPct(logo), y: MARGIN_PCT };
+    case 'bottom-left':   return { x: MARGIN_PCT, y: 100 - MARGIN_PCT - 5 };
+    case 'bottom-center': return { x: 50, y: 100 - MARGIN_PCT - 5 };
+    case 'bottom-right':  return { x: 100 - MARGIN_PCT - logoWidthPct(logo), y: 100 - MARGIN_PCT - 5 };
+    default:              return { x: 100 - MARGIN_PCT - logoWidthPct(logo), y: MARGIN_PCT };
+  }
+}
+
+// Rough estimate of logo width as % of slide (for preset positioning)
+function logoWidthPct(logo) {
+  const px = parseInt(logo.width) || 100;
+  // Assume slide preview is ~1000px wide
+  return (px / 10);
+}
+
+// ================================================================
+// DRAG OPERATION
+// ================================================================
+function startDrag(e, logo) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const slide = document.getElementById('previewSlide');
+  const rect = slide.getBoundingClientRect();
+  const el = e.currentTarget;
+  const elRect = el.getBoundingClientRect();
+
+  // Switch to custom positioning mode
+  logo.position = 'custom';
+  if (logo.x == null) {
+    logo.x = (((elRect.left - rect.left) / rect.width) * 100).toFixed(1) + '%';
+    logo.y = (((elRect.top - rect.top) / rect.height) * 100).toFixed(1) + '%';
+  }
+
+  selectedLogoId = logo.id;
+
+  dragState = {
+    logo,
+    el,
+    slideRect: rect,
+    offsetX: e.clientX - elRect.left,
+    offsetY: e.clientY - elRect.top,
+    elW: elRect.width,
+    elH: elRect.height,
+  };
+
+  el.classList.add('dragging');
+  showGuides(true);
+  highlightSidebarSlot(logo.id);
+
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', endDrag);
+}
+
+function onDrag(e) {
+  if (!dragState) return;
+  const { logo, el, slideRect, offsetX, offsetY, elW, elH } = dragState;
+
+  // Raw position in pixels relative to slide
+  let rawX = e.clientX - slideRect.left - offsetX;
+  let rawY = e.clientY - slideRect.top - offsetY;
+
+  // Convert to percentage
+  let pctX = (rawX / slideRect.width) * 100;
+  let pctY = (rawY / slideRect.height) * 100;
+
+  // Element center and edges as percentages
+  const halfW = (elW / slideRect.width) * 100 / 2;
+  const halfH = (elH / slideRect.height) * 100 / 2;
+  const centerX = pctX + halfW;
+  const centerY = pctY + halfH;
+  const rightEdge = pctX + (elW / slideRect.width) * 100;
+  const bottomEdge = pctY + (elH / slideRect.height) * 100;
+
+  // Snap threshold in percentage
+  const snapPct = (SNAP_THRESHOLD / slideRect.width) * 100;
+  const snapPctY = (SNAP_THRESHOLD / slideRect.height) * 100;
+
+  // Build snap targets
+  const hSnaps = [
+    { val: MARGIN_PCT, guide: 'guide-h-top', edge: 'top' },
+    { val: 50, guide: 'guide-h-center', edge: 'centerY' },
+    { val: 100 - MARGIN_PCT, guide: 'guide-h-bottom', edge: 'bottom' },
+  ];
+  const vSnaps = [
+    { val: MARGIN_PCT, guide: 'guide-v-left', edge: 'left' },
+    { val: 50, guide: 'guide-v-center', edge: 'centerX' },
+    { val: 100 - MARGIN_PCT, guide: 'guide-v-right', edge: 'right' },
+  ];
+
+  // Add other logos as snap targets
+  state.logos.forEach(other => {
+    if (other.id === logo.id) return;
+    const applies = other.templates.includes('all') || other.templates.includes(state.activeTemplate);
+    if (!applies) return;
+    const oPos = resolveLogoPosition(other);
+    // Add horizontal alignment to other logo's top
+    hSnaps.push({ val: oPos.y, guide: null, edge: 'top' });
+    // Add vertical alignment to other logo's left
+    vSnaps.push({ val: oPos.x, guide: null, edge: 'left' });
+  });
+
+  // Clear all guide highlights
+  document.querySelectorAll('.snap-guide').forEach(g => g.classList.remove('visible'));
+
+  // Check horizontal snaps
+  let snappedY = false;
+  for (const snap of hSnaps) {
+    // Snap top edge
+    if (Math.abs(pctY - snap.val) < snapPctY) {
+      pctY = snap.val;
+      snappedY = true;
+      if (snap.guide) document.getElementById(snap.guide)?.classList.add('visible');
+      break;
+    }
+    // Snap center
+    if (snap.edge === 'centerY' && Math.abs(centerY - snap.val) < snapPctY) {
+      pctY = snap.val - halfH;
+      snappedY = true;
+      if (snap.guide) document.getElementById(snap.guide)?.classList.add('visible');
+      break;
+    }
+    // Snap bottom edge
+    if (Math.abs(bottomEdge - snap.val) < snapPctY) {
+      pctY = snap.val - (elH / slideRect.height) * 100;
+      snappedY = true;
+      if (snap.guide) document.getElementById(snap.guide)?.classList.add('visible');
+      break;
+    }
+  }
+
+  // Check vertical snaps
+  let snappedX = false;
+  for (const snap of vSnaps) {
+    // Snap left edge
+    if (Math.abs(pctX - snap.val) < snapPct) {
+      pctX = snap.val;
+      snappedX = true;
+      if (snap.guide) document.getElementById(snap.guide)?.classList.add('visible');
+      break;
+    }
+    // Snap center
+    if (snap.edge === 'centerX' && Math.abs(centerX - snap.val) < snapPct) {
+      pctX = snap.val - halfW;
+      snappedX = true;
+      if (snap.guide) document.getElementById(snap.guide)?.classList.add('visible');
+      break;
+    }
+    // Snap right edge
+    if (Math.abs(rightEdge - snap.val) < snapPct) {
+      pctX = snap.val - (elW / slideRect.width) * 100;
+      snappedX = true;
+      if (snap.guide) document.getElementById(snap.guide)?.classList.add('visible');
+      break;
+    }
+  }
+
+  // Clamp
+  pctX = Math.max(0, Math.min(100 - (elW / slideRect.width) * 100, pctX));
+  pctY = Math.max(0, Math.min(100 - (elH / slideRect.height) * 100, pctY));
+
+  // Apply
+  el.style.left = pctX + '%';
+  el.style.top = pctY + '%';
+
+  // Update state
+  logo.x = pctX.toFixed(1) + '%';
+  logo.y = pctY.toFixed(1) + '%';
+
+  // Show coordinate tooltip
+  const coordsEl = document.getElementById('dragCoords');
+  if (coordsEl) {
+    coordsEl.textContent = `${pctX.toFixed(1)}%, ${pctY.toFixed(1)}%`;
+    coordsEl.style.left = (e.clientX + 16) + 'px';
+    coordsEl.style.top = (e.clientY - 8) + 'px';
+    coordsEl.classList.add('visible');
+  }
+
+  // Update sidebar position readout
+  updateSidebarPosition(logo);
+}
+
+function endDrag(e) {
+  if (!dragState) return;
+
+  dragState.el.classList.remove('dragging');
+  showGuides(false);
+
+  const coordsEl = document.getElementById('dragCoords');
+  if (coordsEl) coordsEl.classList.remove('visible');
+
+  // Refresh sidebar to show updated custom x/y
+  renderLogoSlots();
+
+  dragState = null;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', endDrag);
+}
+
+// ================================================================
+// RESIZE OPERATION
+// ================================================================
+function startResize(e, logo) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const slide = document.getElementById('previewSlide');
+  const rect = slide.getBoundingClientRect();
+  const el = e.target.parentElement;
+  const elRect = el.getBoundingClientRect();
+
+  selectedLogoId = logo.id;
+
+  dragState = {
+    logo,
+    el,
+    slideRect: rect,
+    startX: e.clientX,
+    startWidth: elRect.width,
+    isResize: true,
+  };
+
+  el.classList.add('dragging');
+
+  document.addEventListener('mousemove', onResize);
+  document.addEventListener('mouseup', endResize);
+}
+
+function onResize(e) {
+  if (!dragState || !dragState.isResize) return;
+  const { logo, el, slideRect, startX, startWidth } = dragState;
+
+  const delta = e.clientX - startX;
+  const newWidth = Math.max(30, startWidth + delta);
+
+  el.style.width = newWidth + 'px';
+  logo.width = Math.round(newWidth) + 'px';
+
+  // Show coordinate tooltip with width
+  const coordsEl = document.getElementById('dragCoords');
+  if (coordsEl) {
+    coordsEl.textContent = `w: ${Math.round(newWidth)}px`;
+    coordsEl.style.left = (e.clientX + 16) + 'px';
+    coordsEl.style.top = (e.clientY - 8) + 'px';
+    coordsEl.classList.add('visible');
+  }
+
+  updateSidebarPosition(logo);
+}
+
+function endResize(e) {
+  if (!dragState) return;
+  dragState.el.classList.remove('dragging');
+
+  const coordsEl = document.getElementById('dragCoords');
+  if (coordsEl) coordsEl.classList.remove('visible');
+
+  renderLogoSlots();
+  dragState = null;
+  document.removeEventListener('mousemove', onResize);
+  document.removeEventListener('mouseup', endResize);
+}
+
+// ================================================================
+// GUIDE VISIBILITY
+// ================================================================
+function showGuides(visible) {
+  const overlay = document.getElementById('marginOverlay');
+  if (overlay) overlay.classList.toggle('visible', visible);
+
+  if (!visible) {
+    document.querySelectorAll('.snap-guide').forEach(g => g.classList.remove('visible'));
+  }
+}
+
+// ================================================================
+// SIDEBAR SYNC
+// ================================================================
+function highlightSidebarSlot(id) {
+  selectedLogoId = id;
+  document.querySelectorAll('.logo-slot').forEach(s => {
+    s.classList.toggle('selected', parseInt(s.dataset.logoId) === id);
+  });
+  // Also highlight the preview logo
+  document.querySelectorAll('.preview-logo').forEach(el => {
+    el.classList.toggle('selected', parseInt(el.dataset.logoId) === id);
+  });
+}
+
+function updateSidebarPosition(logo) {
+  const posEl = document.getElementById(`logo-pos-${logo.id}`);
+  if (posEl) {
+    posEl.innerHTML = `x: <span>${logo.x || '?'}</span> &nbsp; y: <span>${logo.y || '?'}</span> &nbsp; w: <span>${logo.width}</span>`;
+  }
+}
+
+// ================================================================
+// SAVE / EXPORT
+// ================================================================
+function generateToml() {
+  const lt = state.light_colors;
+  const dk = state.dark_colors;
+  const t = state.typography;
+  const name = document.getElementById('flavorName').value || 'custom';
+
+  // Extract clean font name from CSS value
+  const cleanFont = (f) => f.replace(/'/g, '').split(',')[0].trim();
+
+  let toml = `"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "${name}"
+display_name = "${name.charAt(0).toUpperCase() + name.slice(1)}"
+description = "Generated by sldr flavor builder"
+
+[colors]
+primary = "${lt.primary}"
+secondary = "${lt.secondary}"
+background = "${lt.background}"
+text = "${lt.text}"
+accent = "${lt.accent}"
+code_background = "${lt.code_background}"
+code_text = "${lt.code_text}"
+
+[dark_colors]
+primary = "${dk.primary}"
+secondary = "${dk.secondary}"
+background = "${dk.background}"
+text = "${dk.text}"
+accent = "${dk.accent}"
+code_background = "${dk.code_background}"
+code_text = "${dk.code_text}"
+
+[typography]
+heading_font = "${cleanFont(t.heading_font)}"
+body_font = "${cleanFont(t.body_font)}"
+code_font = "${cleanFont(t.code_font)}"
+
+[background]
+background_type = "color"
+value = "${lt.background}"
+`;
+
+  // Append logo placements
+  let logoToml = '';
+  for (const logo of state.logos) {
+    logoToml += `\n[[logos]]\n`;
+    logoToml += `file = "${logo.file}"\n`;
+    logoToml += `position = "${logo.position}"\n`;
+    if (logo.x) logoToml += `x = "${logo.x}"\n`;
+    if (logo.y) logoToml += `y = "${logo.y}"\n`;
+    logoToml += `width = "${logo.width}"\n`;
+    logoToml += `opacity = ${logo.opacity}\n`;
+    logoToml += `templates = [${logo.templates.map(t => `"${t}"`).join(', ')}]\n`;
+  }
+
+  return toml + logoToml;
+}
+
+async function saveFlavor() {
+  const name = document.getElementById('flavorName').value;
+  if (!name) {
+    showToast('Enter a flavor name first', 'error');
+    return;
+  }
+
+  const toml = generateToml();
+
+  try {
+    const res = await fetch('/api/flavor/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, toml }),
+    });
+
+    if (res.ok) {
+      showToast(`Flavor "${name}" saved!`, 'success');
+    } else {
+      const err = await res.text();
+      showToast(`Save failed: ${err}`, 'error');
+    }
+  } catch (e) {
+    showToast('Server not running. Use Export TOML to copy manually.', 'error');
+  }
+}
+
+function exportToml() {
+  const toml = generateToml();
+
+  // Copy to clipboard
+  navigator.clipboard.writeText(toml).then(() => {
+    showToast('TOML copied to clipboard!', 'success');
+  }).catch(() => {
+    // Fallback: download as file
+    const blob = new Blob([toml], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (document.getElementById('flavorName').value || 'flavor') + '.toml';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('TOML downloaded as file', 'success');
+  });
+}
+
+// ================================================================
+// TOAST
+// ================================================================
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast show ' + type;
+  setTimeout(() => { toast.className = 'toast'; }, 3000);
+}
+
+// ================================================================
+// COLOR UTILITIES
+// ================================================================
+function hslToHex(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  s = Math.max(0, Math.min(100, s)) / 100;
+  l = Math.max(0, Math.min(100, l)) / 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function dimColor(hex, factor) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const dim = (c) => Math.round(c * factor);
+  return `rgb(${dim(r)},${dim(g)},${dim(b)})`;
+}
+
+// ================================================================
+// KEYBOARD SHORTCUTS
+// ================================================================
+document.addEventListener('keydown', e => {
+  const notInput = document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT';
+  if (e.key === 'r' && !e.ctrlKey && !e.metaKey && notInput) {
+    randomizeFlavor();
+  }
+  if (e.key === 'c' && !e.ctrlKey && !e.metaKey && notInput) {
+    randomizeColors();
+  }
+  // D toggles light/dark mode
+  if (e.key === 'd' && !e.ctrlKey && !e.metaKey && notInput) {
+    switchMode(state.activeMode === 'light' ? 'dark' : 'light');
+  }
+  // Arrow keys cycle templates
+  if (e.key === 'ArrowRight' && notInput) {
+    e.preventDefault();
+    const keys = Object.keys(TEMPLATES);
+    const idx = keys.indexOf(state.activeTemplate);
+    showTemplate(keys[(idx + 1) % keys.length]);
+  }
+  if (e.key === 'ArrowLeft' && notInput) {
+    e.preventDefault();
+    const keys = Object.keys(TEMPLATES);
+    const idx = keys.indexOf(state.activeTemplate);
+    showTemplate(keys[(idx - 1 + keys.length) % keys.length]);
+  }
+});
+
+// ================================================================
+// LOAD EXISTING FLAVOR FROM SERVER
+// ================================================================
+async function loadExistingFlavor() {
+  try {
+    const res = await fetch('/api/flavor/current');
+    if (res.ok) {
+      const data = await res.json();
+      // Light mode colors come from [colors]
+      if (data.colors) {
+        Object.keys(data.colors).forEach(key => {
+          if (data.colors[key]) state.light_colors[key] = data.colors[key];
+        });
+      }
+      // Dark mode colors come from [dark_colors]; fall back to [colors] if not set
+      if (data.dark_colors) {
+        Object.keys(data.dark_colors).forEach(key => {
+          if (data.dark_colors[key]) state.dark_colors[key] = data.dark_colors[key];
+        });
+      }
+      if (data.typography) {
+        Object.keys(data.typography).forEach(key => {
+          if (data.typography[key]) state.typography[key] = data.typography[key];
+        });
+      }
+      if (data.name) document.getElementById('flavorName').value = data.name;
+
+      // Load logos (with data URIs for preview if server resolved them)
+      if (data.logos && data.logos.length > 0) {
+        state.logos = data.logos.map((l, i) => ({
+          id: state.nextLogoId++,
+          file: l.file || 'logo.svg',
+          position: l.position || 'top-right',
+          x: l.x || null,
+          y: l.y || null,
+          width: l.width || '100px',
+          opacity: l.opacity ?? 0.8,
+          templates: l.templates || ['all'],
+          dataUri: l.dataUri || null,
+        }));
+        renderLogoSlots();
+      }
+
+      // Update UI inputs for active mode
+      syncColorInputsFromState();
+
+      // Update font selects
+      Object.keys(state.typography).forEach(key => {
+        const cssKey = key.replace('_', '-');
+        const select = document.querySelector(`.ctrl-select[data-var="${cssKey}"]`);
+        if (select) {
+          for (const opt of select.options) {
+            if (opt.value.includes(state.typography[key].split(',')[0].replace(/'/g, '').trim())) {
+              select.value = opt.value;
+              break;
+            }
+          }
+        }
+      });
+
+      applyState();
+    }
+  } catch {
+    // Server not available, use defaults
+  }
+}
+
+// ================================================================
+// BOOT
+// ================================================================
+init();
+loadExistingFlavor();
+</script>
+
+<!-- Inject base.css slide styles scoped to .preview-slide -->
+<style>
+/* Re-apply slide-level base.css rules within the preview frame */
+.preview-slide h1,.preview-slide h2,.preview-slide h3,.preview-slide h4,.preview-slide h5,.preview-slide h6 {
+  font-family:var(--sldr-heading-font, 'DM Sans', system-ui, sans-serif);
+  color:var(--sldr-primary, #60a5fa);
+  line-height:1.15;margin-bottom:0;
+}
+.preview-slide h1 {font-size:clamp(20px,3.5vw,44px);font-weight:700;letter-spacing:-0.5px}
+.preview-slide h2 {font-size:clamp(16px,2.5vw,30px);font-weight:600}
+.preview-slide h3 {font-size:clamp(14px,1.8vw,22px);font-weight:600}
+
+.preview-slide p {margin-bottom:0.6em;font-size:clamp(12px,1.5vw,17px);line-height:1.65}
+.preview-slide ul,.preview-slide ol {padding-left:1.2em;margin-bottom:0.6em}
+.preview-slide li {margin-bottom:clamp(4px,0.8vh,10px);font-size:clamp(12px,1.5vw,17px);line-height:1.55;padding-left:0.3em}
+.preview-slide li::marker {color:var(--sldr-primary,#60a5fa)}
+
+.preview-slide blockquote {
+  border-left:3px solid var(--sldr-primary,#60a5fa);
+  padding-left:clamp(12px,1.5vw,22px);margin:0.8em 0;
+  color:var(--sldr-text-dim,#94a3b8);
+}
+
+.preview-slide pre.sldr-code {
+  border-radius:12px;border:1px solid var(--sldr-border-bright,rgba(148,163,184,0.12));
+  padding:clamp(10px,1.5vh,20px) clamp(14px,1.5vw,22px);
+  overflow-x:auto;font-size:clamp(10px,1vw,13px);line-height:1.7;
+  margin:clamp(6px,1vh,14px) 0;
+  box-shadow:0 4px 24px rgba(0,0,0,0.2);
+}
+.preview-slide code {font-family:var(--sldr-code-font,'Fira Code',monospace)}
+.preview-slide :not(pre)>code {
+  background:var(--sldr-accent-dim,rgba(96,165,250,0.1));
+  color:var(--sldr-accent,#60a5fa);padding:2px 6px;border-radius:4px;font-size:0.85em;
+}
+
+.preview-slide table {
+  width:100%;border-collapse:collapse;margin:0.6em 0;
+  font-size:clamp(10px,1.2vw,14px);border-radius:12px;overflow:hidden;
+  border:1px solid var(--sldr-border,rgba(148,163,184,0.08));
+}
+.preview-slide th {
+  padding:clamp(6px,1vh,12px) clamp(10px,1.5vw,16px);text-align:left;
+  font-weight:600;font-size:clamp(8px,0.9vw,11px);
+  text-transform:uppercase;letter-spacing:1px;
+  border-bottom:2px solid var(--sldr-border-bright,rgba(148,163,184,0.16));
+}
+.preview-slide td {
+  padding:clamp(5px,0.8vh,10px) clamp(10px,1.5vw,16px);
+  border-bottom:1px solid var(--sldr-border,rgba(148,163,184,0.06));
+}
+
+/* Layout-specific rules for preview */
+.preview-slide .sldr-content {
+  flex:1;display:flex;flex-direction:column;
+  position:relative;z-index:1;min-height:0;
+}
+
+.preview-slide[data-layout="default"] .sldr-content {justify-content:flex-start;gap:clamp(10px,2vh,24px)}
+.preview-slide[data-layout="default"] .sldr-content>*:first-child {margin-bottom:clamp(4px,1vh,16px)}
+
+.preview-slide[data-layout="cover"] {justify-content:center;align-items:center;text-align:center}
+.preview-slide[data-layout="cover"] .sldr-content {justify-content:center;align-items:center;max-width:85%}
+.preview-slide[data-layout="cover"] h1 {font-size:clamp(28px,5vw,64px);font-weight:700;letter-spacing:-1.5px;line-height:1.05;text-wrap:balance;margin-bottom:clamp(8px,1.5vh,24px)}
+.preview-slide[data-layout="cover"] p {font-size:clamp(12px,1.8vw,20px);opacity:0.7;max-width:70%;text-wrap:balance}
+
+.preview-slide[data-layout="section"] {justify-content:center;align-items:flex-start}
+.preview-slide[data-layout="section"] .sldr-content {justify-content:center;gap:clamp(6px,1vh,16px)}
+.preview-slide[data-layout="section"] h1 {font-size:clamp(26px,6vw,72px);font-weight:700;letter-spacing:-2px;line-height:1.05}
+.preview-slide[data-layout="section"] p {font-size:clamp(12px,1.6vw,20px);opacity:0.6}
+
+.preview-slide[data-layout="quote"] {justify-content:center;align-items:center;text-align:center;padding:clamp(40px,8vh,80px) clamp(40px,8vw,140px)}
+.preview-slide[data-layout="quote"] .sldr-content {justify-content:center;align-items:center}
+.preview-slide[data-layout="quote"] blockquote {font-size:clamp(18px,3.5vw,40px);font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;line-height:1.3;border-left:none;padding:0;margin:0 0 clamp(14px,3vh,36px);max-width:85%;text-wrap:balance}
+.preview-slide[data-layout="quote"] blockquote p {font-size:inherit;font-family:inherit;font-style:inherit;line-height:inherit;color:inherit;margin:0}
+.preview-slide[data-layout="quote"] .sldr-content>p {font-family:var(--sldr-code-font);font-size:clamp(9px,1.1vw,12px);letter-spacing:1.5px;text-transform:uppercase;opacity:0.6}
+
+.preview-slide[data-layout="center"] {justify-content:center;align-items:center;text-align:center}
+.preview-slide[data-layout="center"] .sldr-content {justify-content:center;align-items:center;max-width:80%}
+
+.preview-slide[data-layout="end"] {justify-content:center;align-items:center;text-align:center}
+
+.preview-slide[data-layout="two-cols"] .sldr-content {justify-content:flex-start;gap:clamp(8px,1.5vh,20px)}
+.preview-slide[data-layout="two-cols"] .sldr-columns {
+  display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,60px);
+  flex:1;align-content:start;min-height:0;
+}
+.preview-slide[data-layout="two-cols"] .sldr-col {
+  display:flex;flex-direction:column;gap:clamp(4px,0.7vh,10px);
+  border:1px solid var(--sldr-border,rgba(148,163,184,0.08));
+  padding:clamp(14px,2vh,26px) clamp(14px,1.8vw,26px);
+}
+
+.preview-slide strong {font-weight:700}
+.preview-slide em {font-style:italic}
+</style>
+
+</body>
+</html>

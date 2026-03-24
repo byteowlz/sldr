@@ -37,3 +37,7 @@ tmp/
 
 # Coverage
 coverage/
+
+frontend/
+input/
+.pi/

@@ -94,6 +94,7 @@ pub fn run(
             .clone()
             .unwrap_or_else(|| "16/9".to_string()),
         speaker_notes: false, // No notes in PDF
+        ..Default::default()
     };
 
     let mut renderer =

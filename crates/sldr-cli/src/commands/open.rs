@@ -44,6 +44,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
             false,
             false,
             Some(output_dir.to_string_lossy().to_string()),
+            "embed",
         )?;
     }
 
@@ -68,6 +69,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
             false,
             false,
             Some(output_dir.to_string_lossy().to_string()),
+            "embed",
         )?;
 
         if index_path.exists() {

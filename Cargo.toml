@@ -12,7 +12,7 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["byteowlz"]
 license = "MIT"
@@ -56,6 +56,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Process + file watching
 notify = "8.2"
 tempfile = "3"
+
+# Image processing (WebP conversion for embedding)
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
+base64 = "0.22"
 
 # Markdown parsing
 pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }

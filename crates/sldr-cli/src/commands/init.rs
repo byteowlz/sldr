@@ -78,6 +78,7 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
                 code_text: Some("#e2e8f0".to_string()),
             }),
             background: sldr_core::flavor::BackgroundConfig::default(),
+            logos: Vec::new(),
             assets_dir: None,
             source_dir: None,
         };

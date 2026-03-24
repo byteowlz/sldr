@@ -47,6 +47,10 @@ enum Commands {
         /// Output directory (overrides config)
         #[arg(short, long)]
         output: Option<String>,
+
+        /// How to handle images: "embed" (base64 in HTML) or "external" (WebP files in assets/)
+        #[arg(long, default_value = "embed", value_parser = ["embed", "external"])]
+        images: String,
     },
 
     /// Add slides to a presentation skeleton
@@ -130,6 +134,18 @@ enum Commands {
         /// Port (unused, kept for backwards compat)
         #[arg(short, long, hide = true)]
         port: Option<String>,
+    },
+
+    /// Interactive visual flavor builder (opens in browser)
+    #[command(name = "flavor")]
+    FlavorBuilder {
+        /// Existing flavor to load as starting point
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Port for the builder server
+        #[arg(short, long, default_value = "3031")]
+        port: u16,
     },
 
     /// List available slides, presentations, or flavors
@@ -320,7 +336,8 @@ fn main() -> anyhow::Result<()> {
             pdf,
             pptx,
             output,
-        } => commands::build::run(&skeleton, flavor, pdf, pptx, output),
+            images,
+        } => commands::build::run(&skeleton, flavor, pdf, pptx, output, &images),
 
         Commands::Add {
             presentation,
@@ -354,6 +371,8 @@ fn main() -> anyhow::Result<()> {
         } => commands::watch::run(&skeleton, flavor, port),
 
         Commands::Preview { slide, port } => commands::preview::run(&slide, port),
+
+        Commands::FlavorBuilder { name, port } => commands::flavor_builder::run(name, port),
 
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
 

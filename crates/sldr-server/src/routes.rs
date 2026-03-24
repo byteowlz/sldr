@@ -482,6 +482,7 @@ fn build_html_from_skeleton(
         transition,
         aspect_ratio,
         speaker_notes: true,
+        ..Default::default()
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);

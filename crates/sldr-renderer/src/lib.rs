@@ -22,9 +22,11 @@
 //!                                                          Single .html file
 //! ```
 
+pub mod media;
 mod markdown;
 pub mod pptx;
 mod render;
 mod template;
 
+pub use media::ImageMode;
 pub use render::{HtmlRenderer, RenderConfig};

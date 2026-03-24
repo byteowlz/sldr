@@ -7,17 +7,40 @@ use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
 
+use crate::media::{self, ImageMode, MediaEmbed};
+
+/// Configuration for media handling during markdown rendering
+#[derive(Debug, Clone)]
+pub struct MediaConfig {
+    /// How to handle local images
+    pub image_mode: ImageMode,
+    /// Directory containing the slide (for resolving relative image paths)
+    pub slide_dir: Option<std::path::PathBuf>,
+    /// Directory to copy assets to (for `ImageMode::External`)
+    pub assets_dir: Option<std::path::PathBuf>,
+}
+
+impl Default for MediaConfig {
+    fn default() -> Self {
+        Self {
+            image_mode: ImageMode::Embed,
+            slide_dir: None,
+            assets_dir: None,
+        }
+    }
+}
+
 /// Converts markdown content to HTML with syntax-highlighted code blocks.
 ///
 /// The `::left::` and `::right::` column markers are detected and returned
 /// separately so the template engine can place them in the correct slots.
-pub fn render_markdown(content: &str) -> MarkdownOutput {
+pub fn render_markdown(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
     // Check for column markers
     if content.contains("::left::") && content.contains("::right::") {
-        return render_two_cols(content);
+        return render_two_cols(content, media_config);
     }
 
-    let html = markdown_to_html(content);
+    let html = markdown_to_html(content, media_config);
     MarkdownOutput::Single(html)
 }
 
@@ -34,27 +57,27 @@ pub enum MarkdownOutput {
 }
 
 /// Parse a two-column slide by splitting on ::left:: and ::right:: markers
-fn render_two_cols(content: &str) -> MarkdownOutput {
+fn render_two_cols(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
     // Split on ::left:: first
     let (before_left, after_left) = match content.split_once("::left::") {
         Some((before, after)) => (before.trim(), after),
-        None => return MarkdownOutput::Single(markdown_to_html(content)),
+        None => return MarkdownOutput::Single(markdown_to_html(content, media_config)),
     };
 
     // Split the remainder on ::right::
     let (left_md, right_md) = match after_left.split_once("::right::") {
         Some((left, right)) => (left.trim(), right.trim()),
-        None => return MarkdownOutput::Single(markdown_to_html(content)),
+        None => return MarkdownOutput::Single(markdown_to_html(content, media_config)),
     };
 
     let heading = if before_left.is_empty() {
         String::new()
     } else {
-        markdown_to_html(before_left)
+        markdown_to_html(before_left, media_config)
     };
 
-    let left = markdown_to_html(left_md);
-    let right = markdown_to_html(right_md);
+    let left = markdown_to_html(left_md, media_config);
+    let right = markdown_to_html(right_md, media_config);
 
     MarkdownOutput::TwoCols {
         heading,
@@ -63,8 +86,8 @@ fn render_two_cols(content: &str) -> MarkdownOutput {
     }
 }
 
-/// Core markdown -> HTML conversion with syntax highlighting
-fn markdown_to_html(input: &str) -> String {
+/// Core markdown -> HTML conversion with syntax highlighting and media embedding
+fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
     let ss = SyntaxSet::load_defaults_newlines();
     let ts = ThemeSet::load_defaults();
     let theme = &ts.themes["base16-ocean.dark"];
@@ -80,6 +103,8 @@ fn markdown_to_html(input: &str) -> String {
     let mut in_code_block = false;
     let mut code_lang = String::new();
     let mut code_content = String::new();
+    let mut in_image = false;
+    let mut image_alt = String::new();
 
     for event in parser {
         match event {
@@ -125,6 +150,9 @@ fn markdown_to_html(input: &str) -> String {
             Event::Text(text) => {
                 if in_code_block {
                     code_content.push_str(text.as_ref());
+                } else if in_image {
+                    // Collect alt text for image tag
+                    image_alt.push_str(text.as_ref());
                 } else {
                     output.push_str(&html_escape(text.as_ref()));
                 }
@@ -142,6 +170,41 @@ fn markdown_to_html(input: &str) -> String {
             }
             Event::Html(html) | Event::InlineHtml(html) => {
                 output.push_str(html.as_ref());
+            }
+            Event::Start(Tag::Image { dest_url, title, .. }) => {
+                in_image = true;
+                image_alt.clear();
+
+                // Process the image source through the media pipeline
+                let src = dest_url.as_ref();
+                let processed_src = match media::process_media_src(
+                    src,
+                    media_config.slide_dir.as_deref(),
+                    media_config.image_mode,
+                    media_config.assets_dir.as_deref(),
+                ) {
+                    MediaEmbed::DataUri(data_uri) => data_uri,
+                    MediaEmbed::External(url) => url,
+                    MediaEmbed::AssetFile { html_src, .. } => html_src,
+                    MediaEmbed::NotFound(original) => original,
+                };
+
+                output.push_str("<img src=\"");
+                output.push_str(&processed_src);
+                output.push('"');
+                if !title.is_empty() {
+                    output.push_str(" title=\"");
+                    output.push_str(title.as_ref());
+                    output.push('"');
+                }
+                // alt text will be added when we hit End(Image)
+                output.push_str(" alt=\"");
+            }
+            Event::End(TagEnd::Image) => {
+                output.push_str(&html_escape(&image_alt));
+                output.push_str("\" />\n");
+                in_image = false;
+                image_alt.clear();
             }
             Event::Start(tag) => {
                 write_open_tag(&mut output, &tag);
@@ -210,17 +273,8 @@ fn write_open_tag(out: &mut String, tag: &Tag<'_>) {
             }
             out.push('>');
         }
-        Tag::Image { dest_url, title, .. } => {
-            out.push_str("<img src=\"");
-            out.push_str(dest_url.as_ref());
-            out.push('"');
-            if !title.is_empty() {
-                out.push_str(" title=\"");
-                out.push_str(title.as_ref());
-                out.push('"');
-            }
-            out.push_str(" alt=\"");
-            // alt text is the next text event; we just open the tag here
+        Tag::Image { .. } => {
+            // Handled in main loop with media processing
         }
         Tag::Table(alignments) => {
             out.push_str("<table>\n");
@@ -264,7 +318,9 @@ fn write_close_tag(out: &mut String, tag: TagEnd) {
         TagEnd::Strong => out.push_str("</strong>"),
         TagEnd::Strikethrough => out.push_str("</del>"),
         TagEnd::Link => out.push_str("</a>"),
-        TagEnd::Image => out.push_str("\" />\n"),
+        TagEnd::Image => {
+            // Handled in main loop with media processing
+        }
         TagEnd::Table => out.push_str("</tbody>\n</table>\n"),
         TagEnd::TableHead => out.push_str("</tr>\n</thead>\n<tbody>\n"),
         TagEnd::TableRow => out.push_str("</tr>\n"),
@@ -297,9 +353,13 @@ fn html_escape(input: &str) -> String {
 mod tests {
     use super::*;
 
+    fn default_config() -> MediaConfig {
+        MediaConfig::default()
+    }
+
     #[test]
     fn test_simple_markdown() {
-        let html = markdown_to_html("# Hello\n\nWorld");
+        let html = markdown_to_html("# Hello\n\nWorld", &default_config());
         assert!(html.contains("<h1>Hello</h1>"));
         assert!(html.contains("<p>World</p>"));
     }
@@ -307,7 +367,7 @@ mod tests {
     #[test]
     fn test_code_block() {
         let md = "```rust\nfn main() {}\n```";
-        let html = markdown_to_html(md);
+        let html = markdown_to_html(md, &default_config());
         assert!(html.contains("sldr-code"));
         assert!(html.contains("main"));
     }
@@ -315,7 +375,7 @@ mod tests {
     #[test]
     fn test_two_cols() {
         let md = "# Title\n\n::left::\n\nLeft stuff\n\n::right::\n\nRight stuff";
-        let result = render_markdown(md);
+        let result = render_markdown(md, &default_config());
         match result {
             MarkdownOutput::TwoCols {
                 heading,
