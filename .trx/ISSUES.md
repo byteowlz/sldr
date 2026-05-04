@@ -38,15 +38,6 @@ Markdown convention (proposed): each image is a markdown image with optional alt
 ...
 
 
-### [trx-jbpj.16] [bug] Page number always shows '1' — CSS counter doesn't increment past hidden slides (P1, bug)
-The editorial-serif flavor.css uses CSS counters:
-
-  .sldr-deck { counter-reset: sldr-page; }
-  .sldr-slide { counter-increment: sldr-page; }
-  .sldr-slide:not([data-layout="cover"])::after { content: counter(sldr-page, decimal-leading-zero); }
-...
-
-
 ### [trx-jbpj] [epic] Visual flavor builder + agent-driven slide pipeline (P1, epic)
 Sldr's two near-term moats: (1) a visual flavor builder that shows ALL templates with placeholder content, with live-update previews so humans and agents can dial in style; (2) an agent-driven slide pipeline where external skills (URL-to-slide, screenshot-to-slide, PPTX import, etc.) drive sldr via a stable HTTP/CLI API.
 
@@ -185,6 +176,7 @@ Fix:
 
 ## Closed
 
+- [trx-jbpj.16] [bug] Page number always shows '1' — CSS counter doesn't increment past hidden slides (closed 2026-05-04)
 - [trx-jbpj.15] [task] Layout positioning unification across all 10 layouts (closed 2026-05-04)
 - [trx-jbpj.14] [bug] Presenter slides ghost/stuck on rapid keypress (closed 2026-05-04)
 - [trx-jbpj.13] [bug] image-left/image-right ::content:: ::image:: markers not parsed (closed 2026-05-04)
