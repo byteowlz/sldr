@@ -38,9 +38,15 @@ pub fn wrap_slide(opts: SlideOpts<'_>) -> String {
 
     let mut html = String::new();
 
+    // 1-indexed, zero-padded page label. Emitted as a data attribute so
+    // flavors can render page numbers via `content: attr(data-page)` —
+    // CSS `counter-increment` would not work because the presenter sets
+    // `display: none` on inactive slides and CSS counters only fire for
+    // rendered elements (every slide would show '1'). See trx-jbpj.16.
+    let page_num = index + 1;
     let _ = write!(
         html,
-        "<section class=\"sldr-slide\" data-layout=\"{layout}\" data-index=\"{index}\""
+        "<section class=\"sldr-slide\" data-layout=\"{layout}\" data-index=\"{index}\" data-page=\"{page_num:02}\""
     );
     if let Some(a) = align {
         let _ = write!(html, " data-align=\"{a}\"");

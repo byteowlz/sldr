@@ -13,20 +13,18 @@
 
 /* ============================================================
  * Page number — small monospace, bottom-right corner.
+ *
+ * Reads the 1-indexed zero-padded page label from data-page (emitted
+ * by the renderer in template.rs). We can't use CSS counters here
+ * because the presenter sets display:none on inactive slides, and
+ * counter-increment only fires on rendered elements — every slide
+ * would show '01'. See trx-jbpj.16.
+ *
+ * Scoped via :not([data-layout="cover"]) so we don't fight the
+ * cover's own ::after accent glow defined in base.css.
  * ============================================================ */
-.sldr-deck {
-  counter-reset: sldr-page;
-}
-
-.sldr-slide {
-  counter-increment: sldr-page;
-}
-
-/* Page number on every slide except the cover (cover is the title
- * plate). We scope by negation so we don't fight the cover's own
- * `::after` glow defined in base.css. */
 .sldr-slide:not([data-layout="cover"])::after {
-  content: counter(sldr-page, decimal-leading-zero);
+  content: attr(data-page);
   position: absolute;
   bottom: clamp(24px, 3.5vh, 40px);
   right: clamp(28px, 4vw, 64px);
