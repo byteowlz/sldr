@@ -148,6 +148,45 @@ enum Commands {
         port: u16,
     },
 
+    /// Run a long-lived HTTP daemon that exposes sldr to external agents.
+    ///
+    /// External tools (web-to-slide pipelines, MCP servers, custom scripts)
+    /// drive sldr over HTTP instead of forking the CLI per call. Boundary:
+    /// sldr handles slide/skeleton/asset CRUD + rendering. It does NOT fetch
+    /// URLs, OCR, or summarize content — those are agent jobs.
+    ///
+    /// Endpoints listed at GET / (the root URL). See AGENTS_USE.md for the
+    /// full agent-facing API contract.
+    Serve {
+        /// Port to listen on
+        #[arg(short, long, default_value = "3032")]
+        port: u16,
+
+        /// Open the API landing page in the browser on start
+        #[arg(long)]
+        open: bool,
+    },
+
+    /// Render the bundled sample deck against a flavor and open it.
+    ///
+    /// The sample deck is a canonical set of placeholder slides exercising
+    /// every major layout — useful for evaluating a flavor visually without
+    /// authoring real content. Same artifact also powers the flavor builder
+    /// gallery and the agent slide catalog (GET /api/sample on `sldr serve`).
+    Sample {
+        /// Flavor to render the sample with
+        #[arg(short, long, default_value = "default")]
+        flavor: String,
+
+        /// Write to a specific path instead of a temp file
+        #[arg(short, long)]
+        output: Option<std::path::PathBuf>,
+
+        /// Don't open the browser, just print the output path
+        #[arg(long)]
+        no_open: bool,
+    },
+
     /// List available slides, presentations, or flavors
     #[command(name = "ls")]
     List {
@@ -373,6 +412,12 @@ fn main() -> anyhow::Result<()> {
         Commands::Preview { slide, port } => commands::preview::run(&slide, port),
 
         Commands::FlavorBuilder { name, port } => commands::flavor_builder::run(name, port),
+        Commands::Serve { port, open } => commands::serve::run(port, open),
+        Commands::Sample {
+            flavor,
+            output,
+            no_open,
+        } => commands::sample::run(&flavor, output, no_open),
 
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
 

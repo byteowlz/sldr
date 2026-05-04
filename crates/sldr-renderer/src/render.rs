@@ -13,7 +13,27 @@ use tracing::info;
 
 use crate::markdown::{render_markdown, MediaConfig};
 use crate::media::{self, ImageMode, MediaEmbed};
-use crate::template::wrap_slide;
+use crate::template::{wrap_slide, SlideOpts};
+
+/// Validate horizontal alignment value, dropping unknown ones.
+fn sanitize_align(v: Option<&str>) -> Option<&'static str> {
+    match v {
+        Some("left") => Some("left"),
+        Some("center") => Some("center"),
+        Some("right") => Some("right"),
+        _ => None,
+    }
+}
+
+/// Validate vertical alignment value, dropping unknown ones.
+fn sanitize_valign(v: Option<&str>) -> Option<&'static str> {
+    match v {
+        Some("top") => Some("top"),
+        Some("center") => Some("center"),
+        Some("bottom") => Some("bottom"),
+        _ => None,
+    }
+}
 
 /// Base CSS embedded at compile time from assets/base.css
 const BASE_CSS: &str = include_str!("../assets/base.css");
@@ -112,17 +132,39 @@ impl HtmlRenderer {
         let assets_dir = self.config.output_dir.as_ref().map(|d| d.join("assets"));
         let slide_dir = slide.path.parent().map(std::path::Path::to_path_buf);
 
+        // Pull the syntax-highlighting theme from the active flavor's
+        // [code] section. Light flavors (editorial paper, minimal-light)
+        // use InspiredGitHub or similar; dark flavors use base16-ocean.dark.
+        let syntax_theme = self
+            .flavors
+            .first()
+            .and_then(|f| f.code.syntax_theme.clone());
+
         let media_config = MediaConfig {
             image_mode: self.config.image_mode,
             slide_dir,
             assets_dir,
+            syntax_theme,
         };
 
         // Render markdown to HTML with media embedding
         let rendered = render_markdown(&slide.content, &media_config);
 
+        // Per-slide alignment overrides (orthogonal to layout). Validated
+        // here so a typo in frontmatter doesn't ship a silently broken
+        // attribute selector.
+        let align = sanitize_align(slide.metadata.align.as_deref());
+        let valign = sanitize_valign(slide.metadata.valign.as_deref());
+
         // Wrap in layout template
-        let html = wrap_slide(index, layout, rendered, notes.as_deref());
+        let html = wrap_slide(SlideOpts {
+            index,
+            layout,
+            align,
+            valign,
+            rendered,
+            speaker_notes: notes.as_deref(),
+        });
 
         self.slides.push(RenderedSlide {
             html,
@@ -331,6 +373,15 @@ impl HtmlRenderer {
             let bg_css = flavor.to_background_css();
             if !bg_css.is_empty() {
                 html.push_str(&bg_css);
+            }
+
+            // Per-flavor escape-hatch CSS (loaded from flavor.css)
+            if let Some(ref custom) = flavor.custom_css {
+                html.push('\n');
+                html.push_str(custom);
+                if !custom.ends_with('\n') {
+                    html.push('\n');
+                }
             }
 
             html.push_str("  </style>\n");

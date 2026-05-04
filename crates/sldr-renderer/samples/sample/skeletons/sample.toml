@@ -1,0 +1,16 @@
+name = "sample"
+title = "Sample Deck"
+description = "Bundled sample deck — exercises every major layout. Used by `sldr flavor sample` and the flavor-builder UI to evaluate a flavor against canonical content."
+
+slides = [
+    "01-cover",
+    "02-section",
+    "03-default",
+    "04-two-cols",
+    "05-quote",
+    "06-code",
+    "07-image-right",
+    "08-table",
+    "09-conclusion",
+    "10-thank-you",
+]

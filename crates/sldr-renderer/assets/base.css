@@ -21,8 +21,15 @@
   padding: 0;
 }
 
-/* === Root palette (defaults - flavors override these) === */
+/* === Root tokens (defaults — flavors override these) ===
+ *
+ * Every visual property a flavor can tune lives here as a CSS custom
+ * property. Flavors set what they care about; the rest fall through to
+ * these defaults. Adding a new visual axis means: add a default here,
+ * use the var() in the rules below, expose it in flavor.rs.
+ */
 :root {
+  /* Color */
   --sldr-primary: #60a5fa;
   --sldr-secondary: #818cf8;
   --sldr-background: #0f172a;
@@ -34,11 +41,52 @@
   --sldr-text-dim: #94a3b8;
   --sldr-accent: #60a5fa;
   --sldr-accent-dim: rgba(96, 165, 250, 0.08);
+  --sldr-muted: rgba(148, 163, 184, 0.06);
   --sldr-code-background: #0a0f1e;
   --sldr-code-text: #e2e8f0;
+
+  /* Typography */
   --sldr-heading-font: 'DM Sans', system-ui, sans-serif;
   --sldr-body-font: 'DM Sans', system-ui, sans-serif;
   --sldr-code-font: 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+  --sldr-base-size: clamp(16px, 1.8vw, 22px);
+  --sldr-heading-weight: 700;
+  --sldr-body-weight: 400;
+  --sldr-heading-tracking: -0.5px;
+  --sldr-body-tracking: 0;
+  --sldr-heading-leading: 1.15;
+  --sldr-body-leading: 1.6;
+  --sldr-heading-transform: none;
+  --sldr-eyebrow-transform: uppercase;
+
+  /* Spacing */
+  --sldr-slide-padding-y: clamp(40px, 6vh, 80px);
+  --sldr-slide-padding-x: clamp(48px, 7vw, 120px);
+  --sldr-content-max-width: none;
+  --sldr-stack-gap: clamp(16px, 2.5vh, 32px);
+  --sldr-density-scale: 1;
+
+  /* Shape */
+  --sldr-radius: 12px;
+  --sldr-radius-sm: 6px;
+  --sldr-radius-lg: 20px;
+  --sldr-border-width: 1px;
+  --sldr-border-style: solid;
+
+  /* Shadow */
+  --sldr-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --sldr-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --sldr-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18);
+
+  /* Motion */
+  --sldr-transition: slide;
+  --sldr-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --sldr-duration: 300ms;
+
+  /* Atmosphere — opacity multiplier for the deck-wide background glow.
+   * Default 0 (flat). Anti-AI-tell: outer glows are a generic AI signature.
+   * Flavors that want a dark/gradient look opt in via decoration.intensity. */
+  --sldr-atmosphere: 0;
 }
 
 html,
@@ -78,7 +126,7 @@ html.dark {
   position: absolute;
   inset: 0;
   display: none;
-  padding: clamp(40px, 6vh, 80px) clamp(48px, 7vw, 120px);
+  padding: var(--sldr-slide-padding-y) var(--sldr-slide-padding-x);
   background: var(--sldr-background);
   color: var(--sldr-text);
   overflow: hidden;
@@ -94,25 +142,22 @@ html.dark {
   display: none;
 }
 
-/* Atmospheric backgrounds - subtle glow variation per slide */
+/* Atmospheric backgrounds — uniform across all slides so the deck feels
+ * coherent (not a visual stutter as you advance). Intensity is controlled
+ * via --sldr-atmosphere (0 = off, 1 = full). Flat flavors (paper/print)
+ * should set 0; gradient/dark flavors can keep the default. */
 .sldr-slide::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-}
-
-.sldr-slide:nth-child(3n+1)::before {
-  background: radial-gradient(ellipse at 15% 85%, var(--sldr-accent-dim, rgba(96, 165, 250, 0.06)) 0%, transparent 50%);
-}
-
-.sldr-slide:nth-child(3n+2)::before {
-  background: radial-gradient(ellipse at 85% 20%, rgba(129, 140, 248, 0.05) 0%, transparent 50%);
-}
-
-.sldr-slide:nth-child(3n)::before {
-  background: radial-gradient(ellipse at 50% 90%, var(--sldr-accent-dim, rgba(96, 165, 250, 0.05)) 0%, transparent 45%);
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    var(--sldr-accent-dim, rgba(96, 165, 250, 0.06)) 0%,
+    transparent 55%
+  );
+  opacity: var(--sldr-atmosphere, 1);
 }
 
 /* Content container - takes full height, positions children */
@@ -125,18 +170,53 @@ html.dark {
   min-height: 0;
 }
 
-
 /* =========================================================================
- * Layout: default — title at top, content fills remaining space
+ * Unified composition: every slide centers its content as a block.
+ *
+ * Following visual-explainer's editorial pattern (and the Stripe Press /
+ * Apple Keynote convention): the entire content block — title + body —
+ * centers vertically in the slide. Title sits at its natural position
+ * within that centered block, with a tight gap to the body.
+ *
+ * This is what makes the deck feel unified: not "title pinned at the
+ * same Y" (which created huge auto-margin gaps), but "every slide is
+ * a centered composition." The eye reads consistency from balanced
+ * negative space above and below the content, not from absolute Y
+ * coordinates of the title.
+ *
+ * Title→body gap is intentionally tight (line-height creates the
+ * natural separation; `gap` adds just a touch). Empty space at top
+ * and bottom is acceptable and editorial — don't fight it.
  * ========================================================================= */
-.sldr-slide[data-layout="default"] .sldr-content {
-  justify-content: flex-start;
-  gap: clamp(16px, 2.5vh, 32px);
+.sldr-slide[data-layout="default"] .sldr-content > h1:first-child,
+.sldr-slide[data-layout="default"] .sldr-content > h2:first-child,
+.sldr-slide[data-layout="image-left"] .sldr-col-content > h1:first-child,
+.sldr-slide[data-layout="image-left"] .sldr-col-content > h2:first-child,
+.sldr-slide[data-layout="image-right"] .sldr-col-content > h1:first-child,
+.sldr-slide[data-layout="image-right"] .sldr-col-content > h2:first-child {
+  /* Tight title→body gap. The flex `gap` adds another ~16-32px on top. */
+  margin-bottom: clamp(8px, 1.5vh, 20px);
 }
 
-/* Push content down from the title */
-.sldr-slide[data-layout="default"] .sldr-content > *:first-child {
-  margin-bottom: clamp(8px, 1.5vh, 24px);
+
+/* =========================================================================
+ * Layout: default — title slightly above optical center, body flows below.
+ *
+ * Why not flex-start? Because short content stranded at the top with a sea
+ * of empty space below feels disjunct compared to cover/section/quote
+ * (which all center). Anchoring the content stack ~38% from the top puts
+ * the title at a consistent vertical position no matter how much body
+ * content follows — the eye lands in the same place across slide types.
+ * ========================================================================= */
+.sldr-slide[data-layout="default"] .sldr-content {
+  /* Whole content block centers — title + body together as a unit.
+   * Title→body gap is set by margin-bottom on the title (above) plus
+   * the flex `gap`; both kept tight so heading and body read as one.
+   * Max width 65ch is the editorial reading-line; flavors override
+   * via `spacing.content_max_width`. */
+  justify-content: center;
+  gap: clamp(16px, 2.5vh, 28px);
+  max-width: var(--sldr-content-max-width, 65ch);
 }
 
 
@@ -145,35 +225,49 @@ html.dark {
  * ========================================================================= */
 .sldr-slide[data-layout="cover"] {
   justify-content: center;
-  align-items: center;
-  text-align: center;
+  /* Editorial: left-aligned hero title (matches section divider).
+   * Magazine covers and press kits anchor the title to the left
+   * margin; centered hero is the AI-deck default we want to escape. */
+  align-items: flex-start;
+  text-align: left;
 }
 
 .sldr-slide[data-layout="cover"]::after {
+  /* Optional cover-only accent glow. Same atmosphere multiplier as the
+   * deck-wide background so flavors that want a flat look stay flat. */
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 50%, var(--sldr-accent-dim, rgba(96, 165, 250, 0.12)) 0%, transparent 50%),
-    radial-gradient(ellipse at 20% 80%, rgba(129, 140, 248, 0.06) 0%, transparent 40%);
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    var(--sldr-accent-dim, rgba(96, 165, 250, 0.12)) 0%,
+    transparent 50%
+  );
+  opacity: var(--sldr-atmosphere, 1);
   pointer-events: none;
   z-index: 0;
 }
 
 .sldr-slide[data-layout="cover"] .sldr-content {
+  /* Hero composition: title + body flow as one centered block,
+   * left-aligned to match section dividers. */
   justify-content: center;
-  align-items: center;
-  max-width: 85%;
+  align-items: flex-start;
+  max-width: 80%;
   z-index: 1;
 }
 
 .sldr-slide[data-layout="cover"] h1 {
-  font-size: clamp(40px, 7vw, 96px);
-  font-weight: 700;
-  letter-spacing: -1.5px;
-  line-height: 1.05;
+  /* "The first heading should not scream." (taste-skill rule)
+   * Hierarchy comes from weight, tracking, and color — not raw scale.
+   * Reduced from 96px max to 80px max for sophistication. */
+  font-size: clamp(40px, 6vw, 80px);
+  font-weight: var(--sldr-heading-weight);
+  letter-spacing: var(--sldr-heading-tracking);
+  line-height: var(--sldr-heading-leading);
+  text-transform: var(--sldr-heading-transform);
   text-wrap: balance;
-  margin-bottom: clamp(12px, 2vh, 32px);
+  margin-bottom: clamp(8px, 1.5vh, 20px);
 }
 
 .sldr-slide[data-layout="cover"] p {
@@ -215,10 +309,13 @@ html.dark {
 }
 
 .sldr-slide[data-layout="section"] h1 {
-  font-size: clamp(36px, 8vw, 100px);
-  font-weight: 700;
-  letter-spacing: -2px;
-  line-height: 1.05;
+  /* Section divider — slightly larger than content h1 to signal chapter
+   * break, but still controlled. Anti-oversized-H1. */
+  font-size: clamp(36px, 6.5vw, 88px);
+  font-weight: var(--sldr-heading-weight);
+  letter-spacing: var(--sldr-heading-tracking);
+  line-height: var(--sldr-heading-leading);
+  text-transform: var(--sldr-heading-transform);
 }
 
 .sldr-slide[data-layout="section"] p {
@@ -232,26 +329,29 @@ html.dark {
  * Layout: two-cols — title on top, two columns fill remaining space
  * ========================================================================= */
 .sldr-slide[data-layout="two-cols"] .sldr-content {
-  justify-content: flex-start;
-  gap: clamp(12px, 2vh, 28px);
+  /* Title + columns flow as one centered block (matches default
+   * layout). Tight gap between title and columns — no stranded
+   * white band like flex-start + align-content: center created. */
+  justify-content: center;
+  gap: clamp(16px, 2.5vh, 28px);
 }
 
 .sldr-slide[data-layout="two-cols"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(32px, 4vw, 80px);
-  flex: 1;
   align-content: start;
   min-height: 0;
+  width: 100%;
 }
 
 .sldr-slide[data-layout="two-cols"] .sldr-col {
   display: flex;
   flex-direction: column;
   gap: clamp(6px, 1vh, 14px);
-  background: var(--sldr-surface, #1e293b);
-  border: 1px solid var(--sldr-border, rgba(148, 163, 184, 0.08));
-  border-radius: 12px;
+  background: var(--sldr-surface);
+  border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
+  border-radius: var(--sldr-radius);
   padding: clamp(20px, 3vh, 36px) clamp(20px, 2.5vw, 36px);
 }
 
@@ -260,17 +360,17 @@ html.dark {
  * Layout: two-cols-header
  * ========================================================================= */
 .sldr-slide[data-layout="two-cols-header"] .sldr-content {
-  justify-content: flex-start;
-  gap: clamp(12px, 2vh, 28px);
+  justify-content: center;
+  gap: clamp(16px, 2.5vh, 28px);
 }
 
 .sldr-slide[data-layout="two-cols-header"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(32px, 4vw, 80px);
-  flex: 1;
   align-content: start;
   min-height: 0;
+  width: 100%;
 }
 
 
@@ -309,10 +409,13 @@ html.dark {
 }
 
 .sldr-slide[data-layout="image-left"] .sldr-col-content {
+  /* Visual-explainer's split-panel pattern: each panel centers its
+   * content vertically. Title + body together as a centered block. */
   padding: clamp(32px, 5vh, 60px) clamp(32px, 4vw, 60px);
   display: flex;
   flex-direction: column;
   justify-content: center;
+  gap: clamp(12px, 2vh, 24px);
 }
 
 
@@ -327,10 +430,13 @@ html.dark {
 }
 
 .sldr-slide[data-layout="image-right"] .sldr-col-content {
+  /* Visual-explainer's split-panel pattern: each panel centers its
+   * content vertically. Title + body together as a centered block. */
   padding: clamp(32px, 5vh, 60px) clamp(32px, 4vw, 60px);
   display: flex;
   flex-direction: column;
   justify-content: center;
+  gap: clamp(12px, 2vh, 24px);
 }
 
 .sldr-slide[data-layout="image-right"] .sldr-col-image {
@@ -435,36 +541,42 @@ html.dark {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--sldr-heading-font);
   color: var(--sldr-primary);
-  line-height: 1.15;
+  font-weight: var(--sldr-heading-weight);
+  letter-spacing: var(--sldr-heading-tracking);
+  line-height: var(--sldr-heading-leading);
+  text-transform: var(--sldr-heading-transform);
   margin-bottom: 0;
   transition: color 0.3s ease;
 }
 
+/* Modular type scale, ratio ~1.333 (perfect fourth) — sober, editorial.
+ * H1 max 48px (was 56) per anti-oversized-H1 rule. Hierarchy is set by
+ * weight/tracking/color, not by raw scale. */
 h1 {
-  font-size: clamp(30px, 4.5vw, 56px);
-  font-weight: 700;
-  letter-spacing: -0.5px;
+  font-size: clamp(28px, 3.8vw, 48px);
 }
 
 h2 {
-  font-size: clamp(22px, 3vw, 38px);
-  font-weight: 600;
+  font-size: clamp(22px, 2.8vw, 36px);
+  font-weight: calc(var(--sldr-heading-weight) - 100);
 }
 
 h3 {
-  font-size: clamp(18px, 2.2vw, 28px);
-  font-weight: 600;
+  font-size: clamp(18px, 2.1vw, 27px);
+  font-weight: calc(var(--sldr-heading-weight) - 100);
 }
 
 h4 {
-  font-size: clamp(16px, 1.8vw, 24px);
-  font-weight: 600;
+  font-size: clamp(16px, 1.7vw, 20px);
+  font-weight: calc(var(--sldr-heading-weight) - 100);
 }
 
 p {
   margin-bottom: 0.6em;
   font-size: clamp(15px, 2vw, 22px);
-  line-height: 1.65;
+  font-weight: var(--sldr-body-weight);
+  letter-spacing: var(--sldr-body-tracking);
+  line-height: var(--sldr-body-leading);
 }
 
 ul, ol {
@@ -525,14 +637,14 @@ blockquote {
 pre.sldr-code {
   background: var(--sldr-code-background);
   color: var(--sldr-code-text);
-  border-radius: 12px;
-  border: 1px solid var(--sldr-border-bright, rgba(148, 163, 184, 0.12));
+  border-radius: var(--sldr-radius);
+  border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border-bright, rgba(148, 163, 184, 0.12));
   padding: clamp(16px, 2.5vh, 32px) clamp(20px, 2.5vw, 32px);
   overflow-x: auto;
   font-size: clamp(13px, 1.4vw, 17px);
   line-height: 1.7;
   margin: clamp(10px, 1.5vh, 20px) 0;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--sldr-shadow-md);
   transition: background 0.3s ease, color 0.3s ease;
 }
 
@@ -1064,6 +1176,59 @@ html:not(.dark) .sldr-edit-btn {
 
 .sldr-edit-close {
   color: #ef4444;
+}
+
+
+/* =========================================================================
+ * Per-slide alignment overrides (data-align / data-valign on the slide)
+ *
+ * These come AFTER all layout-specific rules so that an explicit alignment
+ * declared in slide frontmatter wins over the layout default. Works on
+ * any layout that uses the standard `.sldr-content` container.
+ *
+ * Frontmatter:
+ *   align:  "left" | "center" | "right"     (horizontal text + items)
+ *   valign: "top"  | "center" | "bottom"    (vertical block position)
+ *
+ * Layouts that have their own column structure (two-cols, image-left,
+ * image-right) will see `valign` flow through to the outer content, but
+ * the columns themselves keep their grid sizing.
+ * ========================================================================= */
+
+.sldr-slide[data-valign="top"] .sldr-content {
+  justify-content: flex-start;
+}
+
+.sldr-slide[data-valign="center"] .sldr-content {
+  justify-content: center;
+}
+
+.sldr-slide[data-valign="bottom"] .sldr-content {
+  justify-content: flex-end;
+}
+
+.sldr-slide[data-align="left"] {
+  text-align: left;
+}
+
+.sldr-slide[data-align="center"] {
+  text-align: center;
+}
+
+.sldr-slide[data-align="right"] {
+  text-align: right;
+}
+
+.sldr-slide[data-align="left"] .sldr-content {
+  align-items: flex-start;
+}
+
+.sldr-slide[data-align="center"] .sldr-content {
+  align-items: center;
+}
+
+.sldr-slide[data-align="right"] .sldr-content {
+  align-items: flex-end;
 }
 
 

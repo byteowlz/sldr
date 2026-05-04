@@ -15,6 +15,8 @@ Used with `sldr slides create --file`:
       "description": "Optional description",
       "layout": "default",
       "tags": ["tag1", "tag2"],
+      "align": "center",
+      "valign": "center",
       "directory": "optional-override-dir"
     }
   ]
@@ -23,7 +25,25 @@ Used with `sldr slides create --file`:
 
 **Required fields per slide**: `name`, `title`, `content`
 
-**Optional fields**: `description`, `layout` (default: "default"), `tags` (default: []), `directory`
+**Optional fields**: `description`, `layout` (default: "default"), `tags` (default: []), `align`, `valign`, `directory`
+
+### Alignment
+
+Two orthogonal knobs control where the content sits within the slide. They
+override the layout's default and work on any layout that uses the standard
+content container.
+
+- `align`: `"left"` | `"center"` | `"right"` — horizontal text + item alignment
+- `valign`: `"top"` | `"center"` | `"bottom"` — vertical position of the content block
+
+Examples:
+- A title slide that breaks the convention: `{"layout": "default", "align": "right", "valign": "bottom"}` → bottom-right anchored
+- A quote pinned to the top of the slide: `{"layout": "quote", "valign": "top"}`
+- Left-anchored bullets on a usually-centered layout: `{"layout": "center", "align": "left"}`
+
+Omit either field to inherit the layout's default. Unknown values are
+silently dropped — agents can pass `align` freely without worrying about
+breaking the build.
 
 ## Skeleton Input Schema
 

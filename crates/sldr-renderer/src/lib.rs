@@ -26,7 +26,9 @@ pub mod media;
 mod markdown;
 pub mod pptx;
 mod render;
+pub mod sample;
 mod template;
 
 pub use media::ImageMode;
 pub use render::{HtmlRenderer, RenderConfig};
+pub use sample::{render_sample, SampleSlide, SAMPLE_SLIDES};

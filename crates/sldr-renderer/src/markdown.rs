@@ -18,6 +18,10 @@ pub struct MediaConfig {
     pub slide_dir: Option<std::path::PathBuf>,
     /// Directory to copy assets to (for `ImageMode::External`)
     pub assets_dir: Option<std::path::PathBuf>,
+    /// Syntect theme name for code highlighting. Falls back to a sensible
+    /// default if `None` or if the named theme isn't bundled. Set from
+    /// `flavor.code.syntax_theme` so light flavors get light code blocks.
+    pub syntax_theme: Option<String>,
 }
 
 impl Default for MediaConfig {
@@ -26,25 +30,32 @@ impl Default for MediaConfig {
             image_mode: ImageMode::Embed,
             slide_dir: None,
             assets_dir: None,
+            syntax_theme: None,
         }
     }
 }
 
 /// Converts markdown content to HTML with syntax-highlighted code blocks.
 ///
-/// The `::left::` and `::right::` column markers are detected and returned
-/// separately so the template engine can place them in the correct slots.
+/// Recognized layout markers (each split is mutually exclusive):
+/// - `::left::` + `::right::` — two-column layout (`two-cols`, `two-cols-header`)
+/// - `::content::` + `::image::` — content + image column (`image-left`,
+///   `image-right`). The template engine decides DOM order based on layout.
+///
+/// Unrecognized markers pass through as raw text.
 pub fn render_markdown(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
-    // Check for column markers
     if content.contains("::left::") && content.contains("::right::") {
         return render_two_cols(content, media_config);
+    }
+    if content.contains("::content::") && content.contains("::image::") {
+        return render_content_image(content, media_config);
     }
 
     let html = markdown_to_html(content, media_config);
     MarkdownOutput::Single(html)
 }
 
-/// Result of rendering markdown - either a single block or split columns
+/// Result of rendering markdown — either a single block or split columns
 pub enum MarkdownOutput {
     /// Standard single-content slide
     Single(String),
@@ -54,6 +65,42 @@ pub enum MarkdownOutput {
         left: String,
         right: String,
     },
+    /// Content + image split (used by image-left / image-right layouts).
+    /// The template engine picks DOM order from the layout name; the
+    /// markdown can declare the two halves in either order.
+    ContentImage { content: String, image: String },
+}
+
+/// Parse a content+image slide by splitting on `::content::` and `::image::`.
+///
+/// The two markers may appear in either order in the markdown — we identify
+/// the halves by marker name, not position. The template engine places them
+/// in the correct DOM order based on the layout (`image-left` puts image
+/// first, `image-right` puts content first).
+fn render_content_image(input: &str, media_config: &MediaConfig) -> MarkdownOutput {
+    // Find both markers; either may come first in the source.
+    let content_idx = input.find("::content::");
+    let image_idx = input.find("::image::");
+
+    match (content_idx, image_idx) {
+        (Some(ci), Some(ii)) => {
+            let (content_md, image_md) = if ci < ii {
+                let content_part = &input[ci + "::content::".len()..ii];
+                let image_part = &input[ii + "::image::".len()..];
+                (content_part, image_part)
+            } else {
+                let image_part = &input[ii + "::image::".len()..ci];
+                let content_part = &input[ci + "::content::".len()..];
+                (content_part, image_part)
+            };
+
+            MarkdownOutput::ContentImage {
+                content: markdown_to_html(content_md.trim(), media_config),
+                image: markdown_to_html(image_md.trim(), media_config),
+            }
+        }
+        _ => MarkdownOutput::Single(markdown_to_html(input, media_config)),
+    }
 }
 
 /// Parse a two-column slide by splitting on ::left:: and ::right:: markers
@@ -90,7 +137,17 @@ fn render_two_cols(content: &str, media_config: &MediaConfig) -> MarkdownOutput 
 fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
     let ss = SyntaxSet::load_defaults_newlines();
     let ts = ThemeSet::load_defaults();
-    let theme = &ts.themes["base16-ocean.dark"];
+
+    // Resolve syntax theme: flavor wins, fall back to base16-ocean.dark.
+    // The bundled syntect themes include both dark (base16-ocean.dark,
+    // Solarized) and light (InspiredGitHub, Solarized (light)) variants —
+    // the flavor picks whatever fits its palette.
+    let theme_name = media_config
+        .syntax_theme
+        .as_deref()
+        .filter(|name| ts.themes.contains_key(*name))
+        .unwrap_or("base16-ocean.dark");
+    let theme = &ts.themes[theme_name];
 
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
@@ -386,7 +443,36 @@ mod tests {
                 assert!(left.contains("Left stuff"));
                 assert!(right.contains("Right stuff"));
             }
-            MarkdownOutput::Single(_) => panic!("Expected TwoCols"),
+            _ => panic!("Expected TwoCols"),
+        }
+    }
+
+    #[test]
+    fn test_content_image_split() {
+        let md = "::content::\n\n# Side by side\n\nBody copy.\n\n::image::\n\n![](pic.png)";
+        let result = render_markdown(md, &default_config());
+        match result {
+            MarkdownOutput::ContentImage { content, image } => {
+                assert!(content.contains("Side by side"));
+                assert!(content.contains("Body copy"));
+                assert!(image.contains("pic.png"));
+            }
+            _ => panic!("Expected ContentImage"),
+        }
+    }
+
+    #[test]
+    fn test_content_image_split_reversed_order() {
+        // Markers in opposite order: ::image:: before ::content::.
+        let md = "::image::\n\n![](pic.png)\n\n::content::\n\n# Title\n\nBody.";
+        let result = render_markdown(md, &default_config());
+        match result {
+            MarkdownOutput::ContentImage { content, image } => {
+                assert!(content.contains("Title"));
+                assert!(content.contains("Body"));
+                assert!(image.contains("pic.png"));
+            }
+            _ => panic!("Expected ContentImage"),
         }
     }
 

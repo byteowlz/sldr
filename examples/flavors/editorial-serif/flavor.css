@@ -1,0 +1,135 @@
+/* Editorial flourishes for the editorial-serif flavor.
+ *
+ * These are the things that taste-skill flags as the difference between
+ * "AI-output editorial slide" (bland) and "intentional editorial design":
+ *   - Page numbers in mono, corner-pinned (signals "this is a deck")
+ *   - Hairline accent rule above content titles (the magazine column mark)
+ *   - Tight eyebrow / metadata typography (mono, wide-tracked, dim)
+ *   - Subtle column rule on the left edge (chapter-page texture)
+ *
+ * Loaded automatically via the per-flavor `flavor.css` escape hatch.
+ * Strictly additive — never overrides global tokens, only decorates.
+ */
+
+/* ============================================================
+ * Page number — small monospace, bottom-right corner.
+ * ============================================================ */
+.sldr-deck {
+  counter-reset: sldr-page;
+}
+
+.sldr-slide {
+  counter-increment: sldr-page;
+}
+
+/* Page number on every slide except the cover (cover is the title
+ * plate). We scope by negation so we don't fight the cover's own
+ * `::after` glow defined in base.css. */
+.sldr-slide:not([data-layout="cover"])::after {
+  content: counter(sldr-page, decimal-leading-zero);
+  position: absolute;
+  bottom: clamp(24px, 3.5vh, 40px);
+  right: clamp(28px, 4vw, 64px);
+  font-family: var(--sldr-code-font, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--sldr-text-dim);
+  opacity: 0.7;
+  z-index: 5;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide the default presenter nav counter — our editorial corner number
+ * replaces it. Keeps only one page indicator on screen. */
+.sldr-nav,
+.sldr-progress {
+  display: none;
+}
+
+/* ============================================================
+ * Hairline accent rule above content titles.
+ * Editorial cue: a 24px red rule sits above the H1 like a magazine
+ * eyebrow mark. Restrained — not a divider, just a beat.
+ * ============================================================ */
+.sldr-slide[data-layout="default"] .sldr-content > h1:first-child::before,
+.sldr-slide[data-layout="default"] .sldr-content > h2:first-child::before,
+.sldr-slide[data-layout="image-left"] .sldr-col-content > h1:first-child::before,
+.sldr-slide[data-layout="image-right"] .sldr-col-content > h1:first-child::before,
+.sldr-slide[data-layout="two-cols"] .sldr-content > h1:first-child::before {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 2px;
+  background: var(--sldr-accent);
+  margin-bottom: clamp(16px, 2.5vh, 28px);
+}
+
+/* Section dividers get a thicker, longer rule — chapter-mark feel */
+.sldr-slide[data-layout="section"] .sldr-content > h1:first-child::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 3px;
+  background: var(--sldr-accent);
+  margin-bottom: clamp(20px, 3.5vh, 40px);
+}
+
+/* ============================================================
+ * Subtitle typography for cover / section.
+ * Mono, dim, wide-tracked — replaces the default body p style for
+ * subtitles on hero slides. Reads as a label, not a sentence.
+ * ============================================================ */
+.sldr-slide[data-layout="cover"] .sldr-content > p,
+.sldr-slide[data-layout="section"] .sldr-content > p {
+  font-family: var(--sldr-body-font);
+  font-size: clamp(14px, 1.6vw, 20px);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.005em;
+  color: var(--sldr-text-dim);
+  opacity: 1;
+  margin-top: clamp(8px, 1.2vh, 16px);
+}
+
+/* ============================================================
+ * Quote — drop the giant ::before quote glyph in favor of a
+ * leading hairline rule. More restrained, more editorial.
+ * ============================================================ */
+.sldr-slide[data-layout="quote"] blockquote::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  background: var(--sldr-accent);
+  margin: 0 auto clamp(24px, 4vh, 48px);
+  opacity: 1;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+}
+
+/* Attribution — small caps, mono, dim */
+.sldr-slide[data-layout="quote"] .sldr-content > p {
+  font-family: var(--sldr-code-font);
+  font-size: clamp(11px, 1.3vw, 14px);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sldr-text-dim);
+  margin-top: clamp(20px, 3vh, 36px);
+}
+
+/* ============================================================
+ * Body bullets — restrained marker, tighter rhythm.
+ * ============================================================ */
+.sldr-slide ul li::marker {
+  color: var(--sldr-accent);
+  font-size: 0.9em;
+}
+
+/* (Left column rule removed — appearing only on content slides made
+ * the deck feel inconsistent across hero/content boundaries. The
+ * hairline accent rule above titles + corner page numbers carry the
+ * editorial signature on their own.) */

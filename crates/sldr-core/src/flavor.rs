@@ -44,6 +44,30 @@ pub struct Flavor {
     #[serde(default)]
     pub background: BackgroundConfig,
 
+    /// Spacing rhythm
+    #[serde(default)]
+    pub spacing: Spacing,
+
+    /// Shape (radius, borders)
+    #[serde(default)]
+    pub shape: Shape,
+
+    /// Shadow / elevation scale
+    #[serde(default)]
+    pub shadow: Shadow,
+
+    /// Motion / transitions
+    #[serde(default)]
+    pub motion: Motion,
+
+    /// Decorative ornaments
+    #[serde(default)]
+    pub decoration: Decoration,
+
+    /// Code block styling
+    #[serde(default)]
+    pub code: Code,
+
     /// Logo placements - positioned logo overlays on slides
     #[serde(default)]
     pub logos: Vec<LogoPlacement>,
@@ -51,6 +75,14 @@ pub struct Flavor {
     /// Path to additional assets (logos, images)
     #[serde(default)]
     pub assets_dir: Option<String>,
+
+    /// Inline CSS escape hatch — loaded from `flavor.css` next to `flavor.toml`.
+    /// Appended after generated tokens so it can override or extend anything.
+    /// Use sparingly: prefer tokens. Reserved for visual ideas tokens cannot
+    /// express (decorative SVGs, magazine layouts, frame ornaments).
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub custom_css: Option<String>,
 
     /// Source directory where the flavor was loaded from (not serialized)
     #[serde(skip)]
@@ -88,6 +120,34 @@ pub struct ColorScheme {
     /// Code text color
     #[serde(default)]
     pub code_text: Option<String>,
+
+    /// Surface color (cards, columns, callouts)
+    #[serde(default)]
+    pub surface: Option<String>,
+
+    /// Elevated surface color (cards on cards, inset panels)
+    #[serde(default)]
+    pub surface2: Option<String>,
+
+    /// Border color (subtle dividers)
+    #[serde(default)]
+    pub border: Option<String>,
+
+    /// Brighter border color (emphasised dividers, hovered cards)
+    #[serde(default)]
+    pub border_bright: Option<String>,
+
+    /// Dim text (captions, footnotes, secondary copy)
+    #[serde(default)]
+    pub text_dim: Option<String>,
+
+    /// Dim accent (atmospheric glows, accent backgrounds)
+    #[serde(default)]
+    pub accent_dim: Option<String>,
+
+    /// Muted background (callouts, blockquotes, disabled)
+    #[serde(default)]
+    pub muted: Option<String>,
 }
 
 /// Typography settings
@@ -105,9 +165,41 @@ pub struct Typography {
     #[serde(default)]
     pub code_font: Option<String>,
 
-    /// Base font size
+    /// Base font size (CSS, e.g. "20px")
     #[serde(default)]
     pub base_size: Option<String>,
+
+    /// Heading font weight (e.g. "700", "900")
+    #[serde(default)]
+    pub heading_weight: Option<String>,
+
+    /// Body font weight
+    #[serde(default)]
+    pub body_weight: Option<String>,
+
+    /// Heading letter-spacing (CSS, e.g. "-0.03em")
+    #[serde(default)]
+    pub heading_tracking: Option<String>,
+
+    /// Body letter-spacing
+    #[serde(default)]
+    pub body_tracking: Option<String>,
+
+    /// Heading line-height (unitless, e.g. "1.05")
+    #[serde(default)]
+    pub heading_leading: Option<String>,
+
+    /// Body line-height
+    #[serde(default)]
+    pub body_leading: Option<String>,
+
+    /// Heading text-transform: "none", "uppercase", "lowercase"
+    #[serde(default)]
+    pub heading_transform: Option<String>,
+
+    /// Eyebrow / label text-transform (small overline labels)
+    #[serde(default)]
+    pub eyebrow_transform: Option<String>,
 }
 
 /// Background configuration
@@ -124,6 +216,116 @@ pub struct BackgroundConfig {
     /// Opacity for background overlay
     #[serde(default)]
     pub opacity: Option<f32>,
+}
+
+/// Spacing rhythm
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Spacing {
+    /// Slide vertical padding (CSS, e.g. "6vh", "clamp(40px, 6vh, 80px)")
+    #[serde(default)]
+    pub slide_padding_y: Option<String>,
+
+    /// Slide horizontal padding (CSS)
+    #[serde(default)]
+    pub slide_padding_x: Option<String>,
+
+    /// Max content width (CSS, e.g. "70ch")
+    #[serde(default)]
+    pub content_max_width: Option<String>,
+
+    /// Density preset: "compact" | "comfortable" | "spacious"
+    #[serde(default)]
+    pub density: Option<String>,
+
+    /// Gap between stacked content blocks
+    #[serde(default)]
+    pub stack_gap: Option<String>,
+}
+
+/// Shape (radius, borders)
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Shape {
+    /// Base border-radius (CSS, e.g. "12px", "0")
+    #[serde(default)]
+    pub radius: Option<String>,
+
+    /// Small radius (chips, code inline)
+    #[serde(default)]
+    pub radius_sm: Option<String>,
+
+    /// Large radius (hero cards, full-bleed media frames)
+    #[serde(default)]
+    pub radius_lg: Option<String>,
+
+    /// Border width (CSS, e.g. "1px")
+    #[serde(default)]
+    pub border_width: Option<String>,
+
+    /// Border style: "solid", "dashed", "none"
+    #[serde(default)]
+    pub border_style: Option<String>,
+}
+
+/// Shadow / elevation scale
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Shadow {
+    /// Small elevation (subtle lift)
+    #[serde(default)]
+    pub sm: Option<String>,
+
+    /// Medium elevation (cards)
+    #[serde(default)]
+    pub md: Option<String>,
+
+    /// Large elevation (hero, modals)
+    #[serde(default)]
+    pub lg: Option<String>,
+}
+
+/// Motion / transitions
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Motion {
+    /// Slide transition preset: "slide", "fade", "morph", "none"
+    #[serde(default)]
+    pub transition: Option<String>,
+
+    /// CSS easing function
+    #[serde(default)]
+    pub easing: Option<String>,
+
+    /// Transition duration (CSS, e.g. "300ms")
+    #[serde(default)]
+    pub duration: Option<String>,
+}
+
+/// Decorative ornaments — applied as a CSS class hook.
+/// Renderer adds `data-decoration="<accent>"` to the deck root.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Decoration {
+    /// Named ornament: "none", "corner-rules", "side-rail", "dot-grid",
+    /// "halftone", "swiss-bar", "page-numbers"
+    #[serde(default)]
+    pub accent: Option<String>,
+
+    /// Intensity 0.0–1.0 (controls opacity / scale of the ornament)
+    #[serde(default)]
+    pub intensity: Option<f32>,
+}
+
+/// Code block styling
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Code {
+    /// Syntax highlighting theme name (syntect)
+    #[serde(default)]
+    pub syntax_theme: Option<String>,
+
+    /// Code frame style: "card", "minimal", "terminal"
+    #[serde(default)]
+    pub frame_style: Option<String>,
+
+    /// Show line numbers
+    #[serde(default)]
+    pub line_numbers: Option<bool>,
 }
 
 /// A logo placement slot.
@@ -227,23 +429,33 @@ impl Default for Flavor {
             dark_colors: None,
             typography: Typography::default(),
             background: BackgroundConfig::default(),
+            spacing: Spacing::default(),
+            shape: Shape::default(),
+            shadow: Shadow::default(),
+            motion: Motion::default(),
+            decoration: Decoration::default(),
+            code: Code::default(),
             logos: Vec::new(),
             assets_dir: None,
+            custom_css: None,
             source_dir: None,
         }
     }
 }
 
 impl Flavor {
-    /// Load a flavor from its directory
+    /// Load a flavor from its directory.
+    ///
+    /// Reads `flavor.toml` (required for non-default flavors) and optionally
+    /// `flavor.css` (escape hatch for visual ideas tokens cannot express —
+    /// inlined into the build after generated tokens).
     pub fn load(dir: &Path) -> Result<Self> {
         let config_path = dir.join("flavor.toml");
 
-        if config_path.exists() {
+        let mut flavor = if config_path.exists() {
             let content = std::fs::read_to_string(&config_path)?;
             let mut flavor: Flavor = toml::from_str(&content)?;
 
-            // Set name from directory if not specified
             if flavor.name.is_empty() {
                 flavor.name = dir
                     .file_name()
@@ -252,22 +464,29 @@ impl Flavor {
                     .to_string();
             }
 
-            // Store the source directory for asset copying
-            flavor.source_dir = Some(dir.to_path_buf());
-
-            Ok(flavor)
+            flavor
         } else {
-            // Create a minimal flavor from directory name
-            Ok(Self {
+            Self {
                 name: dir
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown")
                     .to_string(),
-                source_dir: Some(dir.to_path_buf()),
                 ..Default::default()
-            })
+            }
+        };
+
+        flavor.source_dir = Some(dir.to_path_buf());
+
+        let css_path = dir.join("flavor.css");
+        if css_path.exists() {
+            match std::fs::read_to_string(&css_path) {
+                Ok(css) => flavor.custom_css = Some(css),
+                Err(e) => tracing::warn!("Failed to read flavor.css at {}: {}", css_path.display(), e),
+            }
         }
+
+        Ok(flavor)
     }
 
     /// Save flavor configuration to its directory
@@ -279,70 +498,27 @@ impl Flavor {
         Ok(())
     }
 
-    /// Generate CSS variables for this flavor
+    /// Generate CSS custom properties for this flavor.
+    ///
+    /// Emits a `:root { ... }` block with every token the flavor sets,
+    /// followed by an `html.dark { ... }` block for dark-mode color overrides.
+    /// Unset tokens fall through to the defaults defined in `base.css`.
     pub fn to_css_variables(&self) -> String {
         let mut css = String::from(":root {\n");
 
-        if let Some(ref color) = self.colors.primary {
-            let _ = writeln!(css, "  --sldr-primary: {color};");
-        }
-        if let Some(ref color) = self.colors.secondary {
-            let _ = writeln!(css, "  --sldr-secondary: {color};");
-        }
-        if let Some(ref color) = self.colors.background {
-            let _ = writeln!(css, "  --sldr-background: {color};");
-        }
-        if let Some(ref color) = self.colors.text {
-            let _ = writeln!(css, "  --sldr-text: {color};");
-        }
-        if let Some(ref color) = self.colors.accent {
-            let _ = writeln!(css, "  --sldr-accent: {color};");
-        }
-        if let Some(ref color) = self.colors.code_background {
-            let _ = writeln!(css, "  --sldr-code-background: {color};");
-        }
-        if let Some(ref color) = self.colors.code_text {
-            let _ = writeln!(css, "  --sldr-code-text: {color};");
-        }
-        if let Some(ref font) = self.typography.heading_font {
-            let _ = writeln!(css, "  --sldr-heading-font: {font};");
-        }
-        if let Some(ref font) = self.typography.body_font {
-            let _ = writeln!(css, "  --sldr-body-font: {font};");
-        }
-        if let Some(ref font) = self.typography.code_font {
-            let _ = writeln!(css, "  --sldr-code-font: {font};");
-        }
-        if let Some(ref size) = self.typography.base_size {
-            let _ = writeln!(css, "  --sldr-base-size: {size};");
-        }
+        write_color_vars(&mut css, &self.colors);
+        write_typography_vars(&mut css, &self.typography);
+        write_spacing_vars(&mut css, &self.spacing);
+        write_shape_vars(&mut css, &self.shape);
+        write_shadow_vars(&mut css, &self.shadow);
+        write_motion_vars(&mut css, &self.motion);
+        write_decoration_vars(&mut css, &self.decoration);
 
         css.push_str("}\n");
 
-        // Dark mode overrides
         if let Some(ref dark) = self.dark_colors {
             css.push_str("html.dark {\n");
-            if let Some(ref color) = dark.primary {
-                let _ = writeln!(css, "  --sldr-primary: {color};");
-            }
-            if let Some(ref color) = dark.secondary {
-                let _ = writeln!(css, "  --sldr-secondary: {color};");
-            }
-            if let Some(ref color) = dark.background {
-                let _ = writeln!(css, "  --sldr-background: {color};");
-            }
-            if let Some(ref color) = dark.text {
-                let _ = writeln!(css, "  --sldr-text: {color};");
-            }
-            if let Some(ref color) = dark.accent {
-                let _ = writeln!(css, "  --sldr-accent: {color};");
-            }
-            if let Some(ref color) = dark.code_background {
-                let _ = writeln!(css, "  --sldr-code-background: {color};");
-            }
-            if let Some(ref color) = dark.code_text {
-                let _ = writeln!(css, "  --sldr-code-text: {color};");
-            }
+            write_color_vars(&mut css, dark);
             css.push_str("}\n");
         }
 
@@ -398,6 +574,90 @@ impl Flavor {
         }
 
         css
+    }
+}
+
+fn write_var(css: &mut String, name: &str, value: &Option<String>) {
+    if let Some(v) = value {
+        let _ = writeln!(css, "  --sldr-{name}: {v};");
+    }
+}
+
+fn write_color_vars(css: &mut String, c: &ColorScheme) {
+    write_var(css, "primary", &c.primary);
+    write_var(css, "secondary", &c.secondary);
+    write_var(css, "background", &c.background);
+    write_var(css, "text", &c.text);
+    write_var(css, "accent", &c.accent);
+    write_var(css, "code-background", &c.code_background);
+    write_var(css, "code-text", &c.code_text);
+    write_var(css, "surface", &c.surface);
+    write_var(css, "surface2", &c.surface2);
+    write_var(css, "border", &c.border);
+    write_var(css, "border-bright", &c.border_bright);
+    write_var(css, "text-dim", &c.text_dim);
+    write_var(css, "accent-dim", &c.accent_dim);
+    write_var(css, "muted", &c.muted);
+}
+
+fn write_typography_vars(css: &mut String, t: &Typography) {
+    write_var(css, "heading-font", &t.heading_font);
+    write_var(css, "body-font", &t.body_font);
+    write_var(css, "code-font", &t.code_font);
+    write_var(css, "base-size", &t.base_size);
+    write_var(css, "heading-weight", &t.heading_weight);
+    write_var(css, "body-weight", &t.body_weight);
+    write_var(css, "heading-tracking", &t.heading_tracking);
+    write_var(css, "body-tracking", &t.body_tracking);
+    write_var(css, "heading-leading", &t.heading_leading);
+    write_var(css, "body-leading", &t.body_leading);
+    write_var(css, "heading-transform", &t.heading_transform);
+    write_var(css, "eyebrow-transform", &t.eyebrow_transform);
+}
+
+fn write_spacing_vars(css: &mut String, s: &Spacing) {
+    write_var(css, "slide-padding-y", &s.slide_padding_y);
+    write_var(css, "slide-padding-x", &s.slide_padding_x);
+    write_var(css, "content-max-width", &s.content_max_width);
+    write_var(css, "stack-gap", &s.stack_gap);
+    if let Some(d) = &s.density {
+        let scale = match d.as_str() {
+            "compact" => "0.85",
+            "spacious" => "1.15",
+            _ => "1",
+        };
+        let _ = writeln!(css, "  --sldr-density-scale: {scale};");
+    }
+}
+
+fn write_shape_vars(css: &mut String, s: &Shape) {
+    write_var(css, "radius", &s.radius);
+    write_var(css, "radius-sm", &s.radius_sm);
+    write_var(css, "radius-lg", &s.radius_lg);
+    write_var(css, "border-width", &s.border_width);
+    write_var(css, "border-style", &s.border_style);
+}
+
+fn write_shadow_vars(css: &mut String, s: &Shadow) {
+    write_var(css, "shadow-sm", &s.sm);
+    write_var(css, "shadow-md", &s.md);
+    write_var(css, "shadow-lg", &s.lg);
+}
+
+fn write_motion_vars(css: &mut String, m: &Motion) {
+    write_var(css, "transition", &m.transition);
+    write_var(css, "easing", &m.easing);
+    write_var(css, "duration", &m.duration);
+}
+
+fn write_decoration_vars(css: &mut String, d: &Decoration) {
+    // `intensity` doubles as the atmosphere multiplier (0..=1). Flat
+    // flavors set 0 to suppress the deck-wide radial-glow backdrop.
+    if let Some(i) = d.intensity {
+        let _ = writeln!(css, "  --sldr-atmosphere: {i};");
+    }
+    if let Some(ref accent) = d.accent {
+        let _ = writeln!(css, "  --sldr-decoration-accent: {accent};");
     }
 }
 

@@ -336,15 +336,28 @@
   // ---------------------------------------------------------------------------
   // Slide display
   // ---------------------------------------------------------------------------
-  // Track active animation cleanup functions
+  //
+  // Animation cleanup uses setTimeout (not animationend) because rapid
+  // navigation interrupts CSS animations, and `animationend` doesn't fire
+  // on interrupted animations. The timeout is the source of truth; cleanups
+  // are idempotent and safe to run multiple times.
+
+  var TRANSITION_MS = 400; // matches base.css animation duration
   var pendingCleanups = [];
+  var pendingTimers = [];
 
   function cleanupAllAnimations() {
-    // Force-finish any pending animations before starting new ones
+    // Force-finish any pending animations before starting new ones.
+    // This catches the case where rapid navigation outpaces the
+    // transition duration: each new showSlide call resets all state.
     for (var i = 0; i < pendingCleanups.length; i++) {
       pendingCleanups[i]();
     }
     pendingCleanups = [];
+    for (var j = 0; j < pendingTimers.length; j++) {
+      clearTimeout(pendingTimers[j]);
+    }
+    pendingTimers = [];
   }
 
   function removeTransitionClasses(el) {
@@ -356,21 +369,39 @@
     );
   }
 
+  function scheduleCleanup(fn) {
+    pendingCleanups.push(fn);
+    var timer = setTimeout(function () {
+      fn();
+      var ci = pendingCleanups.indexOf(fn);
+      if (ci !== -1) pendingCleanups.splice(ci, 1);
+      var ti = pendingTimers.indexOf(timer);
+      if (ti !== -1) pendingTimers.splice(ti, 1);
+    }, TRANSITION_MS + 50);
+    pendingTimers.push(timer);
+  }
+
+  function forceHide(slide) {
+    removeTransitionClasses(slide);
+    slide.classList.remove("active");
+    slide.setAttribute("aria-hidden", "true");
+  }
+
   function showSlide(index, dir, prevIndex) {
-    // Clean up any in-flight animations first to prevent stuck states
+    // Clean up any in-flight animations first to prevent stuck states.
     cleanupAllAnimations();
 
-    // Hide all slides except the one we are entering
+    // Hide every slide except the one entering (and the prev slide if
+    // it's being animated out). cleanupAllAnimations above guarantees
+    // that any previously-mid-animation slides are now in clean state,
+    // so this loop won't re-trigger animations.
     for (var i = 0; i < total; i++) {
       if (i === index) continue;
-      // Don't hide the previous slide yet if we are animating it out
-      if (dir !== "none" && i === prevIndex) continue;
-      removeTransitionClasses(slides[i]);
-      slides[i].classList.remove("active");
-      slides[i].setAttribute("aria-hidden", "true");
+      if (dir !== "none" && i === prevIndex && prevIndex !== index) continue;
+      forceHide(slides[i]);
     }
 
-    // Show the entering slide
+    // Enter
     var enterSlide = slides[index];
     removeTransitionClasses(enterSlide);
     enterSlide.classList.add("active");
@@ -379,41 +410,27 @@
     if (dir !== "none") {
       var enterClass = getTransitionClass(dir, "enter");
       enterSlide.classList.add(enterClass);
-
-      var enterCleanup = function () {
+      scheduleCleanup(function () {
         removeTransitionClasses(enterSlide);
-      };
-      pendingCleanups.push(enterCleanup);
-
-      enterSlide.addEventListener("animationend", function () {
-        enterCleanup();
-        var idx = pendingCleanups.indexOf(enterCleanup);
-        if (idx !== -1) pendingCleanups.splice(idx, 1);
-      }, { once: true });
+      });
     }
 
     applyClickSteps(enterSlide, 0);
 
-    // Animate the exiting slide (if any)
+    // Exit (cross-fade with enter)
     if (dir !== "none" && prevIndex !== undefined && prevIndex !== index) {
       var exitSlide = slides[prevIndex];
       removeTransitionClasses(exitSlide);
-      var exitClass = getTransitionClass(dir, "exit");
+      // exitSlide must remain visible (active, no aria-hidden) for the
+      // duration of the exit animation. The timeout below restores its
+      // hidden state after the animation duration.
       exitSlide.classList.add("active");
+      exitSlide.removeAttribute("aria-hidden");
+      var exitClass = getTransitionClass(dir, "exit");
       exitSlide.classList.add(exitClass);
-
-      var exitCleanup = function () {
-        removeTransitionClasses(exitSlide);
-        exitSlide.classList.remove("active");
-        exitSlide.setAttribute("aria-hidden", "true");
-      };
-      pendingCleanups.push(exitCleanup);
-
-      exitSlide.addEventListener("animationend", function () {
-        exitCleanup();
-        var idx = pendingCleanups.indexOf(exitCleanup);
-        if (idx !== -1) pendingCleanups.splice(idx, 1);
-      }, { once: true });
+      scheduleCleanup(function () {
+        forceHide(exitSlide);
+      });
     }
   }
 

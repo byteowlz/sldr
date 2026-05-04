@@ -9,16 +9,17 @@ layout: center
 
 ```
 Client                      Server
-+---------+                 +-------------------+
-| Browser |---> Frontend -->| API Gateway       |
-+---------+                 |   |           |   |
++---------+                 +----------------------+
+| Browser |---> Frontend -->| API Gateway          |
++---------+                 |   |           |      |
                             | Service A  Service B |
-                            |   |           |   |
-                            |   +---> DB <--+   |
-                            +-------------------+
+                            |   |           |      |
+                            |   +---> DB <--+      |
+                            +----------------------+
 ```
 
 Key components:
+
 - **Frontend**: Handles user interaction
 - **API Gateway**: Routes and validates requests
 - **Services**: Business logic layer

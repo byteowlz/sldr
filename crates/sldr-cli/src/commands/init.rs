@@ -61,12 +61,14 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
                 accent: Some("#f59e0b".to_string()),          // Amber
                 code_background: Some("#f3f4f6".to_string()), // Gray-100
                 code_text: Some("#1f2937".to_string()),       // Gray-800
+                ..Default::default()
             },
             typography: sldr_core::flavor::Typography {
                 heading_font: Some("Inter, sans-serif".to_string()),
                 body_font: Some("Inter, sans-serif".to_string()),
                 code_font: Some("JetBrains Mono, monospace".to_string()),
                 base_size: Some("16px".to_string()),
+                ..Default::default()
             },
             dark_colors: Some(sldr_core::flavor::ColorScheme {
                 primary: Some("#60a5fa".to_string()),
@@ -76,11 +78,9 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
                 accent: Some("#fbbf24".to_string()),
                 code_background: Some("#1e293b".to_string()),
                 code_text: Some("#e2e8f0".to_string()),
+                ..Default::default()
             }),
-            background: sldr_core::flavor::BackgroundConfig::default(),
-            logos: Vec::new(),
-            assets_dir: None,
-            source_dir: None,
+            ..Default::default()
         };
         default_flavor.save(&default_flavor_dir)?;
         println!("  {} Created default flavor", "+".green());
