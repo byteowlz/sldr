@@ -2,6 +2,51 @@
 
 ## Open
 
+### [trx-eeg7.4] [task] Image collage: shape-cutout employee/team grid (image-portraits) (P1, task)
+Layout name: `image-portraits`
+
+Composition: portrait grid for employee directories, team pages, contributor walls. Each image clipped to a shape (circle by default; configurable via per-flavor token --sldr-portrait-shape: circle | squircle | hexagon | square). 1 row for small teams, multiple rows for larger groups, auto-wrapping.
+
+Each cell:
+...
+
+
+### [trx-eeg7.3] [task] Image collage: row with subtitles (image-row) (P1, task)
+Layout name: `image-row`
+
+Composition: single horizontal row of images, each with a subtitle/caption below. The 'press feature row', 'three pillars', 'brand showcase' pattern. 2-5 images per row recommended.
+
+Each image cell:
+...
+
+
+### [trx-eeg7.1] [task] Image collage: tidy grid layout (image-grid) (P1, task)
+Layout name: `image-grid`
+
+Composition: equal cells in a CSS Grid auto-fit/auto-fill arrangement. 1 image fills the slide; 2 side-by-side; 3 in a row; 4 in a 2x2; 6 in a 3x2; 9 in 3x3. Use `grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))` with `aspect-ratio: 4/3` on cells.
+
+Captions optional: if alt text is non-empty, render small mono caption below each image (matching the editorial-serif eyebrow/page style). If alt is empty, no caption.
+...
+
+
+### [trx-eeg7] [epic] Image collage layouts — 1-to-N images with multiple arrangements (P1, epic)
+User request: 'i want templates for image collages for 1-n images. different layouts: skewed overlapping, tidy grid, row with subtitles under each image. circular (or other shapes) cutout in 1 or multiple rows with optional subtitles (think employee overview).'
+
+Goal: ship a small family of slide layouts that accept a markdown list of images (with optional captions/subtitles) and arrange them in editorial-quality compositions. Same content shape, different visual treatment per layout.
+
+Markdown convention (proposed): each image is a markdown image with optional alt-as-caption. Order in markdown determines render order. Captions come from frontmatter `captions:` array OR are pulled from the alt text. 1-N images supported.
+...
+
+
+### [trx-jbpj.16] [bug] Page number always shows '1' — CSS counter doesn't increment past hidden slides (P1, bug)
+The editorial-serif flavor.css uses CSS counters:
+
+  .sldr-deck { counter-reset: sldr-page; }
+  .sldr-slide { counter-increment: sldr-page; }
+  .sldr-slide:not([data-layout="cover"])::after { content: counter(sldr-page, decimal-leading-zero); }
+...
+
+
 ### [trx-jbpj] [epic] Visual flavor builder + agent-driven slide pipeline (P1, epic)
 Sldr's two near-term moats: (1) a visual flavor builder that shows ALL templates with placeholder content, with live-update previews so humans and agents can dial in style; (2) an agent-driven slide pipeline where external skills (URL-to-slide, screenshot-to-slide, PPTX import, etc.) drive sldr via a stable HTTP/CLI API.
 
@@ -18,6 +63,15 @@ Complete sldr integration with Octo for visual presentation building
 ## Components
 
 ### 1. sldr-server crate (HTTP API)
+...
+
+
+### [trx-eeg7.2] [task] Image collage: skewed/overlapping layout (image-stack) (P2, task)
+Layout name: `image-stack`
+
+Composition: asymmetric overlapping arrangement. Each image absolutely-positioned with rule-of-thirds offsets and slight rotation (~-3deg to +3deg). Front image largest, back images smaller. Suggests a curated mood-board / 'these things informed the design' feel. 2-5 images recommended.
+
+Implementation:
 ...
 
 
