@@ -2,42 +2,6 @@
 
 ## Open
 
-### [trx-eeg7.4] [task] Image collage: shape-cutout employee/team grid (image-portraits) (P1, task)
-Layout name: `image-portraits`
-
-Composition: portrait grid for employee directories, team pages, contributor walls. Each image clipped to a shape (circle by default; configurable via per-flavor token --sldr-portrait-shape: circle | squircle | hexagon | square). 1 row for small teams, multiple rows for larger groups, auto-wrapping.
-
-Each cell:
-...
-
-
-### [trx-eeg7.3] [task] Image collage: row with subtitles (image-row) (P1, task)
-Layout name: `image-row`
-
-Composition: single horizontal row of images, each with a subtitle/caption below. The 'press feature row', 'three pillars', 'brand showcase' pattern. 2-5 images per row recommended.
-
-Each image cell:
-...
-
-
-### [trx-eeg7.1] [task] Image collage: tidy grid layout (image-grid) (P1, task)
-Layout name: `image-grid`
-
-Composition: equal cells in a CSS Grid auto-fit/auto-fill arrangement. 1 image fills the slide; 2 side-by-side; 3 in a row; 4 in a 2x2; 6 in a 3x2; 9 in 3x3. Use `grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))` with `aspect-ratio: 4/3` on cells.
-
-Captions optional: if alt text is non-empty, render small mono caption below each image (matching the editorial-serif eyebrow/page style). If alt is empty, no caption.
-...
-
-
-### [trx-eeg7] [epic] Image collage layouts — 1-to-N images with multiple arrangements (P1, epic)
-User request: 'i want templates for image collages for 1-n images. different layouts: skewed overlapping, tidy grid, row with subtitles under each image. circular (or other shapes) cutout in 1 or multiple rows with optional subtitles (think employee overview).'
-
-Goal: ship a small family of slide layouts that accept a markdown list of images (with optional captions/subtitles) and arrange them in editorial-quality compositions. Same content shape, different visual treatment per layout.
-
-Markdown convention (proposed): each image is a markdown image with optional alt-as-caption. Order in markdown determines render order. Captions come from frontmatter `captions:` array OR are pulled from the alt text. 1-N images supported.
-...
-
-
 ### [trx-jbpj] [epic] Visual flavor builder + agent-driven slide pipeline (P1, epic)
 Sldr's two near-term moats: (1) a visual flavor builder that shows ALL templates with placeholder content, with live-update previews so humans and agents can dial in style; (2) an agent-driven slide pipeline where external skills (URL-to-slide, screenshot-to-slide, PPTX import, etc.) drive sldr via a stable HTTP/CLI API.
 
@@ -57,12 +21,18 @@ Complete sldr integration with Octo for visual presentation building
 ...
 
 
-### [trx-eeg7.2] [task] Image collage: skewed/overlapping layout (image-stack) (P2, task)
-Layout name: `image-stack`
+### [trx-t59v] [task] Audit prefers-reduced-motion coverage — slide transitions and presenter.js animations (P2, task)
 
-Composition: asymmetric overlapping arrangement. Each image absolutely-positioned with rule-of-thirds offsets and slight rotation (~-3deg to +3deg). Front image largest, back images smaller. Suggests a curated mood-board / 'these things informed the design' feel. 2-5 images recommended.
+### [trx-vwgd] [task] Replace string-walking promote_images_to_figures with pulldown-cmark Event transform (P2, task)
 
-Implementation:
+### [trx-d11c] [task] Create sldr design skill with slide/flavor/template design commands (P2, task)
+
+### [trx-wpn1] [epic] sldr Impeccable-inspired design system + skills (P2, task)
+Port design principles from Impeccable (https://github.com/pbakaus/impeccable) to sldr:
+
+**Design system enhancements:**
+- OKLCH color space support in flavors
+- Motion tokens (ease-out-quart, ease-out-expo, duration tiers)
 ...
 
 
@@ -101,6 +71,8 @@ CLI: 'sldr skill > SKILL.md' (or 'sldr skill --json' for structured output).
 Contents:
 ...
 
+
+### [trx-76q4] Add aarch64-unknown-linux-gnu to release CI (P2, task)
 
 ### [trx-3f4w.9] Octo frontend: TemplateEditor component (P2, task)
 React component for visual template editing
@@ -176,6 +148,19 @@ Fix:
 
 ## Closed
 
+- [trx-bxjw] [task] Drop dead hover effect on image-stack collage cards (presenter has no cursor) (closed 2026-05-05)
+- [trx-3px6] [bug] image-stack does not actually stack — cards are staggered side-by-side, not overlapping (closed 2026-05-05)
+- [trx-3tnx] [bug] image-row stretches cells equally — mixed-aspect photos will letterbox or distort (closed 2026-05-05)
+- [trx-zhy3] [task] Add multi-aspect sample images so collage layouts can be visually validated against varied content (closed 2026-05-05)
+- [trx-eeg7] [epic] Image collage layouts — 1-to-N images with multiple arrangements (closed 2026-05-05)
+- [trx-eeg7.4] [task] Image collage: shape-cutout employee/team grid (image-portraits) (closed 2026-05-05)
+- [trx-eeg7.3] [task] Image collage: row with subtitles (image-row) (closed 2026-05-05)
+- [trx-eeg7.2] [task] Image collage: skewed/overlapping layout (image-stack) (closed 2026-05-05)
+- [trx-eeg7.1] [task] Image collage: tidy grid layout (image-grid) (closed 2026-05-05)
+- [trx-wvez] [task] Add motion tokens + reduced-motion support to base.css (closed 2026-05-05)
+- [trx-mstg] [task] Add typography tokens: content-max-width, text-wrap, optical adjustments (closed 2026-05-05)
+- [trx-30pb] [task] Add OKLCH color support to base.css + flavor.rs (closed 2026-05-05)
+- [trx-828c] [task] Add 4 more seed flavors using new design system (closed 2026-05-04)
 - [trx-jbpj.16] [bug] Page number always shows '1' — CSS counter doesn't increment past hidden slides (closed 2026-05-04)
 - [trx-jbpj.15] [task] Layout positioning unification across all 10 layouts (closed 2026-05-04)
 - [trx-jbpj.14] [bug] Presenter slides ghost/stuck on rapid keypress (closed 2026-05-04)
