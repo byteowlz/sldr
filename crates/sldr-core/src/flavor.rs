@@ -200,6 +200,25 @@ pub struct Typography {
     /// Eyebrow / label text-transform (small overline labels)
     #[serde(default)]
     pub eyebrow_transform: Option<String>,
+
+    /// Heading text-wrap: "balance" (even multi-line titles), "pretty",
+    /// "auto", "nowrap". Default "balance" — suits hero titles.
+    #[serde(default)]
+    pub heading_wrap: Option<String>,
+
+    /// Body text-wrap: "pretty" (avoid orphans), "balance", "auto".
+    #[serde(default)]
+    pub body_wrap: Option<String>,
+
+    /// CSS font-feature-settings (e.g. `"ss01" 1, "kern" 1, "liga" 1`).
+    /// Lets flavors enable stylistic sets, ligatures, kerning.
+    #[serde(default)]
+    pub font_features: Option<String>,
+
+    /// CSS font-optical-sizing: "auto" (default) or "none".
+    /// Variable fonts expose optical sizing; non-variable fonts ignore it.
+    #[serde(default)]
+    pub optical_sizing: Option<String>,
 }
 
 /// Background configuration
@@ -289,13 +308,30 @@ pub struct Motion {
     #[serde(default)]
     pub transition: Option<String>,
 
-    /// CSS easing function
+    /// CSS easing function (sets the base `--sldr-easing`)
     #[serde(default)]
     pub easing: Option<String>,
 
-    /// Transition duration (CSS, e.g. "300ms")
+    /// Transition duration (CSS, e.g. "300ms" — sets the base
+    /// `--sldr-duration` and the mid tier `--sldr-duration-base`)
     #[serde(default)]
     pub duration: Option<String>,
+
+    /// Fast duration tier (CSS, e.g. "150ms") — UI feedback, hover states
+    #[serde(default)]
+    pub duration_fast: Option<String>,
+
+    /// Slow duration tier (CSS, e.g. "600ms") — emphasis transitions
+    #[serde(default)]
+    pub duration_slow: Option<String>,
+
+    /// `ease-out-quart` curve (defaults to cubic-bezier(0.25, 1, 0.5, 1))
+    #[serde(default)]
+    pub ease_out_quart: Option<String>,
+
+    /// `ease-out-expo` curve (defaults to cubic-bezier(0.16, 1, 0.3, 1))
+    #[serde(default)]
+    pub ease_out_expo: Option<String>,
 }
 
 /// Decorative ornaments — applied as a CSS class hook.
@@ -613,6 +649,10 @@ fn write_typography_vars(css: &mut String, t: &Typography) {
     write_var(css, "body-leading", &t.body_leading);
     write_var(css, "heading-transform", &t.heading_transform);
     write_var(css, "eyebrow-transform", &t.eyebrow_transform);
+    write_var(css, "heading-wrap", &t.heading_wrap);
+    write_var(css, "body-wrap", &t.body_wrap);
+    write_var(css, "font-features", &t.font_features);
+    write_var(css, "optical-sizing", &t.optical_sizing);
 }
 
 fn write_spacing_vars(css: &mut String, s: &Spacing) {
@@ -648,6 +688,11 @@ fn write_motion_vars(css: &mut String, m: &Motion) {
     write_var(css, "transition", &m.transition);
     write_var(css, "easing", &m.easing);
     write_var(css, "duration", &m.duration);
+    write_var(css, "duration-base", &m.duration);
+    write_var(css, "duration-fast", &m.duration_fast);
+    write_var(css, "duration-slow", &m.duration_slow);
+    write_var(css, "ease-out-quart", &m.ease_out_quart);
+    write_var(css, "ease-out-expo", &m.ease_out_expo);
 }
 
 fn write_decoration_vars(css: &mut String, d: &Decoration) {

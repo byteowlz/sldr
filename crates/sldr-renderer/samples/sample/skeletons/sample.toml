@@ -11,6 +11,10 @@ slides = [
     "06-code",
     "07-image-right",
     "08-table",
+    "11-image-grid",
+    "12-image-row",
+    "13-image-portraits",
+    "14-image-stack",
     "09-conclusion",
     "10-thank-you",
 ]

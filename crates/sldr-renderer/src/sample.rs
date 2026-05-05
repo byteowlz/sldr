@@ -59,6 +59,22 @@ pub const SAMPLE_SLIDES: &[SampleSlide] = &[
         source: include_str!("../samples/sample/slides/08-table.md"),
     },
     SampleSlide {
+        name: "11-image-grid",
+        source: include_str!("../samples/sample/slides/11-image-grid.md"),
+    },
+    SampleSlide {
+        name: "12-image-row",
+        source: include_str!("../samples/sample/slides/12-image-row.md"),
+    },
+    SampleSlide {
+        name: "13-image-portraits",
+        source: include_str!("../samples/sample/slides/13-image-portraits.md"),
+    },
+    SampleSlide {
+        name: "14-image-stack",
+        source: include_str!("../samples/sample/slides/14-image-stack.md"),
+    },
+    SampleSlide {
         name: "09-conclusion",
         source: include_str!("../samples/sample/slides/09-conclusion.md"),
     },
@@ -68,9 +84,14 @@ pub const SAMPLE_SLIDES: &[SampleSlide] = &[
     },
 ];
 
-/// SVG used by 07-image-right. Bundled as a string so the sample deck
-/// renders without touching the filesystem.
+/// SVGs bundled alongside the sample slides. The first is the legacy
+/// 4:5 portrait used by 07-image-right and several collage slides; the
+/// landscape and square variants exist so collage layouts can be visually
+/// validated against mixed aspect ratios without needing real photos.
 pub const SAMPLE_IMAGE_SVG: &str = include_str!("../samples/sample/slides/sample-image.svg");
+pub const SAMPLE_LANDSCAPE_SVG: &str =
+    include_str!("../samples/sample/slides/sample-landscape.svg");
+pub const SAMPLE_SQUARE_SVG: &str = include_str!("../samples/sample/slides/sample-square.svg");
 
 /// Skeleton TOML for the sample deck.
 pub const SAMPLE_SKELETON_TOML: &str =
@@ -100,14 +121,21 @@ pub fn render_sample(flavor: Flavor, extra_flavors: &[Flavor]) -> Result<String>
     // resolve via the sample-asset shim below rather than the real FS.
     let base = PathBuf::from("sldr://sample/slides");
 
-    let image_data_uri = sample_image_data_uri();
+    let portrait_uri = data_uri(SAMPLE_IMAGE_SVG);
+    let landscape_uri = data_uri(SAMPLE_LANDSCAPE_SVG);
+    let square_uri = data_uri(SAMPLE_SQUARE_SVG);
 
     for sample in SAMPLE_SLIDES {
         let virtual_path = base.join(format!("{}.md", sample.name));
-        // Replace the bundled image reference with a data URI so the sample
-        // deck renders without filesystem state. Cheap and keeps the slide
-        // source readable on its own.
-        let source = sample.source.replace("sample-image.svg", &image_data_uri);
+        // Replace the bundled image references with data URIs so the sample
+        // deck renders without filesystem state. Order matters — replace
+        // the longer, more-specific filenames first so they don't get
+        // partially matched by the shorter `sample-image.svg`.
+        let source = sample
+            .source
+            .replace("sample-landscape.svg", &landscape_uri)
+            .replace("sample-square.svg", &square_uri)
+            .replace("sample-image.svg", &portrait_uri);
         let slide = Slide::from_str(sample.name, virtual_path, &source);
         renderer.add_slide(&slide);
     }
@@ -115,9 +143,9 @@ pub fn render_sample(flavor: Flavor, extra_flavors: &[Flavor]) -> Result<String>
     renderer.render()
 }
 
-/// Encode the bundled sample SVG as a `data:` URI for inline use.
-fn sample_image_data_uri() -> String {
-    let encoded = base64::engine::general_purpose::STANDARD.encode(SAMPLE_IMAGE_SVG.as_bytes());
+/// Encode an SVG string as a `data:` URI for inline use.
+fn data_uri(svg: &str) -> String {
+    let encoded = base64::engine::general_purpose::STANDARD.encode(svg.as_bytes());
     format!("data:image/svg+xml;base64,{encoded}")
 }
 

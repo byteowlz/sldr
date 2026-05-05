@@ -21,6 +21,107 @@ pub struct SlideOpts<'a> {
     pub speaker_notes: Option<&'a str>,
 }
 
+/// Layouts whose content is a heading + a sequence of `<img>` paragraphs.
+/// For these we promote each `<p><img alt="..."/></p>` to a `<figure>` so
+/// alt text can render as a visible caption via `<figcaption>`. The
+/// transform is layout-scoped — non-collage layouts keep bare `<p><img/>`.
+fn is_collage_layout(layout: &str) -> bool {
+    matches!(
+        layout,
+        "image-grid" | "image-row" | "image-portraits" | "image-stack"
+    )
+}
+
+/// Promote image-only paragraphs to `<figure>` elements with optional
+/// `<figcaption>` from the alt attribute, and gather all resulting figures
+/// into a single `<div class="sldr-collage">` wrapper. The wrapper is
+/// inserted at the position of the first image-paragraph so it lands
+/// after any leading heading + subheadline.
+///
+/// pulldown-cmark groups consecutive image lines into one `<p>`, so each
+/// tag inside an image-only paragraph is split into its own figure
+/// (otherwise the grid would treat N images as 1 cell).
+fn promote_images_to_figures(html: &str) -> String {
+    let mut out = String::with_capacity(html.len());
+    let mut figures_buf = String::new();
+    let mut wrapper_pos: Option<usize> = None;
+    let mut rest = html;
+    while let Some(p_start) = rest.find("<p>") {
+        out.push_str(&rest[..p_start]);
+        let after_open = &rest[p_start + 3..];
+        let p_end_rel = match after_open.find("</p>") {
+            Some(i) => i,
+            None => {
+                out.push_str(&rest[p_start..]);
+                rest = "";
+                break;
+            }
+        };
+        let inner = &after_open[..p_end_rel];
+        if let Some(figures) = try_render_image_paragraph(inner) {
+            if wrapper_pos.is_none() {
+                wrapper_pos = Some(out.len());
+            }
+            figures_buf.push_str(&figures);
+        } else {
+            out.push_str("<p>");
+            out.push_str(inner);
+            out.push_str("</p>");
+        }
+        rest = &after_open[p_end_rel + 4..];
+    }
+    out.push_str(rest);
+    if !figures_buf.is_empty() {
+        let pos = wrapper_pos.unwrap_or(out.len());
+        let wrapper = format!("<div class=\"sldr-collage\">{figures_buf}</div>");
+        out.insert_str(pos, &wrapper);
+    }
+    out
+}
+
+/// If `inner` is composed only of `<img/>` tags (any whitespace between),
+/// return the rendered `<figure>` sequence. Otherwise return None — caller
+/// keeps the paragraph as-is.
+fn try_render_image_paragraph(inner: &str) -> Option<String> {
+    let mut figures = String::new();
+    let mut cursor = inner;
+    let mut found_any = false;
+    loop {
+        let trimmed = cursor.trim_start();
+        if trimmed.is_empty() {
+            break;
+        }
+        if !trimmed.starts_with("<img ") {
+            return None;
+        }
+        let close = trimmed.find("/>")?;
+        let img_tag = &trimmed[..close + 2];
+        let alt = extract_alt(img_tag).unwrap_or_default();
+        figures.push_str("<figure class=\"sldr-collage-item\">");
+        figures.push_str(img_tag);
+        if !alt.is_empty() {
+            figures.push_str("<figcaption>");
+            figures.push_str(&alt);
+            figures.push_str("</figcaption>");
+        }
+        figures.push_str("</figure>");
+        cursor = &trimmed[close + 2..];
+        found_any = true;
+    }
+    if found_any {
+        Some(figures)
+    } else {
+        None
+    }
+}
+
+fn extract_alt(img_tag: &str) -> Option<String> {
+    let needle = " alt=\"";
+    let start = img_tag.find(needle)? + needle.len();
+    let end_rel = img_tag[start..].find('"')?;
+    Some(img_tag[start..start + end_rel].to_string())
+}
+
 /// Wrap rendered markdown in a slide section with the appropriate layout.
 ///
 /// Returns a complete `<section class="sldr-slide" ...>` element.
@@ -58,9 +159,14 @@ pub fn wrap_slide(opts: SlideOpts<'_>) -> String {
 
     match rendered {
         MarkdownOutput::Single(content) => {
+            let content = if is_collage_layout(layout) {
+                promote_images_to_figures(content.trim())
+            } else {
+                content.trim().to_string()
+            };
             html.push_str("  <div class=\"sldr-content\">\n");
             html.push_str("    ");
-            html.push_str(content.trim());
+            html.push_str(&content);
             html.push('\n');
             html.push_str("  </div>\n");
         }
@@ -210,6 +316,87 @@ mod tests {
             Some("   "),
         ));
         assert!(!html.contains("sldr-notes"));
+    }
+
+    #[test]
+    fn test_collage_promotes_images_to_figures() {
+        let html = wrap_slide(opts(
+            "image-grid",
+            MarkdownOutput::Single(
+                "<h1>Team</h1>\n<p><img src=\"a.jpg\" alt=\"Anna\" />\n</p>\n<p><img src=\"b.jpg\" alt=\"Bilal\" />\n</p>".to_string(),
+            ),
+            None,
+        ));
+        assert!(html.contains("<div class=\"sldr-collage\">"));
+        assert!(html.contains("<figure class=\"sldr-collage-item\">"));
+        assert!(html.contains("<figcaption>Anna</figcaption>"));
+        assert!(html.contains("<figcaption>Bilal</figcaption>"));
+        // Heading is preserved untouched, before the collage wrapper
+        let h1_pos = html.find("<h1>Team</h1>").unwrap();
+        let collage_pos = html.find("<div class=\"sldr-collage\">").unwrap();
+        assert!(h1_pos < collage_pos);
+    }
+
+    #[test]
+    fn test_collage_splits_multi_image_paragraph() {
+        // pulldown-cmark groups consecutive image lines into one <p>.
+        // Each <img> should still get its own <figure>.
+        let html = wrap_slide(opts(
+            "image-grid",
+            MarkdownOutput::Single(
+                "<p><img src=\"a.jpg\" alt=\"Anna\" />\n<img src=\"b.jpg\" alt=\"Bilal\" />\n<img src=\"c.jpg\" alt=\"Chen\" /></p>".to_string(),
+            ),
+            None,
+        ));
+        assert_eq!(html.matches("<figure class=\"sldr-collage-item\">").count(), 3);
+        // All three figures share one wrapper.
+        assert_eq!(html.matches("<div class=\"sldr-collage\">").count(), 1);
+        assert!(html.contains("<figcaption>Anna</figcaption>"));
+        assert!(html.contains("<figcaption>Bilal</figcaption>"));
+        assert!(html.contains("<figcaption>Chen</figcaption>"));
+    }
+
+    #[test]
+    fn test_collage_supports_subheadline() {
+        // h1 + p (subhead) + figures: subhead stays out of the collage wrapper.
+        let html = wrap_slide(opts(
+            "image-grid",
+            MarkdownOutput::Single(
+                "<h1>Team</h1>\n<p>The folks behind the project.</p>\n<p><img src=\"a.jpg\" alt=\"Anna\" /></p>".to_string(),
+            ),
+            None,
+        ));
+        let subhead_pos = html.find("<p>The folks behind the project.</p>").unwrap();
+        let collage_pos = html.find("<div class=\"sldr-collage\">").unwrap();
+        assert!(subhead_pos < collage_pos);
+    }
+
+    #[test]
+    fn test_collage_skips_non_image_paragraphs() {
+        let html = wrap_slide(opts(
+            "image-row",
+            MarkdownOutput::Single(
+                "<p>Just text</p>\n<p><img src=\"a.jpg\" alt=\"\" />\n</p>".to_string(),
+            ),
+            None,
+        ));
+        assert!(html.contains("<p>Just text</p>"));
+        assert!(html.contains("<figure class=\"sldr-collage-item\">"));
+        // Empty alt → no figcaption
+        assert!(!html.contains("<figcaption>"));
+    }
+
+    #[test]
+    fn test_non_collage_layout_keeps_bare_images() {
+        let html = wrap_slide(opts(
+            "default",
+            MarkdownOutput::Single(
+                "<p><img src=\"a.jpg\" alt=\"Anna\" />\n</p>".to_string(),
+            ),
+            None,
+        ));
+        assert!(!html.contains("<figure"));
+        assert!(html.contains("<img src=\"a.jpg\" alt=\"Anna\""));
     }
 
     #[test]

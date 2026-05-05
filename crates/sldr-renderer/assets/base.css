@@ -29,21 +29,27 @@
  * use the var() in the rules below, expose it in flavor.rs.
  */
 :root {
-  /* Color */
+  /* Color — base values can be hex, rgb(), or oklch().
+   * Derived tokens (border, accent-dim, muted) auto-tint from the base
+   * tokens via color-mix(in oklch, ...). Flavors can still set them
+   * directly to override the derivation. */
   --sldr-primary: #60a5fa;
   --sldr-secondary: #818cf8;
   --sldr-background: #0f172a;
   --sldr-surface: #1e293b;
   --sldr-surface2: #283548;
-  --sldr-border: rgba(148, 163, 184, 0.08);
-  --sldr-border-bright: rgba(148, 163, 184, 0.16);
   --sldr-text: #f1f5f9;
   --sldr-text-dim: #94a3b8;
   --sldr-accent: #60a5fa;
-  --sldr-accent-dim: rgba(96, 165, 250, 0.08);
-  --sldr-muted: rgba(148, 163, 184, 0.06);
   --sldr-code-background: #0a0f1e;
   --sldr-code-text: #e2e8f0;
+
+  /* Derived neutrals — tinted from --sldr-text in OKLCH so that swapping
+   * the text base produces a coherent border/muted palette. */
+  --sldr-border: color-mix(in oklch, var(--sldr-text) 8%, transparent);
+  --sldr-border-bright: color-mix(in oklch, var(--sldr-text) 16%, transparent);
+  --sldr-muted: color-mix(in oklch, var(--sldr-text) 6%, transparent);
+  --sldr-accent-dim: color-mix(in oklch, var(--sldr-accent) 8%, transparent);
 
   /* Typography */
   --sldr-heading-font: 'DM Sans', system-ui, sans-serif;
@@ -58,6 +64,10 @@
   --sldr-body-leading: 1.6;
   --sldr-heading-transform: none;
   --sldr-eyebrow-transform: uppercase;
+  --sldr-heading-wrap: balance;
+  --sldr-body-wrap: pretty;
+  --sldr-font-features: "kern" 1, "liga" 1;
+  --sldr-optical-sizing: auto;
 
   /* Spacing */
   --sldr-slide-padding-y: clamp(40px, 6vh, 80px);
@@ -78,10 +88,18 @@
   --sldr-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
   --sldr-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18);
 
-  /* Motion */
+  /* Motion — base + tiered durations and named easings.
+   * Tokens are the contract: rules below reference --sldr-duration-* and
+   * --sldr-ease-* rather than hardcoding numbers, so flavors can retune
+   * the deck's pacing without touching a single rule. */
   --sldr-transition: slide;
   --sldr-easing: cubic-bezier(0.4, 0, 0.2, 1);
   --sldr-duration: 300ms;
+  --sldr-duration-fast: 150ms;
+  --sldr-duration-base: 300ms;
+  --sldr-duration-slow: 600ms;
+  --sldr-ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --sldr-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Atmosphere — opacity multiplier for the deck-wide background glow.
    * Default 0 (flat). Anti-AI-tell: outer glows are a generic AI signature.
@@ -99,6 +117,8 @@ body {
   font-family: var(--sldr-body-font);
   font-size: clamp(16px, 1.8vw, 22px);
   line-height: 1.6;
+  font-feature-settings: var(--sldr-font-features);
+  font-optical-sizing: var(--sldr-optical-sizing);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background 0.3s ease, color 0.3s ease;
@@ -526,6 +546,241 @@ html.dark {
 
 
 /* =========================================================================
+ * Image collage layouts (image-grid, image-row, image-portraits, image-stack)
+ *
+ * Shared markdown shape: heading + optional subheadline + a sequence of
+ * `![alt](src)` images. The renderer promotes image-only paragraphs to
+ * `<figure>` elements (alt text becomes `<figcaption>`) and gathers them
+ * into a single `<div class="sldr-collage">`. The `.sldr-content` flow is:
+ *   <h1>Heading</h1>
+ *   <p>Optional subheadline</p>
+ *   <div class="sldr-collage">
+ *     <figure>...</figure> ...
+ *   </div>
+ *
+ * Each layout below targets `.sldr-collage` for distribution and
+ * `.sldr-collage-item` for cell sizing — same content, different treatment.
+ * ========================================================================= */
+
+/* Outer column: heading + subhead at top, collage below. */
+.sldr-slide[data-layout="image-grid"] .sldr-content,
+.sldr-slide[data-layout="image-row"] .sldr-content,
+.sldr-slide[data-layout="image-portraits"] .sldr-content,
+.sldr-slide[data-layout="image-stack"] .sldr-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: clamp(12px, 2vh, 24px);
+}
+
+/* Headlines and subheadlines center horizontally for collage layouts. */
+.sldr-slide[data-layout="image-grid"] .sldr-content > :is(h1, h2, h3, p),
+.sldr-slide[data-layout="image-row"] .sldr-content > :is(h1, h2, h3, p),
+.sldr-slide[data-layout="image-portraits"] .sldr-content > :is(h1, h2, h3, p),
+.sldr-slide[data-layout="image-stack"] .sldr-content > :is(h1, h2, h3, p) {
+  text-align: center;
+}
+
+/* Subheadline (a `<p>` outside the collage wrapper). */
+.sldr-slide[data-layout="image-grid"] .sldr-content > p,
+.sldr-slide[data-layout="image-row"] .sldr-content > p,
+.sldr-slide[data-layout="image-portraits"] .sldr-content > p,
+.sldr-slide[data-layout="image-stack"] .sldr-content > p {
+  color: var(--sldr-text-dim, var(--sldr-text));
+  font-size: clamp(14px, 1.6vw, 18px);
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* Common collage container — flex-wrap with center alignment so partial
+ * last rows distribute around the slide axis instead of left-binding.
+ * `align-items: flex-start` keeps figures at their natural height; using
+ * `stretch` would inflate cells to row-tallest and recreate the
+ * letterbox-below-image bug for mixed-aspect content. */
+.sldr-collage {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  align-items: flex-start;
+  gap: clamp(16px, 2vw, 28px);
+  flex: 1;
+  min-height: 0;
+}
+
+/* Common figure styling — natural aspect ratio by default. */
+.sldr-collage-item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sldr-collage-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: var(--sldr-radius-sm);
+}
+
+.sldr-collage-item figcaption {
+  font-size: clamp(13px, 1.4vw, 16px);
+  color: var(--sldr-text-dim, var(--sldr-text));
+  margin-top: clamp(6px, 1vh, 12px);
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* image-grid: cells size to the image (no horizontal stretch), so cells
+ * never get wider than the image they hold. Image height scales with the
+ * item count so few = big, many = smaller with extra rows. */
+.sldr-slide[data-layout="image-grid"] .sldr-collage > .sldr-collage-item {
+  flex: 0 1 auto;
+  max-width: clamp(220px, 26vw, 340px);
+}
+
+.sldr-slide[data-layout="image-grid"] .sldr-collage > .sldr-collage-item img {
+  width: auto;
+  max-width: 100%;
+  max-height: 38vh;
+}
+
+/* 1–4 items: bigger images, single row. */
+.sldr-slide[data-layout="image-grid"] .sldr-collage:not(:has(> :nth-child(5))) > .sldr-collage-item {
+  max-width: clamp(260px, 32vw, 420px);
+}
+.sldr-slide[data-layout="image-grid"] .sldr-collage:not(:has(> :nth-child(5))) > .sldr-collage-item img {
+  max-height: 60vh;
+}
+
+/* 7+ items: smaller, lets 2–3 rows fit. */
+.sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(7)) > .sldr-collage-item {
+  max-width: clamp(180px, 22vw, 260px);
+}
+.sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(7)) > .sldr-collage-item img {
+  max-height: 28vh;
+}
+
+/* 13+ items: tightest cap. */
+.sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(13)) > .sldr-collage-item {
+  max-width: clamp(140px, 17vw, 200px);
+}
+.sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(13)) > .sldr-collage-item img {
+  max-height: 22vh;
+}
+
+/* image-row: one filmstrip row with a shared image height. Cells size to
+ * their image's natural width — landscape ones get wider, portraits
+ * narrower — so mixed aspects don't letterbox or stretch. No captions,
+ * no extra chrome. */
+.sldr-slide[data-layout="image-row"] .sldr-collage {
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.sldr-slide[data-layout="image-row"] .sldr-collage > .sldr-collage-item {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.sldr-slide[data-layout="image-row"] .sldr-collage > .sldr-collage-item img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: clamp(180px, 50vh, 480px);
+  object-fit: contain;
+}
+
+.sldr-slide[data-layout="image-row"] .sldr-collage > .sldr-collage-item figcaption {
+  display: none;
+}
+
+/* image-portraits: circular cutouts, fixed cell width. Forces 1:1 because
+ * non-square portraits look broken in a circle. */
+.sldr-slide[data-layout="image-portraits"] .sldr-collage > .sldr-collage-item {
+  flex: 0 0 auto;
+  width: clamp(120px, 14vw, 180px);
+  align-items: center;
+}
+
+.sldr-slide[data-layout="image-portraits"] .sldr-collage > .sldr-collage-item img {
+  aspect-ratio: 1 / 1;
+  width: clamp(96px, 11vw, 140px);
+  height: auto;
+  max-height: none;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid var(--sldr-border-bright);
+}
+
+.sldr-slide[data-layout="image-portraits"] .sldr-collage > .sldr-collage-item figcaption {
+  font-weight: 600;
+  color: var(--sldr-text);
+}
+
+/* image-stack: editorial collage of overlapping polaroid-style cards.
+ * Cards are absolutely positioned around the slide center, then offset,
+ * rotated and z-stacked per `:nth-of-type` so they genuinely overlap
+ * rather than just stagger. Card heights vary with the image's natural
+ * aspect (no forced max-height) for an organic scrapbook feel. */
+.sldr-slide[data-layout="image-stack"] .sldr-collage {
+  position: relative;
+  display: block;
+  min-height: clamp(280px, 52vh, 540px);
+  padding: 0;
+}
+
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(180px, 22vw, 320px);
+  margin: 0;
+  background: var(--sldr-surface);
+  padding: clamp(8px, 1vh, 14px);
+  box-shadow: var(--sldr-shadow-lg);
+}
+
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+1) {
+  transform: translate(calc(-50% - 21vw), calc(-50% + 4vh)) rotate(-8deg);
+  z-index: 1;
+}
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+2) {
+  transform: translate(calc(-50% - 7vw), calc(-50% - 3vh)) rotate(4deg);
+  z-index: 2;
+}
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+3) {
+  transform: translate(calc(-50% + 7vw), calc(-50% + 3vh)) rotate(-3deg);
+  z-index: 3;
+}
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+4) {
+  transform: translate(calc(-50% + 21vw), calc(-50% - 4vh)) rotate(7deg);
+  z-index: 4;
+}
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n) {
+  transform: translate(-50%, calc(-50% + 1vh)) rotate(-5deg);
+  z-index: 5;
+}
+
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item img {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+
+.sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item figcaption {
+  font-style: italic;
+  margin-top: clamp(8px, 1vh, 12px);
+  text-align: center;
+}
+
+
+/* =========================================================================
  * Layout: end
  * ========================================================================= */
 .sldr-slide[data-layout="end"] {
@@ -545,6 +800,7 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: var(--sldr-heading-tracking);
   line-height: var(--sldr-heading-leading);
   text-transform: var(--sldr-heading-transform);
+  text-wrap: var(--sldr-heading-wrap);
   margin-bottom: 0;
   transition: color 0.3s ease;
 }
@@ -577,6 +833,7 @@ p {
   font-weight: var(--sldr-body-weight);
   letter-spacing: var(--sldr-body-tracking);
   line-height: var(--sldr-body-leading);
+  text-wrap: var(--sldr-body-wrap);
 }
 
 ul, ol {
@@ -818,6 +1075,22 @@ tr:hover td {
 @keyframes sldrSlideRightOut {
   from { transform: translateX(0); }
   to { transform: translateX(100%); }
+}
+
+/* === Reduced motion ===
+ * Respect the OS-level "reduce motion" setting. We collapse durations to
+ * a near-instant tick (rather than 0) so JS that listens for transitionend
+ * still fires, and we keep iteration counts at 1 so any infinite animations
+ * resolve. Slide transitions effectively cut to the next slide. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 

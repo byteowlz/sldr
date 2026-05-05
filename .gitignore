@@ -41,3 +41,4 @@ coverage/
 frontend/
 input/
 .pi/
+.pi/todos/
