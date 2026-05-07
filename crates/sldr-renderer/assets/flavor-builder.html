@@ -644,12 +644,73 @@ input[type="range"]::-moz-range-thumb {
         </div>
 
         <div class="ctrl-row" style="margin-top:10px">
+          <span class="ctrl-label">h-weight</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="100" max="900" step="100" value="700" data-var="heading-weight">
+            <span class="ctrl-slider-val" id="hWeightVal">700</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">h-track</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="-3" max="6" step="1" value="-1" data-var="heading-tracking" data-scale="0.5">
+            <span class="ctrl-slider-val" id="hTrackVal">-0.5px</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">h-lead</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="90" max="180" step="5" value="115" data-var="heading-leading">
+            <span class="ctrl-slider-val" id="hLeadVal">1.15</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">h-case</span>
+          <select class="ctrl-select" data-select="heading-transform">
+            <option value="none">none</option>
+            <option value="uppercase">uppercase</option>
+            <option value="lowercase">lowercase</option>
+            <option value="capitalize">capitalize</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">eyebrow</span>
+          <select class="ctrl-select" data-select="eyebrow-transform">
+            <option value="none">none</option>
+            <option value="uppercase" selected>uppercase</option>
+            <option value="lowercase">lowercase</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row" style="margin-top:10px">
           <span class="ctrl-label">body</span>
           <select class="ctrl-select font-select" data-var="body-font" onchange="updateFont('body',this.value)">
           </select>
         </div>
         <div class="font-preview" id="bodyPreview" style="font-family:'DM Sans',system-ui,sans-serif">
           The quick brown fox jumps over the lazy dog
+        </div>
+
+        <div class="ctrl-row" style="margin-top:10px">
+          <span class="ctrl-label">b-weight</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="100" max="900" step="100" value="400" data-var="body-weight">
+            <span class="ctrl-slider-val" id="bWeightVal">400</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">b-track</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="-2" max="6" step="1" value="0" data-var="body-tracking" data-scale="0.5">
+            <span class="ctrl-slider-val" id="bTrackVal">0px</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">b-lead</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="120" max="200" step="5" value="160" data-var="body-leading">
+            <span class="ctrl-slider-val" id="bLeadVal">1.60</span>
+          </div>
         </div>
 
         <div class="ctrl-row" style="margin-top:10px">
@@ -697,6 +758,45 @@ input[type="range"]::-moz-range-thumb {
           </div>
         </div>
         <div class="ctrl-row">
+          <span class="ctrl-label">col gap</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="1" max="10" value="4" data-var="col-gap">
+            <span class="ctrl-slider-val" id="colGapVal">4vw</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">stack gap</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="8" max="64" step="2" value="24" data-var="stack-gap">
+            <span class="ctrl-slider-val" id="stackGapVal">24px</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">max-width</span>
+          <select class="ctrl-select" data-select="content-max-width">
+            <option value="none">none (full)</option>
+            <option value="60ch">60ch (narrow)</option>
+            <option value="70ch">70ch</option>
+            <option value="80ch">80ch (wide)</option>
+            <option value="90ch">90ch</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">density</span>
+          <select class="ctrl-select" data-select="density">
+            <option value="compact">compact</option>
+            <option value="normal" selected>normal</option>
+            <option value="spacious">spacious</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Shape -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Shape</div>
+        <div class="ctrl-row">
           <span class="ctrl-label">radius</span>
           <div class="ctrl-slider-wrap">
             <input type="range" min="0" max="24" value="12" data-var="border-radius">
@@ -704,11 +804,138 @@ input[type="range"]::-moz-range-thumb {
           </div>
         </div>
         <div class="ctrl-row">
-          <span class="ctrl-label">col gap</span>
+          <span class="ctrl-label">radius-sm</span>
           <div class="ctrl-slider-wrap">
-            <input type="range" min="1" max="10" value="4" data-var="col-gap">
-            <span class="ctrl-slider-val" id="colGapVal">4vw</span>
+            <input type="range" min="0" max="16" value="6" data-var="radius-sm">
+            <span class="ctrl-slider-val" id="radiusSmVal">6px</span>
           </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">radius-lg</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="0" max="48" value="20" data-var="radius-lg">
+            <span class="ctrl-slider-val" id="radiusLgVal">20px</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">border-w</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="0" max="6" step="1" value="1" data-var="border-width">
+            <span class="ctrl-slider-val" id="borderWVal">1px</span>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">border-style</span>
+          <select class="ctrl-select" data-select="border-style">
+            <option value="solid" selected>solid</option>
+            <option value="dashed">dashed</option>
+            <option value="dotted">dotted</option>
+            <option value="double">double</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Shadow -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Shadow</div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">preset</span>
+          <select class="ctrl-select" data-select="shadow-preset">
+            <option value="none">none (flat)</option>
+            <option value="subtle">subtle</option>
+            <option value="standard" selected>standard</option>
+            <option value="lifted">lifted</option>
+            <option value="dramatic">dramatic</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Motion -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Motion</div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">transition</span>
+          <select class="ctrl-select" data-select="transition">
+            <option value="slide" selected>slide</option>
+            <option value="fade">fade</option>
+            <option value="slide-up">slide-up</option>
+            <option value="none">none</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">easing</span>
+          <select class="ctrl-select" data-select="easing">
+            <option value="standard" selected>standard</option>
+            <option value="ease-out">ease-out</option>
+            <option value="expo">expo</option>
+            <option value="snappy">snappy</option>
+            <option value="linear">linear</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">duration</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="100" max="800" step="50" value="300" data-var="duration">
+            <span class="ctrl-slider-val" id="durationVal">300ms</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Decoration -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Decoration</div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">accent</span>
+          <select class="ctrl-select" data-select="decoration-accent">
+            <option value="none" selected>none</option>
+            <option value="dot">dot</option>
+            <option value="line">line</option>
+            <option value="grid">grid</option>
+            <option value="diagonal">diagonal</option>
+            <option value="glow">glow</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">intensity</span>
+          <div class="ctrl-slider-wrap">
+            <input type="range" min="0" max="100" step="5" value="0" data-var="decoration-intensity">
+            <span class="ctrl-slider-val" id="decIntVal">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Code -->
+      <div class="ctrl-section">
+        <div class="ctrl-section-title">Code</div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">theme</span>
+          <select class="ctrl-select" data-select="syntax-theme">
+            <option value="auto" selected>auto (match mode)</option>
+            <option value="github-light">github-light</option>
+            <option value="github-dark">github-dark</option>
+            <option value="monokai">monokai</option>
+            <option value="solarized-light">solarized-light</option>
+            <option value="solarized-dark">solarized-dark</option>
+            <option value="nord">nord</option>
+            <option value="dracula">dracula</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">frame</span>
+          <select class="ctrl-select" data-select="frame-style">
+            <option value="card" selected>card</option>
+            <option value="plain">plain</option>
+            <option value="terminal">terminal</option>
+            <option value="minimal">minimal</option>
+          </select>
         </div>
       </div>
 
@@ -795,6 +1022,14 @@ const state = {
     heading_font: "'DM Sans', system-ui, sans-serif",
     body_font: "'DM Sans', system-ui, sans-serif",
     code_font: "'Fira Code', monospace",
+    heading_weight: 700,
+    body_weight: 400,
+    heading_tracking: -0.5, // px (can be negative)
+    body_tracking: 0,       // px
+    heading_leading: 1.15,
+    body_leading: 1.6,
+    heading_transform: 'none',
+    eyebrow_transform: 'uppercase',
   },
   spacing: {
     padding_x: 7,
@@ -803,12 +1038,56 @@ const state = {
     col_gap: 4,
     border_opacity: 8,
     glow_intensity: 6,
+    content_max_width: 'none',
+    stack_gap: 24,    // px
+    density: 'normal', // compact | normal | spacious
+  },
+  shape: {
+    radius_sm: 6,
+    radius_lg: 20,
+    border_width: 1,
+    border_style: 'solid',
+  },
+  shadow: {
+    preset: 'standard', // none | subtle | standard | lifted | dramatic
+  },
+  motion: {
+    transition: 'slide', // slide | fade | slide-up | none
+    easing: 'standard',  // standard | ease-out | expo | snappy | linear
+    duration: 300,       // ms
+  },
+  decoration: {
+    accent: 'none',  // none | dot | line | grid | diagonal | glow
+    intensity: 0,    // 0..100  (atmosphere multiplier)
+  },
+  code: {
+    syntax_theme: 'auto',
+    frame_style: 'card',
   },
   activeTemplate: 'default',
   logos: [],
   // Tracks next logo ID for stable references
   nextLogoId: 1,
 };
+
+// Presets and lookup tables for the extended-schema controls.
+const EASING_PRESETS = {
+  standard: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  'ease-out': 'cubic-bezier(0.25, 1, 0.5, 1)',
+  expo: 'cubic-bezier(0.16, 1, 0.3, 1)',
+  snappy: 'cubic-bezier(0.5, 1.6, 0.4, 1)',
+  linear: 'linear',
+};
+
+const SHADOW_PRESETS = {
+  none:    { sm: 'none', md: 'none', lg: 'none' },
+  subtle:  { sm: '0 1px 1px rgba(0,0,0,0.04)', md: '0 2px 6px rgba(0,0,0,0.06)', lg: '0 8px 24px rgba(0,0,0,0.08)' },
+  standard:{ sm: '0 1px 2px rgba(0,0,0,0.08)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 16px 48px rgba(0,0,0,0.18)' },
+  lifted:  { sm: '0 2px 4px rgba(0,0,0,0.10)', md: '0 8px 20px rgba(0,0,0,0.16)', lg: '0 24px 64px rgba(0,0,0,0.24)' },
+  dramatic:{ sm: '0 4px 8px rgba(0,0,0,0.16)', md: '0 16px 36px rgba(0,0,0,0.24)', lg: '0 40px 96px rgba(0,0,0,0.32)' },
+};
+
+const DENSITY_SCALES = { compact: 0.85, normal: 1, spacious: 1.15 };
 
 // Convenience getter for the active color set
 function activeColors() {
@@ -1287,6 +1566,7 @@ function init() {
   renderLogoSlots();
   bindColorControls();
   bindSliderControls();
+  bindSelectControls();
   applyState();
   showTemplate('default');
 }
@@ -1351,6 +1631,70 @@ function bindSliderControls() {
         case 'col-gap': state.spacing.col_gap = val; document.getElementById('colGapVal').textContent = val + 'vw'; break;
         case 'border-opacity': state.spacing.border_opacity = val; document.getElementById('borderOpVal').textContent = val + '%'; break;
         case 'glow-intensity': state.spacing.glow_intensity = val; document.getElementById('glowVal').textContent = val + '%'; break;
+        case 'stack-gap': state.spacing.stack_gap = val; document.getElementById('stackGapVal').textContent = val + 'px'; break;
+        // typography
+        case 'heading-weight': state.typography.heading_weight = val; document.getElementById('hWeightVal').textContent = val; break;
+        case 'body-weight':    state.typography.body_weight = val; document.getElementById('bWeightVal').textContent = val; break;
+        case 'heading-tracking': {
+          // slider 0.5 step, native int * 0.5
+          const px = val * 0.5;
+          state.typography.heading_tracking = px;
+          document.getElementById('hTrackVal').textContent = px + 'px';
+          break;
+        }
+        case 'body-tracking': {
+          const px = val * 0.5;
+          state.typography.body_tracking = px;
+          document.getElementById('bTrackVal').textContent = px + 'px';
+          break;
+        }
+        case 'heading-leading': {
+          const lh = val / 100;
+          state.typography.heading_leading = lh;
+          document.getElementById('hLeadVal').textContent = lh.toFixed(2);
+          break;
+        }
+        case 'body-leading': {
+          const lh = val / 100;
+          state.typography.body_leading = lh;
+          document.getElementById('bLeadVal').textContent = lh.toFixed(2);
+          break;
+        }
+        // shape
+        case 'radius-sm': state.shape.radius_sm = val; document.getElementById('radiusSmVal').textContent = val + 'px'; break;
+        case 'radius-lg': state.shape.radius_lg = val; document.getElementById('radiusLgVal').textContent = val + 'px'; break;
+        case 'border-width': state.shape.border_width = val; document.getElementById('borderWVal').textContent = val + 'px'; break;
+        // motion
+        case 'duration': state.motion.duration = val; document.getElementById('durationVal').textContent = val + 'ms'; break;
+        // decoration
+        case 'decoration-intensity': state.decoration.intensity = val; document.getElementById('decIntVal').textContent = val + '%'; break;
+      }
+      applyState();
+    });
+  });
+}
+
+// Bind <select data-select="…"> controls in the extended-schema sections
+// (typography transforms, density, shape style, shadow preset, motion,
+// decoration, code). The font-family selects use a different (legacy)
+// onchange handler and are deliberately excluded.
+function bindSelectControls() {
+  document.querySelectorAll('select[data-select]').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const key = e.target.dataset.select;
+      const v = e.target.value;
+      switch (key) {
+        case 'heading-transform': state.typography.heading_transform = v; break;
+        case 'eyebrow-transform': state.typography.eyebrow_transform = v; break;
+        case 'content-max-width': state.spacing.content_max_width = v; break;
+        case 'density':           state.spacing.density = v; break;
+        case 'border-style':      state.shape.border_style = v; break;
+        case 'shadow-preset':     state.shadow.preset = v; break;
+        case 'transition':        state.motion.transition = v; break;
+        case 'easing':            state.motion.easing = v; break;
+        case 'decoration-accent': state.decoration.accent = v; break;
+        case 'syntax-theme':      state.code.syntax_theme = v; break;
+        case 'frame-style':       state.code.frame_style = v; break;
       }
       applyState();
     });
@@ -1373,8 +1717,13 @@ function buildTokenPayload() {
   const s = activeColors();
   const sp = state.spacing;
   const t = state.typography;
+  const sh = state.shape;
+  const shadow = SHADOW_PRESETS[state.shadow.preset] || SHADOW_PRESETS.standard;
+  const easing = EASING_PRESETS[state.motion.easing] || EASING_PRESETS.standard;
+  const densityScale = DENSITY_SCALES[state.spacing.density] || 1;
 
   const tokens = {
+    // colors
     'sldr-background': s.background,
     'sldr-text': s.text,
     'sldr-primary': s.primary,
@@ -1388,12 +1737,52 @@ function buildTokenPayload() {
     'sldr-accent-dim': hexToRgba(s.accent, sp.glow_intensity / 100),
     'sldr-border': `rgba(148,163,184,${sp.border_opacity / 100})`,
     'sldr-border-bright': `rgba(148,163,184,${Math.min(sp.border_opacity * 2, 40) / 100})`,
+
+    // typography (fonts + extended axes)
     'sldr-heading-font': t.heading_font,
     'sldr-body-font': t.body_font,
     'sldr-code-font': t.code_font,
-    'sldr-radius': sp.border_radius + 'px',
+    'sldr-heading-weight': String(t.heading_weight),
+    'sldr-body-weight': String(t.body_weight),
+    'sldr-heading-tracking': t.heading_tracking + 'px',
+    'sldr-body-tracking': t.body_tracking + 'px',
+    'sldr-heading-leading': String(t.heading_leading),
+    'sldr-body-leading': String(t.body_leading),
+    'sldr-heading-transform': t.heading_transform,
+    'sldr-eyebrow-transform': t.eyebrow_transform,
+
+    // spacing
+    // Legacy aliases (--sldr-padding-x/y) kept for any custom CSS still
+    // referencing them; canonical names are slide-padding-*.
     'sldr-padding-y': `clamp(40px, ${sp.padding_y}vh, 80px)`,
     'sldr-padding-x': `clamp(48px, ${sp.padding_x}vw, 120px)`,
+    'sldr-slide-padding-y': `clamp(40px, ${sp.padding_y}vh, 80px)`,
+    'sldr-slide-padding-x': `clamp(48px, ${sp.padding_x}vw, 120px)`,
+    'sldr-content-max-width': sp.content_max_width,
+    'sldr-stack-gap': sp.stack_gap + 'px',
+    'sldr-density-scale': String(densityScale),
+
+    // shape
+    'sldr-radius': sp.border_radius + 'px',
+    'sldr-radius-sm': sh.radius_sm + 'px',
+    'sldr-radius-lg': sh.radius_lg + 'px',
+    'sldr-border-width': sh.border_width + 'px',
+    'sldr-border-style': sh.border_style,
+
+    // shadow
+    'sldr-shadow-sm': shadow.sm,
+    'sldr-shadow-md': shadow.md,
+    'sldr-shadow-lg': shadow.lg,
+
+    // motion
+    'sldr-transition': state.motion.transition,
+    'sldr-easing': easing,
+    'sldr-duration': state.motion.duration + 'ms',
+    'sldr-duration-base': state.motion.duration + 'ms',
+
+    // decoration
+    'sldr-atmosphere': String(state.decoration.intensity / 100),
+    'sldr-decoration-accent': state.decoration.accent,
   };
 
   return {
@@ -1466,6 +1855,7 @@ function randomizeFlavor() {
 
   // Update slider positions
   updateSliders();
+  updateSelects();
   applyState();
 }
 
@@ -1502,12 +1892,52 @@ function randomizeColors() {
 
 function updateSliders() {
   const sp = state.spacing;
+  const t = state.typography;
+  const sh = state.shape;
   setSlider('padding-x', sp.padding_x, sp.padding_x + 'vw', 'padXVal');
   setSlider('padding-y', sp.padding_y, sp.padding_y + 'vh', 'padYVal');
   setSlider('border-radius', sp.border_radius, sp.border_radius + 'px', 'radiusVal');
   setSlider('col-gap', sp.col_gap, sp.col_gap + 'vw', 'colGapVal');
   setSlider('border-opacity', sp.border_opacity, sp.border_opacity + '%', 'borderOpVal');
   setSlider('glow-intensity', sp.glow_intensity, sp.glow_intensity + '%', 'glowVal');
+  setSlider('stack-gap', sp.stack_gap, sp.stack_gap + 'px', 'stackGapVal');
+
+  setSlider('heading-weight', t.heading_weight, String(t.heading_weight), 'hWeightVal');
+  setSlider('body-weight',    t.body_weight,    String(t.body_weight),    'bWeightVal');
+  // tracking sliders use *2 ints (step 0.5px)
+  setSlider('heading-tracking', Math.round(t.heading_tracking * 2), t.heading_tracking + 'px', 'hTrackVal');
+  setSlider('body-tracking',    Math.round(t.body_tracking * 2),    t.body_tracking + 'px',    'bTrackVal');
+  setSlider('heading-leading', Math.round(t.heading_leading * 100), t.heading_leading.toFixed(2), 'hLeadVal');
+  setSlider('body-leading',    Math.round(t.body_leading * 100),    t.body_leading.toFixed(2),    'bLeadVal');
+
+  setSlider('radius-sm',    sh.radius_sm,    sh.radius_sm + 'px',    'radiusSmVal');
+  setSlider('radius-lg',    sh.radius_lg,    sh.radius_lg + 'px',    'radiusLgVal');
+  setSlider('border-width', sh.border_width, sh.border_width + 'px', 'borderWVal');
+
+  setSlider('duration', state.motion.duration, state.motion.duration + 'ms', 'durationVal');
+  setSlider('decoration-intensity', state.decoration.intensity, state.decoration.intensity + '%', 'decIntVal');
+}
+
+// Resync <select data-select="…"> inputs with current state. Called from
+// updateSelects() after preset/load/randomize so the UI reflects state.
+function updateSelects() {
+  const pairs = {
+    'heading-transform': state.typography.heading_transform,
+    'eyebrow-transform': state.typography.eyebrow_transform,
+    'content-max-width': state.spacing.content_max_width,
+    'density':           state.spacing.density,
+    'border-style':      state.shape.border_style,
+    'shadow-preset':     state.shadow.preset,
+    'transition':        state.motion.transition,
+    'easing':            state.motion.easing,
+    'decoration-accent': state.decoration.accent,
+    'syntax-theme':      state.code.syntax_theme,
+    'frame-style':       state.code.frame_style,
+  };
+  Object.keys(pairs).forEach(key => {
+    const sel = document.querySelector(`select[data-select="${key}"]`);
+    if (sel && pairs[key] != null) sel.value = pairs[key];
+  });
 }
 
 function setSlider(varName, val, label, labelId) {
@@ -2176,6 +2606,10 @@ function generateToml() {
   const lt = state.light_colors;
   const dk = state.dark_colors;
   const t = state.typography;
+  const sp = state.spacing;
+  const sh = state.shape;
+  const shadow = SHADOW_PRESETS[state.shadow.preset] || SHADOW_PRESETS.standard;
+  const easing = EASING_PRESETS[state.motion.easing] || EASING_PRESETS.standard;
   const name = document.getElementById('flavorName').value || 'custom';
 
   // Extract clean font name from CSS value
@@ -2209,6 +2643,46 @@ code_text = "${dk.code_text}"
 heading_font = "${cleanFont(t.heading_font)}"
 body_font = "${cleanFont(t.body_font)}"
 code_font = "${cleanFont(t.code_font)}"
+heading_weight = "${t.heading_weight}"
+body_weight = "${t.body_weight}"
+heading_tracking = "${t.heading_tracking}px"
+body_tracking = "${t.body_tracking}px"
+heading_leading = "${t.heading_leading}"
+body_leading = "${t.body_leading}"
+heading_transform = "${t.heading_transform}"
+eyebrow_transform = "${t.eyebrow_transform}"
+
+[spacing]
+slide_padding_x = "clamp(48px, ${sp.padding_x}vw, 120px)"
+slide_padding_y = "clamp(40px, ${sp.padding_y}vh, 80px)"
+content_max_width = "${sp.content_max_width}"
+stack_gap = "${sp.stack_gap}px"
+density = "${sp.density}"
+
+[shape]
+radius = "${sp.border_radius}px"
+radius_sm = "${sh.radius_sm}px"
+radius_lg = "${sh.radius_lg}px"
+border_width = "${sh.border_width}px"
+border_style = "${sh.border_style}"
+
+[shadow]
+sm = "${shadow.sm}"
+md = "${shadow.md}"
+lg = "${shadow.lg}"
+
+[motion]
+transition = "${state.motion.transition}"
+easing = "${easing}"
+duration = "${state.motion.duration}ms"
+
+[decoration]
+accent = "${state.decoration.accent}"
+intensity = ${state.decoration.intensity / 100}
+
+[code]
+syntax_theme = "${state.code.syntax_theme}"
+frame_style = "${state.code.frame_style}"
 
 [background]
 background_type = "color"
@@ -2369,9 +2843,75 @@ async function loadExistingFlavor() {
         });
       }
       if (data.typography) {
-        Object.keys(data.typography).forEach(key => {
-          if (data.typography[key]) state.typography[key] = data.typography[key];
+        const tp = data.typography;
+        // Font-family strings (preserve raw CSS value).
+        ['heading_font','body_font','code_font'].forEach(k => {
+          if (tp[k]) state.typography[k] = tp[k];
         });
+        if (tp.heading_weight) state.typography.heading_weight = parseInt(tp.heading_weight, 10) || state.typography.heading_weight;
+        if (tp.body_weight)    state.typography.body_weight    = parseInt(tp.body_weight, 10)    || state.typography.body_weight;
+        // Tracking sliders are px-based; em/%/other units don't round-trip cleanly,
+        // so for those we surface 0 in the UI and let the user retune in px.
+        const parseTrackPx = (raw) => {
+          if (raw == null) return null;
+          const s = String(raw).trim();
+          if (/em|%|rem/i.test(s)) return 0;
+          return parseFloat(s) || 0;
+        };
+        if (tp.heading_tracking != null) state.typography.heading_tracking = parseTrackPx(tp.heading_tracking);
+        if (tp.body_tracking != null)    state.typography.body_tracking    = parseTrackPx(tp.body_tracking);
+        if (tp.heading_leading != null)  state.typography.heading_leading  = parseFloat(String(tp.heading_leading))  || state.typography.heading_leading;
+        if (tp.body_leading != null)     state.typography.body_leading     = parseFloat(String(tp.body_leading))     || state.typography.body_leading;
+        if (tp.heading_transform) state.typography.heading_transform = tp.heading_transform;
+        if (tp.eyebrow_transform) state.typography.eyebrow_transform = tp.eyebrow_transform;
+      }
+      if (data.spacing) {
+        const sp = data.spacing;
+        // Try to extract "Xvw" / "Xvh" out of clamp() expressions; fall back if absent.
+        const px = String(sp.slide_padding_x || '').match(/(\d+)vw/);
+        const py = String(sp.slide_padding_y || '').match(/(\d+)vh/);
+        if (px) state.spacing.padding_x = parseInt(px[1], 10);
+        if (py) state.spacing.padding_y = parseInt(py[1], 10);
+        if (sp.content_max_width) state.spacing.content_max_width = sp.content_max_width;
+        if (sp.stack_gap) state.spacing.stack_gap = parseInt(String(sp.stack_gap), 10) || state.spacing.stack_gap;
+        if (sp.density) state.spacing.density = sp.density;
+      }
+      if (data.shape) {
+        const sh = data.shape;
+        if (sh.radius)       state.spacing.border_radius = parseInt(String(sh.radius), 10) || state.spacing.border_radius;
+        if (sh.radius_sm)    state.shape.radius_sm       = parseInt(String(sh.radius_sm), 10) || state.shape.radius_sm;
+        if (sh.radius_lg)    state.shape.radius_lg       = parseInt(String(sh.radius_lg), 10) || state.shape.radius_lg;
+        if (sh.border_width) state.shape.border_width    = parseInt(String(sh.border_width), 10) || 0;
+        if (sh.border_style) state.shape.border_style    = sh.border_style;
+      }
+      if (data.shadow) {
+        // Match the loaded shadow strings against the preset map; default to 'standard' if no match.
+        const matched = Object.keys(SHADOW_PRESETS).find(k => {
+          const p = SHADOW_PRESETS[k];
+          return p.sm === data.shadow.sm && p.md === data.shadow.md && p.lg === data.shadow.lg;
+        });
+        if (matched) state.shadow.preset = matched;
+      }
+      if (data.motion) {
+        const m = data.motion;
+        if (m.transition) state.motion.transition = m.transition;
+        if (m.easing) {
+          // Try to map back the easing CSS to a preset key
+          const matched = Object.keys(EASING_PRESETS).find(k => EASING_PRESETS[k] === m.easing);
+          state.motion.easing = matched || state.motion.easing;
+        }
+        if (m.duration) state.motion.duration = parseInt(String(m.duration), 10) || state.motion.duration;
+      }
+      if (data.decoration) {
+        if (data.decoration.accent) state.decoration.accent = data.decoration.accent;
+        if (data.decoration.intensity != null) {
+          const i = parseFloat(data.decoration.intensity);
+          state.decoration.intensity = Math.round((isFinite(i) ? i : 0) * 100);
+        }
+      }
+      if (data.code) {
+        if (data.code.syntax_theme) state.code.syntax_theme = data.code.syntax_theme;
+        if (data.code.frame_style)  state.code.frame_style  = data.code.frame_style;
       }
       if (data.name) document.getElementById('flavorName').value = data.name;
 
@@ -2394,19 +2934,25 @@ async function loadExistingFlavor() {
       // Update UI inputs for active mode
       syncColorInputsFromState();
 
-      // Update font selects
-      Object.keys(state.typography).forEach(key => {
+      // Update font selects (font_family fields only — others are sliders/selects).
+      ['heading_font', 'body_font', 'code_font'].forEach(key => {
         const cssKey = key.replace('_', '-');
         const select = document.querySelector(`.ctrl-select[data-var="${cssKey}"]`);
-        if (select) {
+        const val = state.typography[key];
+        if (select && typeof val === 'string') {
+          const target = val.split(',')[0].replace(/'/g, '').trim();
           for (const opt of select.options) {
-            if (opt.value.includes(state.typography[key].split(',')[0].replace(/'/g, '').trim())) {
+            if (opt.value.includes(target)) {
               select.value = opt.value;
               break;
             }
           }
         }
       });
+
+      // Resync extended-schema sliders + selects with whatever loaded above.
+      updateSliders();
+      updateSelects();
 
       applyState();
     }

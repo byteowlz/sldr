@@ -174,6 +174,46 @@ async fn handle_get_flavor(
                 "heading_font": flavor.typography.heading_font,
                 "body_font": flavor.typography.body_font,
                 "code_font": flavor.typography.code_font,
+                "heading_weight": flavor.typography.heading_weight,
+                "body_weight": flavor.typography.body_weight,
+                "heading_tracking": flavor.typography.heading_tracking,
+                "body_tracking": flavor.typography.body_tracking,
+                "heading_leading": flavor.typography.heading_leading,
+                "body_leading": flavor.typography.body_leading,
+                "heading_transform": flavor.typography.heading_transform,
+                "eyebrow_transform": flavor.typography.eyebrow_transform,
+            });
+            let spacing = serde_json::json!({
+                "slide_padding_x": flavor.spacing.slide_padding_x,
+                "slide_padding_y": flavor.spacing.slide_padding_y,
+                "content_max_width": flavor.spacing.content_max_width,
+                "stack_gap": flavor.spacing.stack_gap,
+                "density": flavor.spacing.density,
+            });
+            let shape = serde_json::json!({
+                "radius": flavor.shape.radius,
+                "radius_sm": flavor.shape.radius_sm,
+                "radius_lg": flavor.shape.radius_lg,
+                "border_width": flavor.shape.border_width,
+                "border_style": flavor.shape.border_style,
+            });
+            let shadow = serde_json::json!({
+                "sm": flavor.shadow.sm,
+                "md": flavor.shadow.md,
+                "lg": flavor.shadow.lg,
+            });
+            let motion = serde_json::json!({
+                "transition": flavor.motion.transition,
+                "easing": flavor.motion.easing,
+                "duration": flavor.motion.duration,
+            });
+            let decoration = serde_json::json!({
+                "accent": flavor.decoration.accent,
+                "intensity": flavor.decoration.intensity,
+            });
+            let code = serde_json::json!({
+                "syntax_theme": flavor.code.syntax_theme,
+                "frame_style": flavor.code.frame_style,
             });
 
             // Build logo entries with data URIs for preview
@@ -196,6 +236,12 @@ async fn handle_get_flavor(
                 "name": flavor.name,
                 "colors": colors,
                 "typography": typography,
+                "spacing": spacing,
+                "shape": shape,
+                "shadow": shadow,
+                "motion": motion,
+                "decoration": decoration,
+                "code": code,
                 "logos": logos,
             });
             if let Some(dc) = dark_colors {
