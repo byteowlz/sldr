@@ -1,0 +1,101 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+# Adapted from beautiful-html-templates/neo-grid-bold (MIT). See CREDITS.md.
+
+name = "neo-grid-bold"
+display_name = "Neo-Grid Bold"
+description = "Editorial neo-brutalism with a single neon yellow accent on off-white paper. Space Grotesk display, JetBrains Mono captions, ink-on-paper grid energy."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["confident", "punchy", "editorial", "modern"]
+tone = ["bold", "minimal", "design-led", "graphic"]
+occasion = ["product launch", "design review", "founder pitch", "brand deck", "consulting findings", "conference talk"]
+formality = "medium"
+density = "high"
+scheme = "light"
+best_for = "Anything that should feel confident and editorial-graphic: design-led pitches, brand work, founder talks, conference keynotes. Excellent for stat-heavy slides, comparisons, and process flows. Just as strong for tech, research, or finance when the speaker wants to read as design-led rather than corporate."
+avoid_for = "Contexts that need to feel quiet, traditional, or warm — the neon-yellow accent and uppercase display commit to a confident editorial voice."
+
+[colors]
+primary = "#0A0A0A"
+secondary = "#3A3A35"
+background = "#ECECE8"
+text = "#0A0A0A"
+text_dim = "#8A8A85"
+accent = "#E6FF3D"
+accent_dim = "rgba(230, 255, 61, 0.18)"
+surface = "#F5F4EF"
+surface2 = "#0A0A0A"
+border = "rgba(10, 10, 10, 0.18)"
+border_bright = "#0A0A0A"
+muted = "rgba(10, 10, 10, 0.04)"
+code_background = "#0A0A0A"
+code_text = "#F5F4EF"
+
+[dark_colors]
+primary = "#F5F4EF"
+secondary = "#C5C5BC"
+background = "#0A0A0A"
+text = "#F5F4EF"
+text_dim = "#8A8A85"
+accent = "#E6FF3D"
+accent_dim = "rgba(230, 255, 61, 0.18)"
+surface = "#1A1A18"
+surface2 = "#F5F4EF"
+border = "rgba(245, 244, 239, 0.14)"
+border_bright = "#F5F4EF"
+muted = "rgba(245, 244, 239, 0.04)"
+code_background = "#1A1A18"
+code_text = "#F5F4EF"
+
+[typography]
+heading_font = "'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+body_font = "'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+code_font = "'JetBrains Mono', ui-monospace, monospace"
+heading_weight = "700"
+body_weight = "400"
+heading_tracking = "-0.015em"
+body_tracking = "0"
+heading_leading = "1.0"
+body_leading = "1.5"
+heading_transform = "uppercase"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+
+[spacing]
+slide_padding_y = "clamp(48px, 7vh, 88px)"
+slide_padding_x = "clamp(56px, 8vw, 128px)"
+content_max_width = "84ch"
+density = "compact"
+stack_gap = "clamp(16px, 2.4vh, 32px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "2px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "0 0 0 2px var(--sldr-border-bright)"
+lg = "0 0 0 3px var(--sldr-border-bright)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.2, 0, 0, 1)"
+duration = "240ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.0
+
+[code]
+syntax_theme = "base16-ocean.dark"
+frame_style = "card"
+line_numbers = false

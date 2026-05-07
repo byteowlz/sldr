@@ -1,0 +1,95 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "technical-dark"
+display_name = "Technical Dark"
+description = "Dark engineering-doc style: monospace headers, terminal-green accent, compact density, code-first feel. Reads like the README of a serious infra project."
+
+[curation]
+mood = ["technical", "engineering", "focused", "precise"]
+tone = ["direct", "code-first", "no-frills", "infra"]
+occasion = ["engineering RFC", "internal architecture review", "infra postmortem", "developer talk", "CLI demo", "open-source pitch"]
+formality = "medium-low"
+density = "high"
+scheme = "dark"
+best_for = "Engineering RFCs, architecture reviews, infra postmortems, developer talks, CLI demos, open-source pitches. Anywhere the deck should read as the README of a serious project — code-first, monospace-confident, no marketing varnish."
+avoid_for = "Audiences that need brand polish or visual warmth — the monospace-everywhere typography commits to engineering register."
+
+[colors]
+primary = "#e6e6e6"
+secondary = "#9aa0a6"
+background = "#0d1117"
+text = "#e6e6e6"
+text_dim = "#7c8590"
+accent = "#3fb950"
+accent_dim = "rgba(63, 185, 80, 0.14)"
+surface = "#161b22"
+surface2 = "#21262d"
+border = "rgba(230, 230, 230, 0.10)"
+border_bright = "rgba(230, 230, 230, 0.24)"
+muted = "rgba(230, 230, 230, 0.04)"
+code_background = "#161b22"
+code_text = "#e6e6e6"
+
+[dark_colors]
+primary = "#e6e6e6"
+secondary = "#9aa0a6"
+background = "#0d1117"
+text = "#e6e6e6"
+text_dim = "#7c8590"
+accent = "#3fb950"
+accent_dim = "rgba(63, 185, 80, 0.14)"
+surface = "#161b22"
+surface2 = "#21262d"
+border = "rgba(230, 230, 230, 0.10)"
+border_bright = "rgba(230, 230, 230, 0.24)"
+muted = "rgba(230, 230, 230, 0.04)"
+code_background = "#161b22"
+code_text = "#e6e6e6"
+
+[typography]
+heading_font = "'Fira Code', 'JetBrains Mono', ui-monospace, monospace"
+body_font = "'Fira Code', 'JetBrains Mono', ui-monospace, monospace"
+code_font = "'Fira Code', 'JetBrains Mono', ui-monospace, monospace"
+heading_weight = "600"
+body_weight = "400"
+heading_tracking = "-0.005em"
+body_tracking = "0"
+heading_leading = "1.15"
+body_leading = "1.55"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+
+[spacing]
+slide_padding_y = "clamp(40px, 6vh, 72px)"
+slide_padding_x = "clamp(48px, 6vw, 96px)"
+content_max_width = "84ch"
+density = "compact"
+stack_gap = "clamp(14px, 2vh, 24px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "2px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "0 1px 0 rgba(63, 185, 80, 0.16)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.2, 0, 0, 1)"
+duration = "200ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.0
+
+[code]
+syntax_theme = "base16-ocean.dark"
+frame_style = "minimal"
+line_numbers = true

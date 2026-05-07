@@ -1,5 +1,6 @@
 //! Init command - initialize sldr configuration and directories
 
+use crate::flavors;
 use crate::templates;
 use anyhow::Result;
 use colored::Colorize;
@@ -84,6 +85,26 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
         };
         default_flavor.save(&default_flavor_dir)?;
         println!("  {} Created default flavor", "+".green());
+    }
+
+    // Install bundled example flavors (seed flavors + BHT-derived ports).
+    let flavor_dir = config.flavor_dir();
+    let installed_flavors = flavors::install_flavors(&flavor_dir, force)?;
+    if installed_flavors > 0 {
+        let verb = if force { "Updated" } else { "Installed" };
+        println!(
+            "  {} {} {} example flavors in {}",
+            "+".green(),
+            verb,
+            installed_flavors,
+            flavor_dir.display()
+        );
+    } else {
+        println!(
+            "  {} Example flavors already exist in {}",
+            "~".yellow(),
+            flavor_dir.display()
+        );
     }
 
     // Install bundled templates

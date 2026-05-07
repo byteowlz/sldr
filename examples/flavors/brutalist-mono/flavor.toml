@@ -1,0 +1,95 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "brutalist-mono"
+display_name = "Brutalist Mono"
+description = "Pure white, pure black, monospace everywhere. 2px hard borders, no shadows, no radius. Maximum contrast — the deck as concrete."
+
+[curation]
+mood = ["brutalist", "raw", "honest", "high-contrast"]
+tone = ["direct", "uncompromising", "no-frills", "graphic"]
+occasion = ["manifesto", "design-led pitch", "indie launch", "founder vision", "creator portfolio", "studio credentials"]
+formality = "medium-low"
+density = "high"
+scheme = "light"
+best_for = "Anything that should land like a printed manifesto: indie product launches, design-led pitches, studio credentials, founder vision decks, creator portfolios. Strong any time the speaker wants the deck itself to be a statement of restraint."
+avoid_for = "Contexts that need warmth, color, or institutional polish — the pure-monospace black-and-white commits hard to a brutalist register."
+
+[colors]
+primary = "#000000"
+secondary = "#333333"
+background = "#ffffff"
+text = "#000000"
+text_dim = "#555555"
+accent = "#000000"
+accent_dim = "rgba(0, 0, 0, 0.06)"
+surface = "#f5f5f5"
+surface2 = "#000000"
+border = "#000000"
+border_bright = "#000000"
+muted = "rgba(0, 0, 0, 0.04)"
+code_background = "#000000"
+code_text = "#ffffff"
+
+[dark_colors]
+primary = "#ffffff"
+secondary = "#cccccc"
+background = "#000000"
+text = "#ffffff"
+text_dim = "#999999"
+accent = "#ffffff"
+accent_dim = "rgba(255, 255, 255, 0.08)"
+surface = "#1a1a1a"
+surface2 = "#ffffff"
+border = "#ffffff"
+border_bright = "#ffffff"
+muted = "rgba(255, 255, 255, 0.04)"
+code_background = "#1a1a1a"
+code_text = "#ffffff"
+
+[typography]
+heading_font = "'JetBrains Mono', 'Fira Code', ui-monospace, monospace"
+body_font = "'JetBrains Mono', 'Fira Code', ui-monospace, monospace"
+code_font = "'JetBrains Mono', 'Fira Code', ui-monospace, monospace"
+heading_weight = "700"
+body_weight = "400"
+heading_tracking = "-0.005em"
+body_tracking = "0"
+heading_leading = "1.05"
+body_leading = "1.5"
+heading_transform = "uppercase"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+
+[spacing]
+slide_padding_y = "clamp(40px, 6vh, 72px)"
+slide_padding_x = "clamp(48px, 6vw, 96px)"
+content_max_width = "84ch"
+density = "compact"
+stack_gap = "clamp(14px, 2vh, 24px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "2px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "none"
+
+[motion]
+transition = "fade"
+easing = "linear"
+duration = "120ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.0
+
+[code]
+syntax_theme = "base16-ocean.dark"
+frame_style = "card"
+line_numbers = false

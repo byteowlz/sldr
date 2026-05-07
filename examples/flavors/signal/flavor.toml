@@ -1,0 +1,102 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+# Adapted from beautiful-html-templates/signal (MIT). See CREDITS.md.
+
+name = "signal"
+display_name = "Signal"
+description = "Deep navy canvas (or warm cream paper) with a single muted-gold accent and Source Serif 4 headlines. Institutional with quiet weight."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["institutional", "trustworthy", "considered", "weighty"]
+tone = ["sober", "polished", "established", "literary"]
+occasion = ["investor deck", "consulting deliverable", "board presentation", "legal brief", "academic deck", "advisory pitch"]
+formality = "high"
+density = "high"
+scheme = "mixed"
+best_for = "Anything that should feel weighty, considered, and credibly institutional: investor decks, board presentations, consulting deliverables, legal/policy briefs, advisory pitches. Also a strong choice for tech, research, or brand work that wants to read as quietly authoritative rather than loud."
+avoid_for = "Contexts that should feel hot, fast, or intentionally playful — the navy + gold restraint commits to a sober voice."
+
+[colors]
+primary = "#1a2030"
+secondary = "#5a6270"
+background = "#f0ece3"
+text = "#1a2030"
+text_dim = "#5a6270"
+accent = "#c8a870"
+accent_dim = "rgba(200, 168, 112, 0.16)"
+surface = "#e6e0d4"
+surface2 = "#dcd5c4"
+border = "#cac4b4"
+border_bright = "#1a2030"
+muted = "rgba(26, 32, 48, 0.04)"
+code_background = "#e6e0d4"
+code_text = "#1a2030"
+
+[dark_colors]
+primary = "#e2dcd0"
+secondary = "#8a96a8"
+background = "#1c2644"
+text = "#e2dcd0"
+text_dim = "#8a96a8"
+accent = "#c8a870"
+accent_dim = "rgba(200, 168, 112, 0.18)"
+surface = "#232f55"
+surface2 = "#2c3962"
+border = "#2e3d5c"
+border_bright = "#c8a870"
+muted = "rgba(226, 220, 208, 0.04)"
+code_background = "#15203c"
+code_text = "#e2dcd0"
+
+[typography]
+heading_font = "'Source Serif 4', 'Noto Serif SC', Georgia, serif"
+body_font = "'DM Sans', 'Noto Sans SC', system-ui, sans-serif"
+code_font = "'IBM Plex Mono', 'JetBrains Mono', monospace"
+heading_weight = "600"
+body_weight = "400"
+heading_tracking = "-0.015em"
+body_tracking = "0.005em"
+heading_leading = "1.08"
+body_leading = "1.6"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+optical_sizing = "auto"
+
+[spacing]
+slide_padding_y = "clamp(48px, 8vh, 96px)"
+slide_padding_x = "clamp(64px, 8vw, 144px)"
+content_max_width = "76ch"
+density = "comfortable"
+stack_gap = "clamp(20px, 2.8vh, 36px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "2px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "0 1px 0 rgba(26, 32, 48, 0.10)"
+lg = "0 2px 0 rgba(26, 32, 48, 0.12)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "360ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.15
+
+[code]
+syntax_theme = "Solarized (light)"
+frame_style = "minimal"
+line_numbers = true

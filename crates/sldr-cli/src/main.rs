@@ -7,6 +7,7 @@
 )]
 
 mod commands;
+mod flavors;
 mod templates;
 
 use clap::{Parser, Subcommand};
