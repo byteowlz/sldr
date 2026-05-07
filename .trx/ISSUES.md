@@ -25,17 +25,6 @@ Complete sldr integration with Octo for visual presentation building
 
 ### [trx-vwgd] [task] Replace string-walking promote_images_to_figures with pulldown-cmark Event transform (P2, task)
 
-### [trx-d11c] [task] Create sldr design skill with slide/flavor/template design commands (P2, task)
-
-### [trx-wpn1] [epic] sldr Impeccable-inspired design system + skills (P2, task)
-Port design principles from Impeccable (https://github.com/pbakaus/impeccable) to sldr:
-
-**Design system enhancements:**
-- OKLCH color space support in flavors
-- Motion tokens (ease-out-quart, ease-out-expo, duration tiers)
-...
-
-
 ### [trx-jbpj.6] [task] Flavor builder UI — gallery view via sample-deck iframe + full token coverage (P2, task)
 Replace the current flavor-builder.html's hand-rolled mock preview slide with an iframe of the real sample deck (trx-jbpj.1). Same renderer, same templates, zero drift between builder preview and 'sldr build' output.
 
@@ -128,15 +117,6 @@ Use cases:
 ...
 
 
-### [trx-jbpj.9] [task] Author 4 more seed flavors — minimal-light, technical-dark, brutalist-mono, swiss-grid (P3, task)
-Forcing function for the rich-token schema. If 4 visually distinct flavors can be authored using only [tokens] (no flavor.css escape hatch), the schema is right. If any of them needs the escape hatch, expand the schema before mass-authoring.
-
-editorial-serif already exists. Author:
-- minimal-light: Helvetica-adjacent sans, generous whitespace, low contrast, subtle radius.
-- technical-dark: dark engineering-doc style, monospace headers, compact density, code-first feel.
-...
-
-
 ### [trx-jbpj.8] [task] Thread typography tokens into per-layout heading rules in base.css (P3, task)
 The new typography tokens (heading_weight, heading_tracking, heading_leading, heading_transform) are wired into the global h1-h6 rule in base.css, but per-layout rules like .sldr-slide[data-layout="cover"] h1 still hardcode font-size, font-weight, letter-spacing.
 
@@ -148,6 +128,13 @@ Fix:
 
 ## Closed
 
+- [trx-wpn1] [epic] sldr Impeccable-inspired design system + skills (closed 2026-05-06)
+- [trx-jbpj.9] [task] Author 4 more seed flavors — minimal-light, technical-dark, brutalist-mono, swiss-grid (closed 2026-05-06)
+- [trx-s27h] [task] Port ~6 beautiful-html-templates designs as sldr flavors (MIT-licensed) (closed 2026-05-06)
+- [trx-ek8c] [task] Lift BHT AGENTS.md §5 'extending design system' rules into sldr design skill content (closed 2026-05-06)
+- [trx-d11c] [task] Create sldr design skill with slide/flavor/template design commands (closed 2026-05-06)
+- [trx-3yc2] [task] Emit BHT-compatible flavor index.json via sldr ls flavors --json (closed 2026-05-06)
+- [trx-wyta] [task] Add curatorial metadata fields to Flavor — mood/tone/occasion/formality/density/scheme/best_for/avoid_for (closed 2026-05-06)
 - [trx-bxjw] [task] Drop dead hover effect on image-stack collage cards (presenter has no cursor) (closed 2026-05-05)
 - [trx-3px6] [bug] image-stack does not actually stack — cards are staggered side-by-side, not overlapping (closed 2026-05-05)
 - [trx-3tnx] [bug] image-row stretches cells equally — mixed-aspect photos will letterbox or distort (closed 2026-05-05)
