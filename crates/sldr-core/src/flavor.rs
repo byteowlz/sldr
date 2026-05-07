@@ -28,6 +28,13 @@ pub struct Flavor {
     #[serde(default)]
     pub description: Option<String>,
 
+    /// Curatorial metadata — how this flavor *feels* and where it fits.
+    /// Used by `sldr ls flavors` and agent matching: lets a brief like
+    /// "confident editorial pitch" resolve to the right flavor without
+    /// the agent reading every flavor's TOML.
+    #[serde(default)]
+    pub curation: Curation,
+
     /// Color scheme (light mode / default)
     #[serde(default)]
     pub colors: ColorScheme,
@@ -67,6 +74,18 @@ pub struct Flavor {
     /// Code block styling
     #[serde(default)]
     pub code: Code,
+
+    /// External font stylesheets to load alongside the deck.
+    ///
+    /// Each entry is a full URL — typically a Google Fonts `css2` link.
+    /// When the renderer builds the HTML, it emits a `<link rel="stylesheet">`
+    /// for every URL across every active flavor (deduplicated). This lets a
+    /// flavor declare its own typography stack without forcing every flavor
+    /// in the deck to share one font set.
+    ///
+    /// Example: `font_imports = ["https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"]`
+    #[serde(default)]
+    pub font_imports: Vec<String>,
 
     /// Logo placements - positioned logo overlays on slides
     #[serde(default)]
@@ -364,6 +383,77 @@ pub struct Code {
     pub line_numbers: Option<bool>,
 }
 
+/// Curatorial metadata for a flavor — how it *feels* and where it fits.
+///
+/// All fields are optional. Inspired by the per-template metadata in
+/// `beautiful-html-templates` (see CREDITS.md). Authors are encouraged
+/// to fill these in so agents can match a brief to a flavor without
+/// reading every flavor's TOML.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Curation {
+    /// Emotional adjectives — e.g. "confident", "playful", "literary".
+    /// Match against the *feeling* the user wants.
+    #[serde(default)]
+    pub mood: Vec<String>,
+
+    /// Voice / personality — e.g. "bold", "minimal", "design-led", "warm".
+    #[serde(default)]
+    pub tone: Vec<String>,
+
+    /// Example use cases — e.g. "founder pitch", "research synthesis".
+    /// Soft signal, not a hard filter.
+    #[serde(default)]
+    pub occasion: Vec<String>,
+
+    /// Audience-formality the flavor is comfortable with.
+    #[serde(default)]
+    pub formality: Option<Formality>,
+
+    /// How much content per slide the flavor is comfortable holding.
+    #[serde(default)]
+    pub density: Option<Density>,
+
+    /// Light / dark / mixed canvas preference (independent of dark-mode
+    /// toggle — describes the flavor's *primary* intent).
+    #[serde(default)]
+    pub scheme: Option<Scheme>,
+
+    /// One sentence: when to reach for this flavor. Lead with this when
+    /// narrating a pick to the user.
+    #[serde(default)]
+    pub best_for: Option<String>,
+
+    /// One sentence: when *not* to use it. Soft warning, not a veto.
+    #[serde(default)]
+    pub avoid_for: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Formality {
+    Low,
+    MediumLow,
+    Medium,
+    MediumHigh,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Density {
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Scheme {
+    Light,
+    Dark,
+    Mixed,
+}
+
 /// A logo placement slot.
 ///
 /// Defines where a logo should appear, at what size/opacity,
@@ -461,6 +551,7 @@ impl Default for Flavor {
             name: "default".to_string(),
             display_name: Some("Default".to_string()),
             description: Some("Default sldr flavor".to_string()),
+            curation: Curation::default(),
             colors: ColorScheme::default(),
             dark_colors: None,
             typography: Typography::default(),
@@ -471,6 +562,7 @@ impl Default for Flavor {
             motion: Motion::default(),
             decoration: Decoration::default(),
             code: Code::default(),
+            font_imports: Vec::new(),
             logos: Vec::new(),
             assets_dir: None,
             custom_css: None,
@@ -758,5 +850,49 @@ impl FlavorCollection {
     /// Find a flavor by name
     pub fn find(&self, name: &str) -> Option<&Flavor> {
         self.flavors.iter().find(|f| f.name == name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn curation_roundtrip_via_toml() {
+        let toml_src = r#"
+            name = "test"
+            display_name = "Test"
+            description = "x"
+
+            [curation]
+            mood = ["literary", "warm"]
+            tone = ["editorial"]
+            occasion = ["essay"]
+            formality = "medium-high"
+            density = "low"
+            scheme = "light"
+            best_for = "long-form"
+            avoid_for = "dashboards"
+        "#;
+        let flavor: Flavor = toml::from_str(toml_src).expect("parse");
+        assert_eq!(flavor.curation.mood, vec!["literary", "warm"]);
+        assert_eq!(flavor.curation.tone, vec!["editorial"]);
+        assert_eq!(flavor.curation.formality, Some(Formality::MediumHigh));
+        assert_eq!(flavor.curation.density, Some(Density::Low));
+        assert_eq!(flavor.curation.scheme, Some(Scheme::Light));
+        assert_eq!(flavor.curation.best_for.as_deref(), Some("long-form"));
+        assert_eq!(flavor.curation.avoid_for.as_deref(), Some("dashboards"));
+    }
+
+    #[test]
+    fn curation_is_optional() {
+        let toml_src = r#"
+            name = "bare"
+            display_name = "Bare"
+            description = "no curation block"
+        "#;
+        let flavor: Flavor = toml::from_str(toml_src).expect("parse");
+        assert!(flavor.curation.mood.is_empty());
+        assert_eq!(flavor.curation.formality, None);
     }
 }

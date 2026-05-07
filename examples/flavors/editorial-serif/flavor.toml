@@ -4,6 +4,16 @@ name = "editorial-serif"
 display_name = "Editorial Serif"
 description = "Magazine-grade serif headlines on warm paper. Generous whitespace, tight tracking, hairline rules."
 
+[curation]
+mood = ["literary", "warm", "considered"]
+tone = ["editorial", "serif", "quiet"]
+occasion = ["research talk", "essay", "cultural-institution deck", "long-form report"]
+formality = "medium-high"
+density = "low"
+scheme = "light"
+best_for = "Long-form essays, research presentations, and cultural-institution decks where the speaker wants prose to read as written rather than performed."
+avoid_for = "Punchy product pitches, dense data dashboards, or anything that needs to feel modern-graphic — the warm paper and serif voice commit to a quiet editorial register."
+
 [colors]
 primary = "#1a1a1a"
 secondary = "#5a5a5a"

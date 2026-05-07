@@ -201,6 +201,23 @@ impl HtmlRenderer {
         html.push_str("  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n");
         html.push_str("  <link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Fira+Code:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap\" rel=\"stylesheet\">\n");
 
+        // Per-flavor font imports — every URL declared by any flavor in
+        // the deck, deduplicated. Loaded once; the active flavor's
+        // font-family declarations pick which families actually render.
+        let mut seen_imports: std::collections::HashSet<&str> =
+            std::collections::HashSet::new();
+        for flavor in &self.flavors {
+            for url in &flavor.font_imports {
+                if seen_imports.insert(url.as_str()) {
+                    let _ = writeln!(
+                        html,
+                        "  <link href=\"{}\" rel=\"stylesheet\">",
+                        html_escape_attr(url)
+                    );
+                }
+            }
+        }
+
         // Base CSS (inlined)
         html.push_str("  <style>\n");
         html.push_str(BASE_CSS);

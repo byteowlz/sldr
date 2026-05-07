@@ -183,6 +183,19 @@ display_name = "Example Flavor"
 # Description of this flavor
 description = "An example flavor configuration"
 
+# Curatorial metadata: how this flavor feels and where it fits.
+# Lets agents match a brief to a flavor without reading every TOML.
+# All fields optional. Inspired by beautiful-html-templates (see CREDITS.md).
+[curation]
+mood = ["confident", "modern"]
+tone = ["bold", "minimal"]
+occasion = ["product launch", "design review"]
+formality = "medium"          # one of: low, medium-low, medium, medium-high, high
+density = "medium"            # one of: low, medium, high
+scheme = "light"              # one of: light, dark, mixed
+best_for = "Product pitches and design-led decks where the speaker wants to read as confident and graphic."
+avoid_for = "Quiet, traditional, or warm contexts that need a softer voice."
+
 [colors]
 # Primary brand color (used for headings, links, etc.)
 primary = "#3b82f6"

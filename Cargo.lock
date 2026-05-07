@@ -1436,6 +1436,7 @@ dependencies = [
  "sldr-core",
  "sldr-renderer",
  "tempfile",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",

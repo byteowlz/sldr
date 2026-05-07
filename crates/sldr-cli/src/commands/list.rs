@@ -6,7 +6,7 @@ use anyhow::Result;
 use colored::Colorize;
 use serde::Serialize;
 use sldr_core::config::Config;
-use sldr_core::flavor::FlavorCollection;
+use sldr_core::flavor::{Curation, Density, Flavor, FlavorCollection, Formality, Scheme};
 use sldr_core::slide::SlideCollection;
 use std::collections::HashSet;
 
@@ -44,14 +44,81 @@ struct SkeletonEntry {
     title: Option<String>,
 }
 
-/// JSON output for a flavor entry
+/// BHT-compatible flavor entry — mirrors the per-template shape in
+/// `beautiful-html-templates/index.json` so an agent can read one file
+/// and match a brief to a flavor by feeling.
 #[derive(Serialize)]
 struct FlavorEntry {
+    /// Stable identifier (matches BHT's `slug`)
+    slug: String,
+    /// Human-readable name (BHT's `name`)
     name: String,
+    /// One-line summary (BHT's `tagline`; sourced from `description`)
     #[serde(skip_serializing_if = "Option::is_none")]
-    display_name: Option<String>,
+    tagline: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    mood: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    occasion: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tone: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    formality: Option<Formality>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    density: Option<Density>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scheme: Option<Scheme>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    best_for: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    avoid_for: Option<String>,
+}
+
+/// BHT-compatible top-level index. Drop this on disk as `index.json`
+/// next to the flavor directory and an agent can match a brief to a
+/// flavor without opening every flavor's TOML.
+#[derive(Serialize)]
+struct FlavorIndex {
+    schema_version: u32,
+    generated_at: String,
+    flavor_count: usize,
+    flavors: Vec<FlavorEntry>,
+}
+
+impl FlavorEntry {
+    fn from_flavor(f: &Flavor) -> Self {
+        let Curation {
+            mood,
+            tone,
+            occasion,
+            formality,
+            density,
+            scheme,
+            best_for,
+            avoid_for,
+        } = f.curation.clone();
+        Self {
+            slug: f.name.clone(),
+            name: f.display_name.clone().unwrap_or_else(|| f.name.clone()),
+            tagline: f.description.clone(),
+            mood,
+            occasion,
+            tone,
+            formality,
+            density,
+            scheme,
+            best_for,
+            avoid_for,
+        }
+    }
+}
+
+fn iso8601_utc_now() -> String {
+    use time::format_description::well_known::Rfc3339;
+    use time::OffsetDateTime;
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
 /// JSON output for a template entry
@@ -306,21 +373,25 @@ fn list_flavors(config: &Config, long: bool, json: bool) -> Result<()> {
     let collection = FlavorCollection::load_from_dir(&flavor_dir)?;
 
     if json {
-        let items: Vec<FlavorEntry> = collection
+        let flavors: Vec<FlavorEntry> = collection
             .flavors
             .iter()
-            .map(|f| FlavorEntry {
-                name: f.name.clone(),
-                display_name: f.display_name.clone(),
-                description: f.description.clone(),
-            })
+            .map(FlavorEntry::from_flavor)
             .collect();
-        let result = ListResult {
-            list_type: "flavors".to_string(),
-            count: items.len(),
-            items,
+        let index = FlavorIndex {
+            schema_version: 1,
+            generated_at: iso8601_utc_now(),
+            flavor_count: flavors.len(),
+            flavors,
         };
-        JsonResponse::success(result).print();
+        match serde_json::to_string_pretty(&index) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                let response: JsonResponse<()> =
+                    JsonResponse::error(format!("Failed to serialize flavor index: {e}"), None);
+                response.print();
+            }
+        }
         return Ok(());
     }
 
@@ -504,4 +575,59 @@ fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
     );
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sldr_core::flavor::{Curation, Flavor, Formality, Scheme};
+
+    #[test]
+    fn flavor_entry_maps_curation_to_bht_shape() {
+        let flavor = Flavor {
+            name: "editorial-serif".to_string(),
+            display_name: Some("Editorial Serif".to_string()),
+            description: Some("Magazine-grade serif headlines.".to_string()),
+            curation: Curation {
+                mood: vec!["literary".into(), "warm".into()],
+                tone: vec!["editorial".into()],
+                occasion: vec!["essay".into()],
+                formality: Some(Formality::MediumHigh),
+                density: Some(sldr_core::flavor::Density::Low),
+                scheme: Some(Scheme::Light),
+                best_for: Some("long-form".into()),
+                avoid_for: Some("dashboards".into()),
+            },
+            ..Flavor::default()
+        };
+        let entry = FlavorEntry::from_flavor(&flavor);
+        let json = serde_json::to_value(&entry).unwrap();
+        assert_eq!(json["slug"], "editorial-serif");
+        assert_eq!(json["name"], "Editorial Serif");
+        assert_eq!(json["tagline"], "Magazine-grade serif headlines.");
+        assert_eq!(json["mood"][0], "literary");
+        assert_eq!(json["formality"], "medium-high");
+        assert_eq!(json["density"], "low");
+        assert_eq!(json["scheme"], "light");
+        assert_eq!(json["best_for"], "long-form");
+    }
+
+    #[test]
+    fn flavor_entry_omits_empty_fields() {
+        let flavor = Flavor {
+            name: "bare".to_string(),
+            display_name: None,
+            description: None,
+            ..Flavor::default()
+        };
+        let entry = FlavorEntry::from_flavor(&flavor);
+        let json = serde_json::to_value(&entry).unwrap();
+        assert_eq!(json["slug"], "bare");
+        // name falls back to slug when display_name is missing
+        assert_eq!(json["name"], "bare");
+        assert!(json.get("tagline").is_none(), "empty tagline skipped");
+        assert!(json.get("mood").is_none(), "empty mood should be skipped");
+        assert!(json.get("formality").is_none());
+        assert!(json.get("best_for").is_none());
+    }
 }
