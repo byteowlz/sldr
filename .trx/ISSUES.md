@@ -21,6 +21,12 @@ Complete sldr integration with Octo for visual presentation building
 ...
 
 
+### [trx-wcgz] [task] jbpj.6.4: Gallery vs focus toggle for flavor builder (P2, task)
+Toggle in the preview toolbar: 'gallery' (iframe scrolls through all sample-deck slides) vs 'focus' (iframe shows one slide at a time, like today's template tabs). Default: gallery.
+
+### [trx-2cnt] [task] jbpj.6.3: Side-panel controls for new schema fields (P2, task)
+Add flavor-builder controls for: typography (heading/body weight, tracking, leading, transform, eyebrow_transform), spacing (slide_padding_x/y, content_max_width, density, stack_gap), shape (radius/radius_sm/radius_lg, border_width, border_style), shadow (sm/md/lg), motion (transition, easing, duration), decoration (accent kind, intensity), code (syntax_theme, frame_style, line_numbers). Each surfaces as a slider/select that broadcasts via the postMessage protocol from 6.2.
+
 ### [trx-t59v] [task] Audit prefers-reduced-motion coverage — slide transitions and presenter.js animations (P2, task)
 
 ### [trx-vwgd] [task] Replace string-walking promote_images_to_figures with pulldown-cmark Event transform (P2, task)
@@ -128,6 +134,8 @@ Fix:
 
 ## Closed
 
+- [trx-ctvd] [task] jbpj.6.2: Live token updates via postMessage in flavor builder (closed 2026-05-07)
+- [trx-b356] [task] jbpj.6.1: Replace flavor-builder mock preview with sample-deck iframe (closed 2026-05-07)
 - [trx-wpn1] [epic] sldr Impeccable-inspired design system + skills (closed 2026-05-06)
 - [trx-jbpj.9] [task] Author 4 more seed flavors — minimal-light, technical-dark, brutalist-mono, swiss-grid (closed 2026-05-06)
 - [trx-s27h] [task] Port ~6 beautiful-html-templates designs as sldr flavors (MIT-licensed) (closed 2026-05-06)

@@ -138,7 +138,7 @@ enum Commands {
     },
 
     /// Interactive visual flavor builder (opens in browser)
-    #[command(name = "flavor")]
+    #[command(name = "flavor", visible_aliases = ["flavor-build", "flavour"])]
     FlavorBuilder {
         /// Existing flavor to load as starting point
         #[arg(short, long)]

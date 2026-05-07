@@ -285,23 +285,13 @@ input[type="range"]::-moz-range-thumb {
   position:relative;
 }
 
-/* The actual slide rendered inside */
-.preview-slide {
+/* The sample-deck iframe inside the bezel. Same renderer as `sldr build`,
+   so what the user sees here is exactly what they ship. */
+.preview-iframe {
   position:absolute;inset:0;
-  display:flex;flex-direction:column;
-  overflow:hidden;
-  transition:background 0.3s, color 0.3s;
-}
-
-/* Atmospheric glow */
-.preview-slide::before {
-  content:'';position:absolute;inset:0;
-  pointer-events:none;z-index:0;
-}
-
-.preview-slide .sldr-content {
-  flex:1;display:flex;flex-direction:column;
-  position:relative;z-index:1;min-height:0;
+  width:100%;height:100%;
+  border:0;background:transparent;
+  display:block;
 }
 
 /* === Preset cards === */
@@ -748,15 +738,20 @@ input[type="range"]::-moz-range-thumb {
        ============================================================ -->
   <div class="preview-area">
     <div class="preview-toolbar">
-      <div class="template-tabs" id="templateTabs"></div>
+      <!-- Template-tab focus mode comes back in trx-jbpj.6.4. For now,
+           the iframe shows the full sample-deck gallery. -->
+      <div class="template-tabs" id="templateTabs" style="opacity:0.5;font-size:10px;color:var(--ui-text-dim);font-family:var(--ui-mono);align-items:center;display:flex">
+        <span>gallery — sample deck</span>
+      </div>
       <button class="btn-icon" onclick="randomizeFlavor()" title="Randomize everything">&#x1f3b2;</button>
+      <button class="btn-icon" onclick="reloadPreview()" title="Reload preview" style="margin-left:6px">&#x21bb;</button>
     </div>
 
     <div class="preview-container">
       <div class="preview-frame">
-        <div class="preview-slide" id="previewSlide">
-          <!-- Slide content rendered here -->
-        </div>
+        <iframe class="preview-iframe" id="previewFrame"
+                src="/sample.html"
+                title="sample deck preview"></iframe>
       </div>
     </div>
   </div>
@@ -1311,14 +1306,6 @@ function renderPresets() {
   `).join('');
 }
 
-function renderTemplateTabs() {
-  const tabs = document.getElementById('templateTabs');
-  tabs.innerHTML = Object.keys(TEMPLATES).map(key => `
-    <button class="template-tab${key === state.activeTemplate ? ' active' : ''}"
-            onclick="showTemplate('${key}')">${TEMPLATES[key].label}</button>
-  `).join('');
-}
-
 // ================================================================
 // CONTROLS BINDING
 // ================================================================
@@ -1373,154 +1360,76 @@ function bindSliderControls() {
 // ================================================================
 // APPLY STATE TO PREVIEW
 // ================================================================
+// applyState collects the active in-memory flavor into a flat token map and
+// broadcasts it to the sample-deck iframe. The iframe applies the tokens via
+// a `<style data-flavor-live>` block — same renderer as `sldr build`, so the
+// preview is the real thing.
 function applyState() {
-  const slide = document.getElementById('previewSlide');
+  broadcastTokens();
+  renderLogoPreview();
+}
+
+function buildTokenPayload() {
   const s = activeColors();
   const sp = state.spacing;
   const t = state.typography;
 
-  // Colors
-  slide.style.setProperty('--sldr-background', s.background);
-  slide.style.setProperty('--sldr-text', s.text);
-  slide.style.setProperty('--sldr-primary', s.primary);
-  slide.style.setProperty('--sldr-secondary', s.secondary);
-  slide.style.setProperty('--sldr-accent', s.accent);
-  slide.style.setProperty('--sldr-code-background', s.code_background);
-  slide.style.setProperty('--sldr-code-text', s.code_text);
-  slide.style.setProperty('--sldr-surface', s.surface);
-  slide.style.setProperty('--sldr-surface2', s.surface2);
-  slide.style.setProperty('--sldr-text-dim', dimColor(s.text, 0.55));
-  slide.style.setProperty('--sldr-accent-dim', hexToRgba(s.accent, sp.glow_intensity / 100));
-  slide.style.setProperty('--sldr-border', `rgba(148,163,184,${sp.border_opacity / 100})`);
-  slide.style.setProperty('--sldr-border-bright', `rgba(148,163,184,${Math.min(sp.border_opacity * 2, 40) / 100})`);
+  const tokens = {
+    'sldr-background': s.background,
+    'sldr-text': s.text,
+    'sldr-primary': s.primary,
+    'sldr-secondary': s.secondary,
+    'sldr-accent': s.accent,
+    'sldr-code-background': s.code_background,
+    'sldr-code-text': s.code_text,
+    'sldr-surface': s.surface,
+    'sldr-surface2': s.surface2,
+    'sldr-text-dim': dimColor(s.text, 0.55),
+    'sldr-accent-dim': hexToRgba(s.accent, sp.glow_intensity / 100),
+    'sldr-border': `rgba(148,163,184,${sp.border_opacity / 100})`,
+    'sldr-border-bright': `rgba(148,163,184,${Math.min(sp.border_opacity * 2, 40) / 100})`,
+    'sldr-heading-font': t.heading_font,
+    'sldr-body-font': t.body_font,
+    'sldr-code-font': t.code_font,
+    'sldr-radius': sp.border_radius + 'px',
+    'sldr-padding-y': `clamp(40px, ${sp.padding_y}vh, 80px)`,
+    'sldr-padding-x': `clamp(48px, ${sp.padding_x}vw, 120px)`,
+  };
 
-  // Typography
-  slide.style.setProperty('--sldr-heading-font', t.heading_font);
-  slide.style.setProperty('--sldr-body-font', t.body_font);
-  slide.style.setProperty('--sldr-code-font', t.code_font);
+  return {
+    type: 'flavor-update',
+    tokens,
+    scheme: state.activeMode,
+  };
+}
 
-  // Background + slide-level styles
-  slide.style.background = s.background;
-  slide.style.color = s.text;
-  slide.style.fontFamily = t.body_font;
-  slide.style.padding = `clamp(40px, ${sp.padding_y}vh, 80px) clamp(48px, ${sp.padding_x}vw, 120px)`;
-
-  // Atmospheric glow
-  const glowAlpha = sp.glow_intensity / 100;
-  slide.style.setProperty('--glow-alpha', glowAlpha);
-
-  // Update derived inline styles
-  slide.querySelectorAll('h1,h2,h3,h4').forEach(el => {
-    el.style.fontFamily = t.heading_font;
-    el.style.color = s.primary;
-  });
-
-  slide.querySelectorAll('p, li').forEach(el => {
-    el.style.color = s.text;
-    el.style.fontFamily = t.body_font;
-  });
-
-  slide.querySelectorAll('li::marker').forEach?.(el => {
-    el.style.color = s.primary;
-  });
-
-  slide.querySelectorAll('pre.sldr-code').forEach(el => {
-    el.style.background = s.code_background;
-    el.style.color = s.code_text;
-    el.style.fontFamily = t.code_font;
-    el.style.borderRadius = sp.border_radius + 'px';
-    el.style.borderColor = `rgba(148,163,184,${Math.min(sp.border_opacity * 2, 40) / 100})`;
-  });
-
-  slide.querySelectorAll('code').forEach(el => {
-    el.style.fontFamily = t.code_font;
-  });
-
-  slide.querySelectorAll('.sldr-col').forEach(el => {
-    el.style.background = s.surface;
-    el.style.borderColor = `rgba(148,163,184,${sp.border_opacity / 100})`;
-    el.style.borderRadius = sp.border_radius + 'px';
-  });
-
-  slide.querySelectorAll('.sldr-columns').forEach(el => {
-    el.style.gap = `clamp(32px, ${sp.col_gap}vw, 80px)`;
-  });
-
-  slide.querySelectorAll('table').forEach(el => {
-    el.style.background = s.surface;
-    el.style.borderColor = `rgba(148,163,184,${sp.border_opacity / 100})`;
-    el.style.borderRadius = sp.border_radius + 'px';
-  });
-
-  slide.querySelectorAll('th').forEach(el => {
-    el.style.background = s.surface2;
-    el.style.color = dimColor(s.text, 0.55);
-    el.style.fontFamily = t.code_font;
-  });
-
-  slide.querySelectorAll('td').forEach(el => {
-    el.style.color = s.text;
-    el.style.borderColor = `rgba(148,163,184,${sp.border_opacity / 200})`;
-  });
-
-  slide.querySelectorAll('blockquote').forEach(el => {
-    el.style.borderColor = s.primary;
-  });
-
-  // Quote layout special
-  if (state.activeTemplate === 'quote') {
-    slide.querySelectorAll('blockquote, blockquote p').forEach(el => {
-      el.style.fontFamily = "'Instrument Serif', Georgia, serif";
-      el.style.fontStyle = 'italic';
-      el.style.color = s.text;
-    });
+function broadcastTokens() {
+  const frame = document.getElementById('previewFrame');
+  if (!frame || !frame.contentWindow) return;
+  try {
+    frame.contentWindow.postMessage(buildTokenPayload(), '*');
+  } catch (_) {
+    // Iframe might not be ready yet; the iframe sends 'flavor-iframe-ready'
+    // when it loads, and the listener below replays the latest state then.
   }
-
-  // Inline code
-  slide.querySelectorAll(':not(pre) > code').forEach(el => {
-    el.style.background = hexToRgba(s.accent, 0.1);
-    el.style.color = s.accent;
-  });
-
-  // Update atmospheric glow
-  updateGlow();
-
-  // Update logo previews
-  renderLogoPreview();
 }
 
-function updateGlow() {
-  const slide = document.getElementById('previewSlide');
-  const glowAlpha = state.spacing.glow_intensity / 100;
-  const accent = state.colors.accent;
-
-  // Remove existing glow overlay
-  let glow = slide.querySelector('.preview-glow');
-  if (!glow) {
-    glow = document.createElement('div');
-    glow.className = 'preview-glow';
-    glow.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:0;transition:opacity 0.3s';
-    slide.insertBefore(glow, slide.firstChild);
-  }
-  glow.style.background = `radial-gradient(ellipse at 15% 85%, ${hexToRgba(accent, glowAlpha)} 0%, transparent 50%)`;
+function reloadPreview() {
+  const frame = document.getElementById('previewFrame');
+  if (frame) frame.src = frame.src;  // forces reload
 }
 
-// ================================================================
-// TEMPLATE SWITCHING
-// ================================================================
-function showTemplate(key) {
-  state.activeTemplate = key;
-  const tmpl = TEMPLATES[key];
-  const slide = document.getElementById('previewSlide');
-  slide.setAttribute('data-layout', tmpl.layout);
-  slide.innerHTML = tmpl.html;
-  applyState();
+// Iframe announces readiness on load — push the current token state.
+window.addEventListener('message', function (e) {
+  if (e.data && e.data.type === 'flavor-iframe-ready') broadcastTokens();
+});
 
-  // Update tabs
-  document.querySelectorAll('.template-tab').forEach(t => t.classList.remove('active'));
-  const activeTab = [...document.querySelectorAll('.template-tab')].find(t => t.textContent.trim() === tmpl.label);
-  if (activeTab) activeTab.classList.add('active');
-}
+// updateGlow / showTemplate / renderTemplateTabs were tied to the mock
+// preview slide. The iframe now renders the full sample deck via the real
+// renderer, so these are no-ops kept only to satisfy callers in init().
+function updateGlow() { /* gallery iframe has no separate glow overlay */ }
+function showTemplate(_key) { /* trx-jbpj.6.4 will bring focus mode back */ }
+function renderTemplateTabs() { /* gallery is the only mode for now */ }
 
 // ================================================================
 // PRESETS
@@ -1893,7 +1802,11 @@ function ensureGuides() {
 }
 
 function renderLogoPreview() {
+  // The mock preview-slide is gone; in-preview drag positioning will return
+  // when we wire it through the iframe (separate trx). Logo state still
+  // round-trips through the TOML, so saving works.
   const slide = document.getElementById('previewSlide');
+  if (!slide) return;
   // Remove old logos
   slide.querySelectorAll('.preview-logo').forEach(el => el.remove());
   ensureGuides();
@@ -1981,6 +1894,7 @@ function startDrag(e, logo) {
   e.stopPropagation();
 
   const slide = document.getElementById('previewSlide');
+  if (!slide) return;
   const rect = slide.getBoundingClientRect();
   const el = e.currentTarget;
   const elRect = el.getBoundingClientRect();
@@ -2165,6 +2079,7 @@ function startResize(e, logo) {
   e.stopPropagation();
 
   const slide = document.getElementById('previewSlide');
+  if (!slide) return;
   const rect = slide.getBoundingClientRect();
   const el = e.target.parentElement;
   const elRect = el.getBoundingClientRect();
@@ -2506,103 +2421,6 @@ async function loadExistingFlavor() {
 init();
 loadExistingFlavor();
 </script>
-
-<!-- Inject base.css slide styles scoped to .preview-slide -->
-<style>
-/* Re-apply slide-level base.css rules within the preview frame */
-.preview-slide h1,.preview-slide h2,.preview-slide h3,.preview-slide h4,.preview-slide h5,.preview-slide h6 {
-  font-family:var(--sldr-heading-font, 'DM Sans', system-ui, sans-serif);
-  color:var(--sldr-primary, #60a5fa);
-  line-height:1.15;margin-bottom:0;
-}
-.preview-slide h1 {font-size:clamp(20px,3.5vw,44px);font-weight:700;letter-spacing:-0.5px}
-.preview-slide h2 {font-size:clamp(16px,2.5vw,30px);font-weight:600}
-.preview-slide h3 {font-size:clamp(14px,1.8vw,22px);font-weight:600}
-
-.preview-slide p {margin-bottom:0.6em;font-size:clamp(12px,1.5vw,17px);line-height:1.65}
-.preview-slide ul,.preview-slide ol {padding-left:1.2em;margin-bottom:0.6em}
-.preview-slide li {margin-bottom:clamp(4px,0.8vh,10px);font-size:clamp(12px,1.5vw,17px);line-height:1.55;padding-left:0.3em}
-.preview-slide li::marker {color:var(--sldr-primary,#60a5fa)}
-
-.preview-slide blockquote {
-  border-left:3px solid var(--sldr-primary,#60a5fa);
-  padding-left:clamp(12px,1.5vw,22px);margin:0.8em 0;
-  color:var(--sldr-text-dim,#94a3b8);
-}
-
-.preview-slide pre.sldr-code {
-  border-radius:12px;border:1px solid var(--sldr-border-bright,rgba(148,163,184,0.12));
-  padding:clamp(10px,1.5vh,20px) clamp(14px,1.5vw,22px);
-  overflow-x:auto;font-size:clamp(10px,1vw,13px);line-height:1.7;
-  margin:clamp(6px,1vh,14px) 0;
-  box-shadow:0 4px 24px rgba(0,0,0,0.2);
-}
-.preview-slide code {font-family:var(--sldr-code-font,'Fira Code',monospace)}
-.preview-slide :not(pre)>code {
-  background:var(--sldr-accent-dim,rgba(96,165,250,0.1));
-  color:var(--sldr-accent,#60a5fa);padding:2px 6px;border-radius:4px;font-size:0.85em;
-}
-
-.preview-slide table {
-  width:100%;border-collapse:collapse;margin:0.6em 0;
-  font-size:clamp(10px,1.2vw,14px);border-radius:12px;overflow:hidden;
-  border:1px solid var(--sldr-border,rgba(148,163,184,0.08));
-}
-.preview-slide th {
-  padding:clamp(6px,1vh,12px) clamp(10px,1.5vw,16px);text-align:left;
-  font-weight:600;font-size:clamp(8px,0.9vw,11px);
-  text-transform:uppercase;letter-spacing:1px;
-  border-bottom:2px solid var(--sldr-border-bright,rgba(148,163,184,0.16));
-}
-.preview-slide td {
-  padding:clamp(5px,0.8vh,10px) clamp(10px,1.5vw,16px);
-  border-bottom:1px solid var(--sldr-border,rgba(148,163,184,0.06));
-}
-
-/* Layout-specific rules for preview */
-.preview-slide .sldr-content {
-  flex:1;display:flex;flex-direction:column;
-  position:relative;z-index:1;min-height:0;
-}
-
-.preview-slide[data-layout="default"] .sldr-content {justify-content:flex-start;gap:clamp(10px,2vh,24px)}
-.preview-slide[data-layout="default"] .sldr-content>*:first-child {margin-bottom:clamp(4px,1vh,16px)}
-
-.preview-slide[data-layout="cover"] {justify-content:center;align-items:center;text-align:center}
-.preview-slide[data-layout="cover"] .sldr-content {justify-content:center;align-items:center;max-width:85%}
-.preview-slide[data-layout="cover"] h1 {font-size:clamp(28px,5vw,64px);font-weight:700;letter-spacing:-1.5px;line-height:1.05;text-wrap:balance;margin-bottom:clamp(8px,1.5vh,24px)}
-.preview-slide[data-layout="cover"] p {font-size:clamp(12px,1.8vw,20px);opacity:0.7;max-width:70%;text-wrap:balance}
-
-.preview-slide[data-layout="section"] {justify-content:center;align-items:flex-start}
-.preview-slide[data-layout="section"] .sldr-content {justify-content:center;gap:clamp(6px,1vh,16px)}
-.preview-slide[data-layout="section"] h1 {font-size:clamp(26px,6vw,72px);font-weight:700;letter-spacing:-2px;line-height:1.05}
-.preview-slide[data-layout="section"] p {font-size:clamp(12px,1.6vw,20px);opacity:0.6}
-
-.preview-slide[data-layout="quote"] {justify-content:center;align-items:center;text-align:center;padding:clamp(40px,8vh,80px) clamp(40px,8vw,140px)}
-.preview-slide[data-layout="quote"] .sldr-content {justify-content:center;align-items:center}
-.preview-slide[data-layout="quote"] blockquote {font-size:clamp(18px,3.5vw,40px);font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;line-height:1.3;border-left:none;padding:0;margin:0 0 clamp(14px,3vh,36px);max-width:85%;text-wrap:balance}
-.preview-slide[data-layout="quote"] blockquote p {font-size:inherit;font-family:inherit;font-style:inherit;line-height:inherit;color:inherit;margin:0}
-.preview-slide[data-layout="quote"] .sldr-content>p {font-family:var(--sldr-code-font);font-size:clamp(9px,1.1vw,12px);letter-spacing:1.5px;text-transform:uppercase;opacity:0.6}
-
-.preview-slide[data-layout="center"] {justify-content:center;align-items:center;text-align:center}
-.preview-slide[data-layout="center"] .sldr-content {justify-content:center;align-items:center;max-width:80%}
-
-.preview-slide[data-layout="end"] {justify-content:center;align-items:center;text-align:center}
-
-.preview-slide[data-layout="two-cols"] .sldr-content {justify-content:flex-start;gap:clamp(8px,1.5vh,20px)}
-.preview-slide[data-layout="two-cols"] .sldr-columns {
-  display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,60px);
-  flex:1;align-content:start;min-height:0;
-}
-.preview-slide[data-layout="two-cols"] .sldr-col {
-  display:flex;flex-direction:column;gap:clamp(4px,0.7vh,10px);
-  border:1px solid var(--sldr-border,rgba(148,163,184,0.08));
-  padding:clamp(14px,2vh,26px) clamp(14px,1.8vw,26px);
-}
-
-.preview-slide strong {font-weight:700}
-.preview-slide em {font-style:italic}
-</style>
 
 </body>
 </html>

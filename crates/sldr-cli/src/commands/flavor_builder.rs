@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
-use axum::extract::{Json, State as AxumState};
+use anyhow::{anyhow, Context, Result};
+use axum::extract::{Json, Query, State as AxumState};
 use axum::http::StatusCode;
 use axum::response::Html;
 use axum::routing::{get, post};
@@ -12,10 +12,57 @@ use axum::Router;
 use colored::Colorize;
 use serde::Deserialize;
 use sldr_core::config::Config;
+use sldr_core::flavor::FlavorCollection;
 use tokio::net::TcpListener;
 
 /// The flavor builder HTML page (embedded at compile time)
 const BUILDER_HTML: &str = include_str!("../../../sldr-renderer/assets/flavor-builder.html");
+
+/// Tiny postMessage receiver injected into the sample-deck iframe so the
+/// builder can push live token updates without an iframe reload.
+///
+/// Protocol: `{type:'flavor-update', tokens:{'sldr-background':'#fff', ...}, scheme?:'light'|'dark'}`.
+/// Tokens may be passed with or without the leading `--`. Empty/null values
+/// are skipped. Setting `scheme` toggles `html.dark` so dark-mode tokens
+/// activate without re-rendering.
+const FLAVOR_LIVE_PATCHER_JS: &str = r#"
+<script data-sldr-flavor-live-patcher>
+(function () {
+  function applyTokens(payload) {
+    var tokens = (payload && payload.tokens) || {};
+    var existing = document.getElementById('sldr-flavor-live');
+    if (!existing) {
+      existing = document.createElement('style');
+      existing.id = 'sldr-flavor-live';
+      existing.setAttribute('data-flavor-live', '');
+      document.head.appendChild(existing);
+    }
+    var lines = [':root, html.dark {'];
+    Object.keys(tokens).forEach(function (k) {
+      var v = tokens[k];
+      if (v === null || v === undefined || v === '') return;
+      var key = k.indexOf('--') === 0 ? k : ('--' + k);
+      lines.push('  ' + key + ': ' + v + ';');
+    });
+    lines.push('}');
+    existing.textContent = lines.join('\n');
+    if (payload && payload.scheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (payload && payload.scheme === 'light') {
+      document.documentElement.classList.remove('dark');
+    }
+  }
+  window.addEventListener('message', function (e) {
+    if (!e.data || e.data.type !== 'flavor-update') return;
+    applyTokens(e.data);
+  });
+  // Tell the parent we're ready so it can push the current flavor state.
+  if (window.parent && window.parent !== window) {
+    try { window.parent.postMessage({type:'flavor-iframe-ready'}, '*'); } catch (_) {}
+  }
+})();
+</script>
+"#;
 
 /// Shared state for routes that need access to paths
 #[derive(Clone)]
@@ -63,6 +110,7 @@ async fn run_server(flavor_name: Option<String>, port: u16) -> Result<()> {
 
     let app = Router::new()
         .route("/", get(|| async { Html(BUILDER_HTML) }))
+        .route("/sample.html", get(handle_sample_html))
         .route("/api/flavor/current", get(handle_get_flavor))
         .route("/api/flavor/save", post(handle_save_flavor))
         .route("/api/logo/upload", post(handle_upload_logo))
@@ -283,6 +331,57 @@ async fn handle_list_logos(
     }
 
     (StatusCode::OK, Json(serde_json::json!({"files": files})))
+}
+
+#[derive(Deserialize)]
+struct SampleQuery {
+    /// Flavor name. Defaults to the initial flavor the builder was launched with.
+    flavor: Option<String>,
+}
+
+async fn handle_sample_html(
+    AxumState(state): AxumState<Arc<AppState>>,
+    Query(q): Query<SampleQuery>,
+) -> Result<Html<String>, (StatusCode, String)> {
+    // Default: render the same flavor the builder is currently editing.
+    let initial_name = state
+        .initial_flavor_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("default")
+        .to_string();
+    let flavor_name = q.flavor.unwrap_or(initial_name);
+
+    let flavor = resolve_flavor(&state.flavor_dir, &flavor_name).map_err(|e| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Flavor '{flavor_name}' not found: {e}"),
+        )
+    })?;
+
+    let mut html = sldr_renderer::sample::render_sample(flavor, &[])
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Render failed: {e}")))?;
+
+    // Inject the live-patch listener just before </body> so live token updates
+    // can override the embedded <style data-flavor> block.
+    if let Some(idx) = html.rfind("</body>") {
+        html.insert_str(idx, FLAVOR_LIVE_PATCHER_JS);
+    } else {
+        html.push_str(FLAVOR_LIVE_PATCHER_JS);
+    }
+
+    Ok(Html(html))
+}
+
+fn resolve_flavor(flavor_dir: &std::path::Path, name: &str) -> Result<sldr_core::flavor::Flavor> {
+    let collection = FlavorCollection::load_from_dir(flavor_dir)?;
+    if let Some(f) = collection.find(name) {
+        return Ok(f.clone());
+    }
+    if name == "default" {
+        return Ok(sldr_core::flavor::Flavor::default());
+    }
+    Err(anyhow!("not in {}", flavor_dir.display()))
 }
 
 /// Read a logo file and return a data URI for preview, or None
