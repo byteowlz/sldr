@@ -965,11 +965,11 @@ input[type="range"]::-moz-range-thumb {
        ============================================================ -->
   <div class="preview-area">
     <div class="preview-toolbar">
-      <!-- Template-tab focus mode comes back in trx-jbpj.6.4. For now,
-           the iframe shows the full sample-deck gallery. -->
-      <div class="template-tabs" id="templateTabs" style="opacity:0.5;font-size:10px;color:var(--ui-text-dim);font-family:var(--ui-mono);align-items:center;display:flex">
-        <span>gallery — sample deck</span>
+      <div class="preview-mode-toggle" id="previewModeToggle">
+        <button class="template-tab active" data-mode="gallery" onclick="setPreviewMode('gallery')">gallery</button>
+        <button class="template-tab" data-mode="focus" onclick="setPreviewMode('focus')">focus</button>
       </div>
+      <div style="flex:1"></div>
       <button class="btn-icon" onclick="randomizeFlavor()" title="Randomize everything">&#x1f3b2;</button>
       <button class="btn-icon" onclick="reloadPreview()" title="Reload preview" style="margin-left:6px">&#x21bb;</button>
     </div>
@@ -1068,6 +1068,9 @@ const state = {
   logos: [],
   // Tracks next logo ID for stable references
   nextLogoId: 1,
+  // Preview iframe mode: 'gallery' (scroll all sample slides) or
+  // 'focus' (one slide at a time, like the real presenter).
+  previewMode: 'gallery',
 };
 
 // Presets and lookup tables for the extended-schema controls.
@@ -1803,22 +1806,49 @@ function broadcastTokens() {
   }
 }
 
+function broadcastMode() {
+  const frame = document.getElementById('previewFrame');
+  if (!frame || !frame.contentWindow) return;
+  try {
+    frame.contentWindow.postMessage({ type: 'flavor-mode', mode: state.previewMode }, '*');
+  } catch (_) {
+    // Same as broadcastTokens — the iframe's 'flavor-iframe-ready' replay
+    // path covers the timing window.
+  }
+}
+
+// Switch between 'gallery' (all slides stacked + scrolling) and 'focus'
+// (single slide, real presenter). Sends a postMessage to the iframe; the
+// patcher injected on the iframe side toggles a CSS shim accordingly.
+function setPreviewMode(mode) {
+  if (mode !== 'gallery' && mode !== 'focus') return;
+  state.previewMode = mode;
+  document.querySelectorAll('#previewModeToggle .template-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  broadcastMode();
+}
+
 function reloadPreview() {
   const frame = document.getElementById('previewFrame');
   if (frame) frame.src = frame.src;  // forces reload
 }
 
-// Iframe announces readiness on load — push the current token state.
+// Iframe announces readiness on load — push the current token state and
+// preview mode so the deck inside the iframe renders consistently.
 window.addEventListener('message', function (e) {
-  if (e.data && e.data.type === 'flavor-iframe-ready') broadcastTokens();
+  if (e.data && e.data.type === 'flavor-iframe-ready') {
+    broadcastTokens();
+    broadcastMode();
+  }
 });
 
 // updateGlow / showTemplate / renderTemplateTabs were tied to the mock
 // preview slide. The iframe now renders the full sample deck via the real
 // renderer, so these are no-ops kept only to satisfy callers in init().
 function updateGlow() { /* gallery iframe has no separate glow overlay */ }
-function showTemplate(_key) { /* trx-jbpj.6.4 will bring focus mode back */ }
-function renderTemplateTabs() { /* gallery is the only mode for now */ }
+function showTemplate(_key) { /* focus mode now uses presenter nav inside the iframe */ }
+function renderTemplateTabs() { /* gallery/focus toggle replaces template tabs */ }
 
 // ================================================================
 // PRESETS

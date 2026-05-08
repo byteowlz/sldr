@@ -19,12 +19,17 @@ use tokio::net::TcpListener;
 const BUILDER_HTML: &str = include_str!("../../../sldr-renderer/assets/flavor-builder.html");
 
 /// Tiny postMessage receiver injected into the sample-deck iframe so the
-/// builder can push live token updates without an iframe reload.
+/// builder can push live token updates and switch preview modes without
+/// an iframe reload.
 ///
-/// Protocol: `{type:'flavor-update', tokens:{'sldr-background':'#fff', ...}, scheme?:'light'|'dark'}`.
-/// Tokens may be passed with or without the leading `--`. Empty/null values
-/// are skipped. Setting `scheme` toggles `html.dark` so dark-mode tokens
-/// activate without re-rendering.
+/// Protocols:
+/// - `{type:'flavor-update', tokens:{'sldr-background':'#fff', ...}, scheme?:'light'|'dark'}`
+///   Tokens may be passed with or without the leading `--`. Empty/null values
+///   are skipped. Setting `scheme` toggles `html.dark` so dark-mode tokens
+///   activate without re-rendering.
+/// - `{type:'flavor-mode', mode:'gallery'|'focus'}` — gallery stacks all
+///   sample slides vertically (CSS shim), focus restores the standard
+///   single-slide presenter behavior.
 const FLAVOR_LIVE_PATCHER_JS: &str = r#"
 <script data-sldr-flavor-live-patcher>
 (function () {
@@ -52,11 +57,37 @@ const FLAVOR_LIVE_PATCHER_JS: &str = r#"
       document.documentElement.classList.remove('dark');
     }
   }
+  // Gallery shim: force every .sldr-slide visible and stacked, hide
+  // presenter chrome. Removed when switching back to focus mode so the
+  // built-in presenter resumes control.
+  var GALLERY_CSS = [
+    'html, body { overflow-y: auto !important; overflow-x: hidden !important; height: auto !important; }',
+    '.sldr-deck { position: static !important; height: auto !important; width: 100% !important; overflow: visible !important; }',
+    '.sldr-slide { display: flex !important; position: relative !important; inset: auto !important; height: 100vh !important; width: 100% !important; opacity: 1 !important; }',
+    '.sldr-slide[aria-hidden] { display: flex !important; }',
+    '.sldr-progress, .sldr-toolbar, .sldr-overview, .sldr-presenter-toolbar { display: none !important; }'
+  ].join('\n');
+  function applyMode(mode) {
+    document.documentElement.dataset.previewMode = mode || 'focus';
+    var existing = document.getElementById('sldr-preview-mode');
+    if (mode === 'gallery') {
+      if (!existing) {
+        existing = document.createElement('style');
+        existing.id = 'sldr-preview-mode';
+        document.head.appendChild(existing);
+      }
+      existing.textContent = GALLERY_CSS;
+    } else if (existing) {
+      existing.remove();
+    }
+  }
   window.addEventListener('message', function (e) {
-    if (!e.data || e.data.type !== 'flavor-update') return;
-    applyTokens(e.data);
+    if (!e.data) return;
+    if (e.data.type === 'flavor-update') applyTokens(e.data);
+    else if (e.data.type === 'flavor-mode') applyMode(e.data.mode);
   });
-  // Tell the parent we're ready so it can push the current flavor state.
+  // Tell the parent we're ready so it can push the current flavor state
+  // and preview mode.
   if (window.parent && window.parent !== window) {
     try { window.parent.postMessage({type:'flavor-iframe-ready'}, '*'); } catch (_) {}
   }
