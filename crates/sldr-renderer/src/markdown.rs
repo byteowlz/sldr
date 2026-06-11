@@ -3,9 +3,16 @@
 //! Uses pulldown-cmark for markdown parsing and syntect for code highlighting.
 
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
-use syntect::highlighting::ThemeSet;
-use syntect::html::highlighted_html_for_string;
+use syntect::html::{ClassStyle, ClassedHTMLGenerator};
 use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
+
+/// Class style for highlighted code. Prefixed so generated class names
+/// (`syn-keyword`, `syn-string`, ...) can't collide with user CSS. The
+/// matching color rules are emitted per flavor from `[code] syntax_theme`
+/// into the flavor's own <style data-flavor> block — highlighting is part
+/// of the style layer and swaps with the flavor at runtime (ADR-0003).
+pub const SYN_CLASS_STYLE: ClassStyle = ClassStyle::SpacedPrefixed { prefix: "syn-" };
 
 use crate::media::{self, ImageMode, MediaEmbed};
 
@@ -18,10 +25,7 @@ pub struct MediaConfig {
     pub slide_dir: Option<std::path::PathBuf>,
     /// Directory to copy assets to (for `ImageMode::External`)
     pub assets_dir: Option<std::path::PathBuf>,
-    /// Syntect theme name for code highlighting. Falls back to a sensible
-    /// default if `None` or if the named theme isn't bundled. Set from
-    /// `flavor.code.syntax_theme` so light flavors get light code blocks.
-    pub syntax_theme: Option<String>,
+
 }
 
 impl Default for MediaConfig {
@@ -30,7 +34,6 @@ impl Default for MediaConfig {
             image_mode: ImageMode::Embed,
             slide_dir: None,
             assets_dir: None,
-            syntax_theme: None,
         }
     }
 }
@@ -136,18 +139,6 @@ fn render_two_cols(content: &str, media_config: &MediaConfig) -> MarkdownOutput 
 /// Core markdown -> HTML conversion with syntax highlighting and media embedding
 fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
     let ss = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
-
-    // Resolve syntax theme: flavor wins, fall back to base16-ocean.dark.
-    // The bundled syntect themes include both dark (base16-ocean.dark,
-    // Solarized) and light (InspiredGitHub, Solarized (light)) variants —
-    // the flavor picks whatever fits its palette.
-    let theme_name = media_config
-        .syntax_theme
-        .as_deref()
-        .filter(|name| ts.themes.contains_key(*name))
-        .unwrap_or("base16-ocean.dark");
-    let theme = &ts.themes[theme_name];
 
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
@@ -183,20 +174,32 @@ fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
             Event::End(TagEnd::CodeBlock) => {
                 in_code_block = false;
 
-                // Try syntax highlighting
+                // Class-based syntax highlighting: spans carry syn-*
+                // classes; the colors live in the flavor's style block.
                 let highlighted = if code_lang.is_empty() {
                     None
                 } else if let Some(syntax) = ss.find_syntax_by_token(&code_lang) {
-                    highlighted_html_for_string(&code_content, &ss, syntax, theme).ok()
+                    let mut generator =
+                        ClassedHTMLGenerator::new_with_class_style(syntax, &ss, SYN_CLASS_STYLE);
+                    let mut ok = true;
+                    for line in LinesWithEndings::from(&code_content) {
+                        if generator
+                            .parse_html_for_line_which_includes_newline(line)
+                            .is_err()
+                        {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    ok.then(|| generator.finalize())
                 } else {
                     None
                 };
 
-                if let Some(html) = highlighted {
-                    // syntect wraps in <pre style="..."><code>...</code></pre>
-                    // Replace with our class-based approach
-                    let html = inject_code_class(&html);
-                    output.push_str(&html);
+                if let Some(inner) = highlighted {
+                    output.push_str("<pre class=\"sldr-code\"><code class=\"syn-code\">");
+                    output.push_str(&inner);
+                    output.push_str("</code></pre>\n");
                 } else {
                     // Fallback: plain code block
                     output.push_str("<pre class=\"sldr-code\"><code>");
@@ -388,13 +391,6 @@ fn write_close_tag(out: &mut String, tag: TagEnd) {
         TagEnd::DefinitionListTitle => out.push_str("</dt>\n"),
         TagEnd::DefinitionListDefinition => out.push_str("</dd>\n"),
     }
-}
-
-/// Replace syntect's inline-style <pre> with our class-based version
-fn inject_code_class(syntect_html: &str) -> String {
-    // syntect output: <pre style="background-color:#2b303b;">...
-    // We want: <pre class="sldr-code" style="...">...
-    syntect_html.replacen("<pre style=\"", "<pre class=\"sldr-code\" style=\"", 1)
 }
 
 /// Basic HTML escaping for text content

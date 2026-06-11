@@ -226,19 +226,10 @@ impl HtmlRenderer {
         let assets_dir = self.config.output_dir.as_ref().map(|d| d.join("assets"));
         let slide_dir = slide.path.parent().map(std::path::Path::to_path_buf);
 
-        // Pull the syntax-highlighting theme from the active flavor's
-        // [code] section. Light flavors (editorial paper, minimal-light)
-        // use InspiredGitHub or similar; dark flavors use base16-ocean.dark.
-        let syntax_theme = self
-            .flavors
-            .first()
-            .and_then(|f| f.code.syntax_theme.clone());
-
         let media_config = MediaConfig {
             image_mode: self.config.image_mode,
             slide_dir,
             assets_dir,
-            syntax_theme,
         };
 
         // Render markdown to HTML with media embedding
@@ -525,6 +516,12 @@ impl HtmlRenderer {
                 html.push_str(&bg_css);
             }
 
+            // Syntax-highlighting colors from [code] syntax_theme. Code
+            // markup carries class-based syn-* spans (no inline styles),
+            // so highlighting lives in the flavor's style layer and swaps
+            // with the flavor at runtime (trx-e9bd, ADR-0003).
+            html.push_str(&syntax_theme_css(flavor.code.syntax_theme.as_deref()));
+
             // Per-flavor escape-hatch CSS (loaded from flavor.css)
             if let Some(ref custom) = flavor.custom_css {
                 html.push('\n');
@@ -537,6 +534,23 @@ impl HtmlRenderer {
             html.push_str("  </style>\n");
         }
     }
+}
+
+/// CSS rules for a syntect theme, scoped to the class-based syn-* spans.
+/// Unknown or missing theme names fall back to base16-ocean.dark. The
+/// `.syn-code` background is suppressed — the `--sldr-code-background`
+/// token owns the code-block surface.
+fn syntax_theme_css(theme_name: Option<&str>) -> String {
+    use syntect::highlighting::ThemeSet;
+    use syntect::html::css_for_theme_with_class_style;
+
+    let ts = ThemeSet::load_defaults();
+    let name = theme_name
+        .filter(|n| ts.themes.contains_key(*n))
+        .unwrap_or("base16-ocean.dark");
+    let css = css_for_theme_with_class_style(&ts.themes[name], crate::markdown::SYN_CLASS_STYLE)
+        .unwrap_or_default();
+    format!("{css}\n.sldr-code .syn-code {{ background: transparent; }}\n")
 }
 
 /// Extract speaker notes from slide content.

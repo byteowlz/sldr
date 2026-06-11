@@ -9,15 +9,15 @@
 //!    may differ only in the flavor style layer (`<style data-flavor>`
 //!    blocks and flavor-declared font links), never in content markup.
 //!
-//! Known confinement exception: a flavor's `[code] syntax_theme` feeds
-//! syntect, which emits inline-styled spans *inside* content markup. These
-//! tests therefore use flavors with identical (default) syntax themes; the
-//! leak itself is tracked separately (class-based highlighting).
+//! Code highlighting is class-based (syn-* spans); the colors live in each
+//! flavor's style block, so even flavors with different `[code]
+//! syntax_theme`s must produce identical content markup — and the tests
+//! exercise exactly that.
 
 use sldr_core::flavor::Flavor;
 use sldr_renderer::render_sample;
 
-fn test_flavor(name: &str, primary: &str, body_font: &str) -> Flavor {
+fn test_flavor(name: &str, primary: &str, body_font: &str, syntax_theme: &str) -> Flavor {
     toml::from_str(&format!(
         r##"
 name = "{name}"
@@ -29,6 +29,9 @@ text = "#111111"
 
 [typography]
 body_font = "{body_font}"
+
+[code]
+syntax_theme = "{syntax_theme}"
 "##
     ))
     .expect("test flavor TOML must parse")
@@ -73,15 +76,15 @@ fn assert_same(a: &str, b: &str, msg: &str) {
 
 #[test]
 fn rebuild_is_byte_identical() {
-    let a = render_sample(test_flavor("alpha", "#ff2200", "DM Sans"), &[]).unwrap();
-    let b = render_sample(test_flavor("alpha", "#ff2200", "DM Sans"), &[]).unwrap();
+    let a = render_sample(test_flavor("alpha", "#ff2200", "DM Sans", "base16-ocean.dark"), &[]).unwrap();
+    let b = render_sample(test_flavor("alpha", "#ff2200", "DM Sans", "base16-ocean.dark"), &[]).unwrap();
     assert_eq!(a, b, "two builds of identical inputs must be byte-identical");
 }
 
 #[test]
 fn flavor_swap_diff_is_confined_to_style_layer() {
-    let red = render_sample(test_flavor("alpha", "#ff2200", "DM Sans"), &[]).unwrap();
-    let blue = render_sample(test_flavor("beta", "#0022ff", "Instrument Serif"), &[]).unwrap();
+    let red = render_sample(test_flavor("alpha", "#ff2200", "DM Sans", "base16-ocean.dark"), &[]).unwrap();
+    let blue = render_sample(test_flavor("beta", "#0022ff", "Instrument Serif", "InspiredGitHub"), &[]).unwrap();
 
     // Sanity: the builds actually differ before stripping.
     assert_ne!(red, blue, "different flavors must produce different output");
@@ -102,10 +105,10 @@ fn flavor_swap_diff_is_confined_to_style_layer() {
 fn multi_flavor_embed_keeps_content_identical_to_single() {
     // Embedding extra flavors for the runtime switcher must add style
     // blocks (and possibly font links), never touch content markup.
-    let single = render_sample(test_flavor("alpha", "#ff2200", "DM Sans"), &[]).unwrap();
+    let single = render_sample(test_flavor("alpha", "#ff2200", "DM Sans", "base16-ocean.dark"), &[]).unwrap();
     let multi = render_sample(
-        test_flavor("alpha", "#ff2200", "DM Sans"),
-        &[test_flavor("beta", "#0022ff", "DM Sans")],
+        test_flavor("alpha", "#ff2200", "DM Sans", "base16-ocean.dark"),
+        &[test_flavor("beta", "#0022ff", "DM Sans", "InspiredGitHub")],
     )
     .unwrap();
 
