@@ -8,7 +8,7 @@ sldr is an application for creating, managing and updating presentations. The go
 One important aspect is the concept of flavors. Every slide is defined in markdown first, including references for images to be used. The background can then be dynamically applied by specifying which "flavor" to use.
 A flavor can be as simple as a background color or background image along with the color scheme to be used for different elements of a slide. It can also be an svg containing vector logos. This means that we strictly separate content (e.g. slides/slide_1.md) from style (flavor/flavorXY/assets.*) and layout (e.g. layouts/full-image.html or layouts/multi-image.html) although we define which layout we want to use within our slide_1.md.
 
-sldr compiles markdown slides into self-contained HTML files with zero runtime dependencies. No node, npm, or bun needed - a single Rust binary produces a single HTML file with all CSS and JS inlined. The HTML includes a built-in presenter engine with keyboard navigation, transitions, speaker notes, overview grid, dark/light mode, flavor switching, and inline editing.
+sldr compiles markdown slides into self-contained presentations that pass the podium test: fully offline, zero runtime services. No node, npm, or bun needed - a single Rust binary produces a presentation directory (media as siblings, browser-native) by default, a single inlined HTML file with `--single-file`, or a portable `.sldr` source bundle (a plain zip) via `sldr bundle`. The HTML includes a built-in presenter engine with keyboard navigation, transitions, speaker notes, overview grid, dark/light mode, flavor switching, language switching, and inline editing.
 
 Each slide is usually an individual markdown file. This file can still contain multiple slides that should never be separated (concepts building on each other, for example) but each slide file should be reusable and mix-and-matchable into a *presentation*. It is therefore important that we provide as much context for a given slide as possible. A yaml header of a slide(set) should contain valuable information on the slide content, topic, research area etc. We can optionally use AI agents to enrich this.
 
@@ -24,6 +24,10 @@ The primary interface for creating a full presentation from our slides is the CL
 sldr build name_of_playlist                          # Build HTML with default flavor
 sldr build name_of_playlist --flavor name_of_flavor  # Build with specific flavor
 sldr build name_of_playlist --pdf                    # Build and export to PDF
+sldr build name_of_playlist --lang de,en             # Embed languages (L key toggles)
+sldr build name_of_playlist --single-file            # Inline all media into one HTML file
+sldr bundle name_of_playlist                         # Pack sources into a portable .sldr (plain zip)
+sldr open talk.sldr                                  # Rebuild + present a received bundle
 sldr watch name_of_playlist                          # Dev server with live-reload
 sldr watch name_of_playlist --flavor dark --port 8080
 sldr open name_of_presentation                       # Open built HTML in browser
@@ -52,6 +56,7 @@ Slides can be in subdirs and nested subdirs. Fuzzy matching works without full p
 | F | Fullscreen |
 | D | Toggle dark/light mode |
 | T | Flavor selector (multi-flavor only) |
+| L | Cycle languages (multi-language only) |
 | E | Toggle edit mode (contenteditable) |
 | Ctrl+S (in edit mode) | Download modified HTML |
 | Home / End | First / last slide |

@@ -34,7 +34,31 @@
   var deck = document.querySelector(".sldr-deck");
   if (!deck) return;
 
-  var slides = Array.from(deck.querySelectorAll(".sldr-slide"));
+  var allSlides = Array.from(deck.querySelectorAll(".sldr-slide"));
+
+  // Language axis (ADR-0007): multi-language decks duplicate each slide
+  // per embedded language, tagged with data-lang. Only the active
+  // language's variants take part in navigation; "L" cycles languages.
+  var langNames = (deck.dataset.langs || "")
+    .split(",")
+    .map(function (l) { return l.trim(); })
+    .filter(function (l) { return l.length > 0; });
+  var activeLang = null;
+  if (langNames.length > 1) {
+    try {
+      var savedLang = localStorage.getItem("sldr-lang");
+      if (savedLang && langNames.indexOf(savedLang) !== -1) activeLang = savedLang;
+    } catch (err) { /* file:// or private mode */ }
+    if (!activeLang) activeLang = langNames[0];
+  }
+
+  function slidesForLang(lang) {
+    return allSlides.filter(function (s) {
+      return !s.dataset.lang || s.dataset.lang === lang;
+    });
+  }
+
+  var slides = langNames.length > 1 ? slidesForLang(activeLang) : allSlides;
   var progress = document.querySelector(".sldr-progress");
   var pageNum = document.querySelector(".sldr-page-num");
   var overlay = null; // overview grid, created lazily
@@ -42,6 +66,25 @@
 
   var total = slides.length;
   if (total === 0) return;
+
+  function setLanguage(lang) {
+    if (langNames.indexOf(lang) === -1 || lang === activeLang) return;
+    activeLang = lang;
+    try { localStorage.setItem("sldr-lang", lang); } catch (err) { /* ignore */ }
+    // Hide everything, recompute the active set, stay on the same position.
+    for (var i = 0; i < allSlides.length; i++) forceHide(allSlides[i]);
+    slides = slidesForLang(activeLang);
+    total = slides.length;
+    if (current >= total) current = total - 1;
+    showSlide(current, 0, current);
+    updateProgress();
+  }
+
+  function cycleLanguage() {
+    if (langNames.length < 2) return;
+    var next = langNames[(langNames.indexOf(activeLang) + 1) % langNames.length];
+    setLanguage(next);
+  }
 
   // ---------------------------------------------------------------------------
   // State
@@ -586,6 +629,12 @@
       case "T":
         e.preventDefault();
         if (flavorNames.length > 1) toggleFlavorPanel();
+        break;
+
+      case "l":
+      case "L":
+        e.preventDefault();
+        cycleLanguage();
         break;
 
       case "Escape":

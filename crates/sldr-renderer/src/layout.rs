@@ -41,6 +41,9 @@ pub struct SlideOpts<'a> {
     pub align: Option<&'static str>,
     /// Vertical alignment override: `Some("top" | "center" | "bottom")`.
     pub valign: Option<&'static str>,
+    /// Language of this slide variant when the deck embeds several
+    /// languages (`data-lang`); None for single-language decks.
+    pub lang: Option<&'a str>,
     pub rendered: MarkdownOutput,
     pub speaker_notes: Option<&'a str>,
 }
@@ -434,6 +437,7 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
         layout,
         align,
         valign,
+        lang,
         rendered,
         speaker_notes,
     } = opts;
@@ -455,6 +459,9 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
     }
     if let Some(v) = valign {
         let _ = write!(html, " data-valign=\"{v}\"");
+    }
+    if let Some(l) = lang {
+        let _ = write!(html, " data-lang=\"{l}\"");
     }
     html.push_str(">\n");
 
@@ -491,6 +498,7 @@ mod tests {
                 layout,
                 align: None,
                 valign: None,
+                lang: None,
                 rendered,
                 speaker_notes: notes,
             },
@@ -523,6 +531,7 @@ mod tests {
                 layout: "two-cols",
                 align: None,
                 valign: None,
+                lang: None,
                 rendered: MarkdownOutput::TwoCols {
                     heading: "<h1>Compare</h1>".to_string(),
                     left: "<p>Left</p>".to_string(),
@@ -665,6 +674,7 @@ mod tests {
                 layout: "default",
                 align: Some("right"),
                 valign: Some("bottom"),
+                lang: None,
                 rendered: MarkdownOutput::Single("<h1>Right-aligned</h1>".to_string()),
                 speaker_notes: None,
             },
@@ -754,6 +764,7 @@ mod tests {
                 layout: "hero-split",
                 align: None,
                 valign: None,
+                lang: None,
                 rendered: MarkdownOutput::Single("<h1>Big</h1>".to_string()),
                 speaker_notes: None,
             },

@@ -489,7 +489,7 @@ fn run_build_sync(
         false,
         false,
         None,
-        "embed",
+        false,
     )?;
     Ok(BuildOutcome {
         playlist: playlist_name.to_string(),

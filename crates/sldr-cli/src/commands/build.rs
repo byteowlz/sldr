@@ -17,7 +17,7 @@ pub fn run(
     pdf: bool,
     _pptx: bool,
     output: Option<String>,
-    images: &str,
+    single_file: bool,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -30,14 +30,31 @@ pub fn run(
     // Load playlist
     let playlist = load_playlist(&config, playlist_name)?;
 
-    // Determine flavor
-    let flavor_name = flavor
+    // Flavor axis (ADR-0007): CLI --flavor (comma list = embed set for
+    // the runtime switcher) > playlist default > config default. The
+    // first flavor is active; the rest embed as toggleable style blocks.
+    let flavor_arg = flavor
         .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
-
-    // Load flavor
-    let flavor = load_flavor(&config, &flavor_name)?;
-    println!("  {} {}", "Flavor:".dimmed(), flavor.name.yellow());
+    let flavor_names: Vec<&str> = flavor_arg
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    let mut flavors = Vec::new();
+    for name in &flavor_names {
+        flavors.push(load_flavor(&config, name)?);
+    }
+    println!(
+        "  {} {}",
+        "Flavor:".dimmed(),
+        flavors
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+            .yellow()
+    );
 
     // Load slides
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
@@ -85,16 +102,31 @@ pub fn run(
         .clone()
         .unwrap_or_else(|| "16/9".to_string());
 
-    let image_mode = match images {
-        "external" => sldr_renderer::ImageMode::External,
-        _ => sldr_renderer::ImageMode::Embed,
+    // Artifact tier (ADR-0006): directory with media siblings by default
+    // (browser-native — streams and seeks over file://); --single-file
+    // inlines everything for the universal one-file handoff.
+    let image_mode = if single_file {
+        sldr_renderer::ImageMode::Embed
+    } else {
+        sldr_renderer::ImageMode::External
     };
 
-    // Language axis: CLI --lang > playlist default_lang > "en" (ADR-0007).
+    // Language axis: CLI --lang (comma list = embed set, first active) >
+    // playlist default_lang > "en" (ADR-0007).
     let default_language = playlist
         .default_lang
         .clone()
         .unwrap_or_else(|| "en".to_string());
+    let languages: Vec<String> = lang
+        .as_deref()
+        .map(|l| {
+            l.split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
 
     let render_config = RenderConfig {
         title,
@@ -103,11 +135,11 @@ pub fn run(
         speaker_notes: true,
         image_mode,
         output_dir: Some(output_dir.clone()),
-        language: lang,
+        languages,
         default_language,
     };
 
-    let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
+    let mut renderer = HtmlRenderer::new(render_config).add_flavors(flavors);
     for dir in config.layout_dirs() {
         renderer.load_layouts(&dir)?;
     }
@@ -120,6 +152,20 @@ pub fn run(
 
     for warning in renderer.warnings() {
         eprintln!("  {} {}", "!".yellow(), warning.yellow());
+    }
+
+    // Single-file ceiling warning: data-URI media must materialize fully
+    // in memory; past tens of MB, video playback degrades or fails.
+    if single_file {
+        let size = std::fs::metadata(&output_path)?.len();
+        if size > 25 * 1024 * 1024 {
+            eprintln!(
+                "  {} single-file output is {} MB — large inlined media \
+                 degrades playback; consider the default directory output",
+                "!".yellow(),
+                size / (1024 * 1024)
+            );
+        }
     }
 
     println!(

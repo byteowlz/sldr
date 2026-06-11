@@ -8,6 +8,12 @@ use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
 use std::process::Command;
 
 pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<()> {
+    // A .sldr bundle opens via extract-and-rebuild (ADR-0006).
+    let as_path = std::path::Path::new(presentation);
+    if as_path.extension().is_some_and(|e| e == "sldr") && as_path.exists() {
+        return super::bundle::present(as_path);
+    }
+
     let config = Config::load()?;
 
     // Find the presentation with fuzzy matching
@@ -45,7 +51,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
             false,
             false,
             Some(output_dir.to_string_lossy().to_string()),
-            "embed",
+            false,
         )?;
     }
 
@@ -71,7 +77,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
             false,
             false,
             Some(output_dir.to_string_lossy().to_string()),
-            "embed",
+            false,
         )?;
 
         if index_path.exists() {
@@ -142,7 +148,7 @@ fn resolve_presentation(config: &Config, name: &str) -> Result<std::path::PathBu
 }
 
 /// Open a file or URL in the default browser
-fn open_in_browser(path: &str) -> Result<()> {
+pub(crate) fn open_in_browser(path: &str) -> Result<()> {
     #[cfg(target_os = "macos")]
     {
         Command::new("open").arg(path).spawn()?;

@@ -1,6 +1,6 @@
 # sldr
 
-Modular markdown presentations rendered as self-contained HTML. No runtime dependencies - a single Rust binary produces a single HTML file with everything inlined.
+Modular markdown presentations rendered as self-contained HTML: fully offline, zero runtime services. A single Rust binary produces a presentation directory (browser-native, media as siblings) by default, one inlined HTML file with `--single-file`, or a portable `.sldr` source bundle.
 
 ## What it does
 

@@ -63,9 +63,11 @@ pub struct RenderConfig {
     /// Output directory (used for creating assets/ subdirectory in external mode)
     pub output_dir: Option<std::path::PathBuf>,
 
-    /// Requested language for slides with in-file `::lang:xx::` blocks.
-    /// None renders the deck default language (ADR-0007).
-    pub language: Option<String>,
+    /// Languages to embed (ADR-0007 axis). Empty renders the deck default
+    /// language; one entry renders that language; several entries embed
+    /// every listed language as parallel `data-lang` slide variants with a
+    /// runtime toggle — the first entry is active.
+    pub languages: Vec<String>,
 
     /// Deck default language — what `::lang::`-blocked slides fall back to
     /// when the requested language is missing (with a loud warning).
@@ -81,7 +83,7 @@ impl Default for RenderConfig {
             speaker_notes: true,
             image_mode: ImageMode::Embed,
             output_dir: None,
-            language: None,
+            languages: Vec::new(),
             default_language: "en".to_string(),
         }
     }
@@ -91,6 +93,9 @@ impl Default for RenderConfig {
 struct RenderedSlide {
     html: String,
     layout: String,
+    /// Language variant this rendering belongs to (multi-language decks
+    /// duplicate each slide per embedded language).
+    lang: Option<String>,
 }
 
 /// Main renderer that compiles everything into a self-contained HTML file
@@ -157,19 +162,46 @@ impl HtmlRenderer {
     /// (built-ins or loaded user dirs) — a deck must never silently render
     /// with a substituted structure.
     pub fn add_slide(&mut self, slide: &Slide) -> Result<()> {
-        let layout = slide
-            .metadata
-            .layout
-            .as_deref()
-            .unwrap_or("default");
+        // The embed set: one variant per language. A single-language deck
+        // renders one untagged variant; a multi-language deck duplicates
+        // every slide per language (uniform per-language page numbering)
+        // tagged with data-lang for the runtime toggle.
+        let variants: Vec<Option<String>> = if self.config.languages.len() > 1 {
+            self.config.languages.iter().cloned().map(Some).collect()
+        } else {
+            vec![self.config.languages.first().cloned()]
+        };
+        let multi = variants.len() > 1;
 
-        let index = self.slides.len();
+        for variant in variants {
+            self.add_slide_variant(slide, variant.as_deref().filter(|_| multi), variant.as_deref())?;
+        }
+        Ok(())
+    }
 
-        // Select the build language from in-file ::lang:xx:: blocks.
+    /// Render one language variant of a slide. `tag` becomes the section's
+    /// data-lang attribute (None on single-language decks); `request` is
+    /// the language selected from in-file ::lang:xx:: blocks.
+    fn add_slide_variant(
+        &mut self,
+        slide: &Slide,
+        tag: Option<&str>,
+        request: Option<&str>,
+    ) -> Result<()> {
+        let layout = slide.metadata.layout.as_deref().unwrap_or("default");
+
+        // Per-language slide index so each language's deck numbers 1..N.
+        let index = self
+            .slides
+            .iter()
+            .filter(|s| s.lang.as_deref() == tag)
+            .count();
+
+        // Select the variant's language from in-file ::lang:xx:: blocks.
         // A gap falls back to the deck default — loudly, never silently.
         let lang_sel = sldr_core::lang::select_language(
             &slide.content,
-            self.config.language.as_deref(),
+            request,
             &self.config.default_language,
         );
         if let sldr_core::lang::LanguageOutcome::Fallback {
@@ -230,6 +262,7 @@ impl HtmlRenderer {
                 layout,
                 align,
                 valign,
+                lang: tag,
                 rendered,
                 speaker_notes: notes.as_deref(),
             },
@@ -239,6 +272,7 @@ impl HtmlRenderer {
         self.slides.push(RenderedSlide {
             html,
             layout: layout.to_string(),
+            lang: tag.map(str::to_string),
         });
         Ok(())
     }
@@ -319,11 +353,20 @@ impl HtmlRenderer {
         html.push_str("</head>\n<body>\n");
 
         // Slide deck
-        let _ = writeln!(
-            html,
-            "  <div class=\"sldr-deck\" data-transition=\"{}\">",
-            html_escape_attr(&self.config.transition)
-        );
+        if self.config.languages.len() > 1 {
+            let _ = writeln!(
+                html,
+                "  <div class=\"sldr-deck\" data-transition=\"{}\" data-langs=\"{}\">",
+                html_escape_attr(&self.config.transition),
+                html_escape_attr(&self.config.languages.join(","))
+            );
+        } else {
+            let _ = writeln!(
+                html,
+                "  <div class=\"sldr-deck\" data-transition=\"{}\">",
+                html_escape_attr(&self.config.transition)
+            );
+        }
         html.push('\n');
 
         // All slides (with logo injection)

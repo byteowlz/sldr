@@ -54,9 +54,11 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
 
-        /// How to handle images: "embed" (base64 in HTML) or "external" (WebP files in assets/)
-        #[arg(long, default_value = "embed", value_parser = ["embed", "external"])]
-        images: String,
+        /// Inline all media as data URIs into one universal HTML file
+        /// (default output is a presentation directory with media siblings
+        /// in assets/ — the browser-native form, ADR-0006)
+        #[arg(long)]
+        single_file: bool,
     },
 
     /// Add slides to a presentation playlist
@@ -231,6 +233,25 @@ enum Commands {
         json: bool,
     },
 
+    /// Pack a playlist with its slides, flavors, layouts, and media into
+    /// a portable .sldr bundle (a plain zip; ADR-0006)
+    Bundle {
+        /// Name of the playlist to bundle
+        playlist: String,
+
+        /// Flavor embed set (comma list; overrides playlist default)
+        #[arg(short, long)]
+        flavor: Option<String>,
+
+        /// Language embed set (comma list)
+        #[arg(short, long)]
+        lang: Option<String>,
+
+        /// Output file (defaults to <playlist>.sldr)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
     /// Create a new slide
     New {
         /// Name for the new slide
@@ -382,8 +403,15 @@ fn main() -> anyhow::Result<()> {
             pdf,
             pptx,
             output,
-            images,
-        } => commands::build::run(&playlist, flavor, lang, pdf, pptx, output, &images),
+            single_file,
+        } => commands::build::run(&playlist, flavor, lang, pdf, pptx, output, single_file),
+
+        Commands::Bundle {
+            playlist,
+            flavor,
+            lang,
+            output,
+        } => commands::bundle::create(&playlist, flavor, lang, output),
 
         Commands::Add {
             presentation,
