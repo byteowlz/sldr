@@ -1,0 +1,94 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "kraft"
+display_name = "Kraft"
+description = "Kraft paper, stencil ink, packing-label red. Oswald condensed headlines — a deck that ships in a cardboard box."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=PT+Sans:wght@400;700&family=PT+Mono&display=swap",
+]
+
+[curation]
+mood = ["utilitarian", "honest", "industrial", "tactile"]
+tone = ["direct", "no-nonsense", "workshop"]
+occasion = ["logistics review", "maker talk", "ops all-hands", "manufacturing deck"]
+formality = "low"
+density = "high"
+scheme = "light"
+best_for = "Operations, logistics, manufacturing, maker culture — content about real things moving through the real world."
+avoid_for = "Polished consumer brand moments; kraft is proudly unvarnished."
+
+[colors]
+primary = "#3e3329"
+secondary = "#7d6e5c"
+background = "#d9c4a3"
+text = "#3e3329"
+text_dim = "#7d6e5c"
+accent = "#b3402e"
+accent_dim = "rgba(179, 64, 46, 0.12)"
+surface = "#d0b893"
+surface2 = "#c6ac84"
+border = "#b39c77"
+border_bright = "#3e3329"
+muted = "rgba(62, 51, 41, 0.05)"
+code_background = "#cdb48d"
+code_text = "#3e3329"
+
+[dark_colors]
+primary = "#d9c4a3"
+secondary = "#9c8c76"
+background = "#241d15"
+text = "#e3d4ba"
+text_dim = "#9c8c76"
+accent = "#d8543d"
+accent_dim = "rgba(216, 84, 61, 0.14)"
+surface = "#2e251b"
+surface2 = "#382d21"
+border = "#453828"
+border_bright = "#d8543d"
+muted = "rgba(227, 212, 186, 0.04)"
+code_background = "#1d1710"
+code_text = "#dccfb6"
+
+[typography]
+heading_font = "'Oswald', system-ui, sans-serif"
+body_font = "'PT Sans', system-ui, sans-serif"
+code_font = "'PT Mono', monospace"
+heading_weight = "600"
+body_weight = "400"
+heading_tracking = "0.02em"
+body_tracking = "0"
+heading_leading = "1.05"
+body_leading = "1.55"
+heading_transform = "uppercase"
+eyebrow_transform = "uppercase"
+
+[spacing]
+slide_padding_y = "clamp(40px, 6vh, 80px)"
+slide_padding_x = "clamp(48px, 6.5vw, 112px)"
+content_max_width = "74ch"
+density = "compact"
+
+[shape]
+radius = "2px"
+radius_sm = "2px"
+radius_lg = "4px"
+border_width = "2px"
+border_style = "dashed"
+
+[shadow]
+sm = "none"
+md = "0 2px 0 rgba(62, 51, 41, 0.2)"
+lg = "0 4px 0 rgba(62, 51, 41, 0.25)"
+
+[motion]
+transition = "none"
+easing = "linear"
+duration = "150ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0
+
+[code]
+syntax_theme = "Solarized (light)"

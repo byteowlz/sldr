@@ -1,0 +1,98 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "aurora"
+display_name = "Aurora"
+description = "Arctic night: deep teal-black canvas with aurora green and violet light. Space Grotesk headlines over Inter body."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["atmospheric", "futuristic", "calm", "expansive"]
+tone = ["visionary", "quietly confident", "technical"]
+occasion = ["product vision", "keynote", "research outlook", "deep-tech pitch"]
+formality = "medium"
+density = "low"
+scheme = "dark"
+best_for = "Vision and outlook decks that want to feel vast and slightly otherworldly — AI/deep-tech keynotes, roadmap reveals, observatory-grade research."
+avoid_for = "Print-destined or compliance-heavy decks; the dark gradient look loses its magic on paper."
+
+[colors]
+primary = "#7ef0c3"
+secondary = "#9d8cff"
+background = "#06121a"
+text = "#dcf3ec"
+text_dim = "#7c9a93"
+accent = "#7ef0c3"
+accent_dim = "rgba(126, 240, 195, 0.12)"
+surface = "#0b1f2a"
+surface2 = "#10293a"
+border = "#16323f"
+border_bright = "#2a5a55"
+muted = "rgba(220, 243, 236, 0.04)"
+code_background = "#04101c"
+code_text = "#cfe8e0"
+
+[dark_colors]
+primary = "#7ef0c3"
+secondary = "#9d8cff"
+background = "#03090e"
+text = "#e4f7f1"
+text_dim = "#84a39b"
+accent = "#7ef0c3"
+accent_dim = "rgba(126, 240, 195, 0.14)"
+surface = "#081820"
+surface2 = "#0d222e"
+border = "#122a35"
+border_bright = "#2a5a55"
+muted = "rgba(228, 247, 241, 0.04)"
+code_background = "#020a12"
+code_text = "#cfe8e0"
+
+[typography]
+heading_font = "'Space Grotesk', system-ui, sans-serif"
+body_font = "'Inter', system-ui, sans-serif"
+code_font = "'JetBrains Mono', monospace"
+heading_weight = "600"
+body_weight = "300"
+heading_tracking = "-0.02em"
+body_tracking = "0.01em"
+heading_leading = "1.08"
+body_leading = "1.65"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+
+[background]
+type = "gradient"
+value = "radial-gradient(ellipse at 70% -20%, rgba(157, 140, 255, 0.20) 0%, transparent 55%), radial-gradient(ellipse at 20% 110%, rgba(126, 240, 195, 0.14) 0%, transparent 50%), #06121a"
+
+[spacing]
+slide_padding_y = "clamp(48px, 7vh, 88px)"
+slide_padding_x = "clamp(56px, 7.5vw, 128px)"
+content_max_width = "70ch"
+density = "comfortable"
+
+[shape]
+radius = "14px"
+radius_sm = "8px"
+radius_lg = "24px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "0 1px 3px rgba(0, 0, 0, 0.4)"
+md = "0 6px 20px rgba(0, 0, 0, 0.45)"
+lg = "0 20px 60px rgba(0, 0, 0, 0.55)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.16, 1, 0.3, 1)"
+duration = "420ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.8
+
+[code]
+syntax_theme = "base16-ocean.dark"

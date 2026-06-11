@@ -67,10 +67,14 @@ pub struct LayoutDef {
 /// a user authors. The file is the source of truth — there is no
 /// hardcoded markup behind these names.
 const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
+    ("agenda", include_str!("../layouts/agenda.html")),
     ("center", include_str!("../layouts/center.html")),
+    ("contact", include_str!("../layouts/contact.html")),
     ("cover", include_str!("../layouts/cover.html")),
     ("default", include_str!("../layouts/default.html")),
     ("end", include_str!("../layouts/end.html")),
+    ("feature-image", include_str!("../layouts/feature-image.html")),
+    ("hero-stat", include_str!("../layouts/hero-stat.html")),
     ("image", include_str!("../layouts/image.html")),
     ("image-grid", include_str!("../layouts/image-grid.html")),
     ("image-left", include_str!("../layouts/image-left.html")),
@@ -79,10 +83,16 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("image-row", include_str!("../layouts/image-row.html")),
     ("image-stack", include_str!("../layouts/image-stack.html")),
     ("intro", include_str!("../layouts/intro.html")),
+    ("pillars", include_str!("../layouts/pillars.html")),
     ("quote", include_str!("../layouts/quote.html")),
     ("section", include_str!("../layouts/section.html")),
+    ("split-accent", include_str!("../layouts/split-accent.html")),
+    ("statement", include_str!("../layouts/statement.html")),
+    ("terminal", include_str!("../layouts/terminal.html")),
+    ("timeline", include_str!("../layouts/timeline.html")),
     ("two-cols", include_str!("../layouts/two-cols.html")),
     ("two-cols-header", include_str!("../layouts/two-cols-header.html")),
+    ("versus", include_str!("../layouts/versus.html")),
 ];
 
 /// Layout name → definition. Built-ins first, user dirs override by name.
@@ -356,6 +366,10 @@ fn slot_map(
         } => {
             let content = if structure.contains("{{left}}") {
                 String::new()
+            } else if structure.contains("{{heading}}") {
+                // The heading has its own slot — don't duplicate it into
+                // the concat fallback.
+                concat_parts(&[&left, &right])
             } else {
                 concat_parts(&[&heading, &left, &right])
             };

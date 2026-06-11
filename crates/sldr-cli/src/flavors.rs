@@ -19,6 +19,77 @@ pub struct BundledFlavor {
 
 /// All bundled example flavors.
 pub const FLAVORS: &[BundledFlavor] = &[
+    // --- Shipped set v2 (trx: 10 unique flavors). --------------------------
+    BundledFlavor {
+        slug: "aurora",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/aurora/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "letterpress",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/letterpress/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "neon-noir",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/neon-noir/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "terracotta",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/terracotta/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "blueprint",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/blueprint/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "sakura",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/sakura/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "midnight-gold",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/midnight-gold/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "acid-lab",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/acid-lab/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "fjord",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/fjord/flavor.toml"),
+        }],
+    },
+    BundledFlavor {
+        slug: "kraft",
+        files: &[FlavorFile {
+            name: "flavor.toml",
+            content: include_str!("../../../examples/flavors/kraft/flavor.toml"),
+        }],
+    },
     // --- Seed flavors (token-only, exercise the schema). -------------------
     BundledFlavor {
         slug: "editorial-serif",

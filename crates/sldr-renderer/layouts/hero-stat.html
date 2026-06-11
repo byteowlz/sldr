@@ -1,0 +1,29 @@
+<!-- Layout: hero-stat — one enormous number with its story. First heading is the stat, following text is the caption. -->
+<style>
+.sldr-slide[data-layout="hero-stat"] .sldr-content {
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(8px, 1.5vh, 20px);
+}
+.sldr-slide[data-layout="hero-stat"] h1 {
+  font-size: clamp(96px, 22vw, 280px);
+  line-height: 0.9;
+  letter-spacing: calc(var(--sldr-heading-tracking) * 2);
+  color: var(--sldr-accent);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.sldr-slide[data-layout="hero-stat"] h2 {
+  font-size: clamp(20px, 2.6vw, 34px);
+  color: var(--sldr-text);
+  max-width: 24ch;
+}
+.sldr-slide[data-layout="hero-stat"] p {
+  font-size: clamp(15px, 1.8vw, 21px);
+  color: var(--sldr-text-dim, var(--sldr-text));
+  max-width: 48ch;
+}
+</style>
+<div class="sldr-content">
+  {{content}}
+</div>

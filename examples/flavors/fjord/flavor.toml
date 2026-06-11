@@ -1,0 +1,94 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "fjord"
+display_name = "Fjord"
+description = "Nordic fog: pale blue-grey light, slate water, one glacial accent. Sora headlines, Public Sans body — calm, competent, unhurried."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Public+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["calm", "clean", "trustworthy", "modern"]
+tone = ["clear", "professional", "unpretentious"]
+occasion = ["product demo", "SaaS pitch", "quarterly review", "customer onboarding"]
+formality = "medium"
+density = "medium"
+scheme = "light"
+best_for = "The dependable daily driver: product demos, SaaS pitches, reviews, onboarding — clean without being sterile."
+avoid_for = "Occasions that demand drama; fjord is deliberately even-keeled."
+
+[colors]
+primary = "#27425c"
+secondary = "#64798d"
+background = "#f2f5f7"
+text = "#22313f"
+text_dim = "#64798d"
+accent = "#2f7fa6"
+accent_dim = "rgba(47, 127, 166, 0.10)"
+surface = "#e9eef2"
+surface2 = "#dfe7ec"
+border = "#d0dbe2"
+border_bright = "#27425c"
+muted = "rgba(34, 49, 63, 0.04)"
+code_background = "#e9eef2"
+code_text = "#22313f"
+
+[dark_colors]
+primary = "#c8d9e6"
+secondary = "#7e93a6"
+background = "#101920"
+text = "#dce6ee"
+text_dim = "#7e93a6"
+accent = "#5db4dd"
+accent_dim = "rgba(93, 180, 221, 0.12)"
+surface = "#16222c"
+surface2 = "#1d2c38"
+border = "#263845"
+border_bright = "#5db4dd"
+muted = "rgba(220, 230, 238, 0.04)"
+code_background = "#0c141b"
+code_text = "#d3e0ea"
+
+[typography]
+heading_font = "'Sora', system-ui, sans-serif"
+body_font = "'Public Sans', system-ui, sans-serif"
+code_font = "'JetBrains Mono', monospace"
+heading_weight = "600"
+body_weight = "400"
+heading_tracking = "-0.02em"
+body_tracking = "0"
+heading_leading = "1.15"
+body_leading = "1.6"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+
+[spacing]
+slide_padding_y = "clamp(44px, 7vh, 88px)"
+slide_padding_x = "clamp(52px, 7.5vw, 128px)"
+content_max_width = "70ch"
+density = "comfortable"
+
+[shape]
+radius = "10px"
+radius_sm = "6px"
+radius_lg = "16px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "0 1px 2px rgba(34, 49, 63, 0.06)"
+md = "0 3px 10px rgba(34, 49, 63, 0.08)"
+lg = "0 12px 36px rgba(34, 49, 63, 0.10)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "300ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.1
+
+[code]
+syntax_theme = "Solarized (light)"

@@ -1,0 +1,94 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "sakura"
+display_name = "Sakura"
+description = "Washi white, charcoal ink, a breath of blossom pink. Shippori Mincho headlines with maximal air — ma as a design principle."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&family=Inter:wght@300;400&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["serene", "minimal", "poetic", "airy"]
+tone = ["soft-spoken", "elegant", "contemplative"]
+occasion = ["design talk", "portfolio", "wellness brand", "photography showcase"]
+formality = "medium"
+density = "low"
+scheme = "light"
+best_for = "Decks that breathe: portfolios, design philosophy talks, photography, wellness and lifestyle brands."
+avoid_for = "Dense quarterly numbers — the whitespace is the point and tables fight it."
+
+[colors]
+primary = "#2b2b2e"
+secondary = "#8e8e93"
+background = "#faf7f4"
+text = "#2b2b2e"
+text_dim = "#8e8e93"
+accent = "#e88ca0"
+accent_dim = "rgba(232, 140, 160, 0.10)"
+surface = "#f3eeea"
+surface2 = "#ece5e0"
+border = "#e2d9d3"
+border_bright = "#2b2b2e"
+muted = "rgba(43, 43, 46, 0.03)"
+code_background = "#f3eeea"
+code_text = "#2b2b2e"
+
+[dark_colors]
+primary = "#ece7e2"
+secondary = "#8e8e93"
+background = "#1b1a1c"
+text = "#ece7e2"
+text_dim = "#929096"
+accent = "#e88ca0"
+accent_dim = "rgba(232, 140, 160, 0.14)"
+surface = "#242326"
+surface2 = "#2d2c30"
+border = "#39383c"
+border_bright = "#e88ca0"
+muted = "rgba(236, 231, 226, 0.04)"
+code_background = "#161518"
+code_text = "#e2dcd6"
+
+[typography]
+heading_font = "'Shippori Mincho', 'Noto Serif JP', Georgia, serif"
+body_font = "'Inter', 'Zen Kaku Gothic New', system-ui, sans-serif"
+code_font = "'JetBrains Mono', monospace"
+heading_weight = "500"
+body_weight = "300"
+heading_tracking = "0.04em"
+body_tracking = "0.02em"
+heading_leading = "1.3"
+body_leading = "1.8"
+heading_transform = "none"
+eyebrow_transform = "none"
+
+[spacing]
+slide_padding_y = "clamp(64px, 11vh, 128px)"
+slide_padding_x = "clamp(72px, 11vw, 176px)"
+content_max_width = "58ch"
+density = "spacious"
+
+[shape]
+radius = "2px"
+radius_sm = "2px"
+radius_lg = "4px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "0 2px 8px rgba(43, 43, 46, 0.05)"
+lg = "0 8px 28px rgba(43, 43, 46, 0.07)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.25, 1, 0.5, 1)"
+duration = "520ms"
+
+[decoration]
+accent = "none"
+intensity = 0
+
+[code]
+syntax_theme = "InspiredGitHub"

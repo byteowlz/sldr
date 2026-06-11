@@ -1,0 +1,98 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "neon-noir"
+display_name = "Neon Noir"
+description = "Rain-slick black with magenta and cyan signage. Syne display type that glows; for decks that arrive after midnight."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["electric", "cinematic", "bold", "nocturnal"]
+tone = ["provocative", "high-energy", "stylish"]
+occasion = ["launch event", "demo night", "game reveal", "creative pitch"]
+formality = "low"
+density = "low"
+scheme = "dark"
+best_for = "Launches, demo nights, game and entertainment reveals — anywhere the deck is part of the show."
+avoid_for = "Board rooms and regulators; the neon commits hard to spectacle."
+
+[colors]
+primary = "#ff3da6"
+secondary = "#3ddcff"
+background = "#0a0612"
+text = "#f2e9ff"
+text_dim = "#8d7fa8"
+accent = "#3ddcff"
+accent_dim = "rgba(61, 220, 255, 0.12)"
+surface = "#150d24"
+surface2 = "#1e1233"
+border = "#2a1c45"
+border_bright = "#ff3da6"
+muted = "rgba(242, 233, 255, 0.04)"
+code_background = "#0d0818"
+code_text = "#e6dcf7"
+
+[dark_colors]
+primary = "#ff3da6"
+secondary = "#3ddcff"
+background = "#06030c"
+text = "#f6efff"
+text_dim = "#9486ad"
+accent = "#3ddcff"
+accent_dim = "rgba(61, 220, 255, 0.14)"
+surface = "#100a1d"
+surface2 = "#180f2b"
+border = "#241740"
+border_bright = "#ff3da6"
+muted = "rgba(246, 239, 255, 0.04)"
+code_background = "#090512"
+code_text = "#e6dcf7"
+
+[typography]
+heading_font = "'Syne', system-ui, sans-serif"
+body_font = "'Manrope', system-ui, sans-serif"
+code_font = "'IBM Plex Mono', monospace"
+heading_weight = "800"
+body_weight = "300"
+heading_tracking = "-0.01em"
+body_tracking = "0.02em"
+heading_leading = "1.02"
+body_leading = "1.6"
+heading_transform = "uppercase"
+eyebrow_transform = "uppercase"
+
+[background]
+type = "gradient"
+value = "radial-gradient(ellipse at 85% 10%, rgba(255, 61, 166, 0.16) 0%, transparent 45%), radial-gradient(ellipse at 10% 90%, rgba(61, 220, 255, 0.12) 0%, transparent 45%), #0a0612"
+
+[spacing]
+slide_padding_y = "clamp(44px, 6.5vh, 84px)"
+slide_padding_x = "clamp(52px, 7vw, 120px)"
+content_max_width = "none"
+density = "compact"
+
+[shape]
+radius = "4px"
+radius_sm = "2px"
+radius_lg = "8px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "0 0 8px rgba(255, 61, 166, 0.25)"
+md = "0 0 24px rgba(61, 220, 255, 0.20)"
+lg = "0 0 60px rgba(255, 61, 166, 0.25)"
+
+[motion]
+transition = "slide"
+easing = "cubic-bezier(0.16, 1, 0.3, 1)"
+duration = "260ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 1.0
+
+[code]
+syntax_theme = "base16-ocean.dark"

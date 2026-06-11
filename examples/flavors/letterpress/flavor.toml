@@ -1,0 +1,94 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "letterpress"
+display_name = "Letterpress"
+description = "Cream stock, deep ink, one vermilion strike. Playfair Display headlines pressed into the page like movable type."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Source+Sans+3:wght@400;500&family=Courier+Prime:wght@400;700&display=swap",
+]
+
+[curation]
+mood = ["crafted", "literary", "warm", "timeless"]
+tone = ["editorial", "deliberate", "humanist"]
+occasion = ["essay talk", "book launch", "agency credentials", "humanities lecture"]
+formality = "high"
+density = "medium"
+scheme = "light"
+best_for = "Talks that read like essays: humanities lectures, agency credentials, anything where the words are the design."
+avoid_for = "Dense data or code-heavy decks — the serif voice wants prose, not tables."
+
+[colors]
+primary = "#1d1a17"
+secondary = "#6b6259"
+background = "#f6f1e7"
+text = "#1d1a17"
+text_dim = "#6b6259"
+accent = "#c93a2b"
+accent_dim = "rgba(201, 58, 43, 0.10)"
+surface = "#efe8da"
+surface2 = "#e7dfcd"
+border = "#d8cfba"
+border_bright = "#1d1a17"
+muted = "rgba(29, 26, 23, 0.04)"
+code_background = "#efe8da"
+code_text = "#1d1a17"
+
+[dark_colors]
+primary = "#efe8da"
+secondary = "#9a9183"
+background = "#191512"
+text = "#efe8da"
+text_dim = "#9a9183"
+accent = "#e05a48"
+accent_dim = "rgba(224, 90, 72, 0.14)"
+surface = "#221d18"
+surface2 = "#2b251f"
+border = "#352e26"
+border_bright = "#e05a48"
+muted = "rgba(239, 232, 218, 0.04)"
+code_background = "#14110e"
+code_text = "#e6ddcc"
+
+[typography]
+heading_font = "'Playfair Display', Georgia, serif"
+body_font = "'Source Sans 3', system-ui, sans-serif"
+code_font = "'Courier Prime', monospace"
+heading_weight = "600"
+body_weight = "400"
+heading_tracking = "-0.01em"
+body_tracking = "0"
+heading_leading = "1.1"
+body_leading = "1.65"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+
+[spacing]
+slide_padding_y = "clamp(52px, 9vh, 104px)"
+slide_padding_x = "clamp(64px, 9vw, 152px)"
+content_max_width = "66ch"
+density = "comfortable"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "0 1px 0 rgba(29, 26, 23, 0.15)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "300ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0
+
+[code]
+syntax_theme = "InspiredGitHub"

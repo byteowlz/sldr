@@ -1,0 +1,94 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "midnight-gold"
+display_name = "Midnight Gold"
+description = "True black and champagne gold. Cormorant Garamond at display sizes — a deck in evening wear."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap",
+]
+
+[curation]
+mood = ["luxurious", "dramatic", "refined", "exclusive"]
+tone = ["assured", "understated opulence", "ceremonial"]
+occasion = ["awards night", "premium brand", "gala", "flagship launch"]
+formality = "high"
+density = "low"
+scheme = "dark"
+best_for = "Premium positioning: luxury brands, award ceremonies, flagship product reveals, hospitality at the high end."
+avoid_for = "Everyday standups and working sessions — the tuxedo gets old by slide forty."
+
+[colors]
+primary = "#d9bd7f"
+secondary = "#8d8472"
+background = "#0c0b09"
+text = "#ece5d8"
+text_dim = "#8d8472"
+accent = "#d9bd7f"
+accent_dim = "rgba(217, 189, 127, 0.10)"
+surface = "#161410"
+surface2 = "#1f1c16"
+border = "#2b2720"
+border_bright = "#d9bd7f"
+muted = "rgba(236, 229, 216, 0.04)"
+code_background = "#100e0b"
+code_text = "#ddd5c4"
+
+[dark_colors]
+primary = "#d9bd7f"
+secondary = "#8d8472"
+background = "#070605"
+text = "#f0e9dc"
+text_dim = "#93897a"
+accent = "#d9bd7f"
+accent_dim = "rgba(217, 189, 127, 0.12)"
+surface = "#11100c"
+surface2 = "#191712"
+border = "#26221b"
+border_bright = "#d9bd7f"
+muted = "rgba(240, 233, 220, 0.04)"
+code_background = "#0b0a07"
+code_text = "#ddd5c4"
+
+[typography]
+heading_font = "'Cormorant Garamond', Georgia, serif"
+body_font = "'Jost', system-ui, sans-serif"
+code_font = "'IBM Plex Mono', monospace"
+heading_weight = "500"
+body_weight = "300"
+heading_tracking = "0.01em"
+body_tracking = "0.04em"
+heading_leading = "1.08"
+body_leading = "1.7"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+
+[spacing]
+slide_padding_y = "clamp(56px, 9vh, 112px)"
+slide_padding_x = "clamp(64px, 9vw, 152px)"
+content_max_width = "62ch"
+density = "spacious"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "0 4px 24px rgba(0, 0, 0, 0.5)"
+lg = "0 16px 64px rgba(0, 0, 0, 0.6)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "480ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.3
+
+[code]
+syntax_theme = "base16-ocean.dark"

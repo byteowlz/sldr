@@ -1,0 +1,42 @@
+<!-- Layout: agenda — a numbered run-of-show with oversized outline numerals. -->
+<style>
+.sldr-slide[data-layout="agenda"] .sldr-content {
+  justify-content: center;
+  gap: clamp(20px, 3.5vh, 40px);
+}
+.sldr-slide[data-layout="agenda"] ol {
+  list-style: none;
+  counter-reset: agenda;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.8vh, 22px);
+}
+.sldr-slide[data-layout="agenda"] ol li {
+  counter-increment: agenda;
+  display: flex;
+  align-items: baseline;
+  gap: clamp(18px, 2.4vw, 36px);
+  padding: 0 0 clamp(10px, 1.8vh, 22px);
+  margin: 0;
+  border-bottom: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
+  font-size: clamp(18px, 2.4vw, 30px);
+}
+.sldr-slide[data-layout="agenda"] ol li:last-child {
+  border-bottom: none;
+}
+.sldr-slide[data-layout="agenda"] ol li::before {
+  content: counter(agenda, decimal-leading-zero);
+  font-family: var(--sldr-code-font);
+  font-size: clamp(26px, 4vw, 52px);
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--sldr-accent);
+  min-width: 2ch;
+}
+</style>
+<div class="sldr-content">
+  {{content}}
+</div>

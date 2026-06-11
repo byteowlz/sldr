@@ -1,0 +1,98 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "blueprint"
+display_name = "Blueprint"
+description = "Cyanotype drafting paper: prussian blue ground, chalk-white linework, dimension-line accents. Everything reads as a technical drawing."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&display=swap",
+]
+
+[curation]
+mood = ["technical", "precise", "schematic", "engineered"]
+tone = ["matter-of-fact", "rigorous", "draftsmanlike"]
+occasion = ["architecture review", "systems design", "engineering all-hands", "infrastructure deck"]
+formality = "medium"
+density = "high"
+scheme = "dark"
+best_for = "Engineering content that wants to look like the drawing it describes: system designs, infra reviews, architecture decisions."
+avoid_for = "Emotional storytelling or brand work — the drafting table doesn't do warmth."
+
+[colors]
+primary = "#eaf2ff"
+secondary = "#8fb3d9"
+background = "#10395f"
+text = "#dceafd"
+text_dim = "#86a8c9"
+accent = "#ffd34d"
+accent_dim = "rgba(255, 211, 77, 0.12)"
+surface = "#15436e"
+surface2 = "#1a4d7d"
+border = "#2a5d8d"
+border_bright = "#9cc3e8"
+muted = "rgba(220, 234, 253, 0.05)"
+code_background = "#0b2c4c"
+code_text = "#d6e7fb"
+
+[dark_colors]
+primary = "#eaf2ff"
+secondary = "#8fb3d9"
+background = "#0a2742"
+text = "#e2eeff"
+text_dim = "#8cabc9"
+accent = "#ffd34d"
+accent_dim = "rgba(255, 211, 77, 0.14)"
+surface = "#0f3253"
+surface2 = "#143b61"
+border = "#1f4a73"
+border_bright = "#9cc3e8"
+muted = "rgba(226, 238, 255, 0.05)"
+code_background = "#071e35"
+code_text = "#d6e7fb"
+
+[typography]
+heading_font = "'Archivo', system-ui, sans-serif"
+body_font = "'IBM Plex Mono', monospace"
+code_font = "'IBM Plex Mono', monospace"
+heading_weight = "700"
+body_weight = "400"
+heading_tracking = "0.01em"
+body_tracking = "0"
+heading_leading = "1.1"
+body_leading = "1.6"
+heading_transform = "uppercase"
+eyebrow_transform = "uppercase"
+
+[background]
+type = "gradient"
+value = "repeating-linear-gradient(0deg, rgba(234, 242, 255, 0.035) 0, rgba(234, 242, 255, 0.035) 1px, transparent 1px, transparent 64px), repeating-linear-gradient(90deg, rgba(234, 242, 255, 0.035) 0, rgba(234, 242, 255, 0.035) 1px, transparent 1px, transparent 64px), #10395f"
+
+[spacing]
+slide_padding_y = "clamp(44px, 6.5vh, 84px)"
+slide_padding_x = "clamp(52px, 7vw, 124px)"
+content_max_width = "80ch"
+density = "compact"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "none"
+
+[motion]
+transition = "none"
+easing = "linear"
+duration = "120ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0
+
+[code]
+syntax_theme = "base16-ocean.dark"

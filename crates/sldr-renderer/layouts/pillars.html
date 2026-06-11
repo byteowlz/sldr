@@ -1,0 +1,38 @@
+<!-- Layout: pillars — a heading and a list whose items become equal column cards. -->
+<style>
+.sldr-slide[data-layout="pillars"] .sldr-content {
+  justify-content: center;
+  gap: clamp(20px, 3.5vh, 44px);
+}
+.sldr-slide[data-layout="pillars"] ul {
+  list-style: none;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: clamp(16px, 2.2vw, 32px);
+  padding: 0;
+  margin: 0;
+}
+.sldr-slide[data-layout="pillars"] ul > li {
+  margin: 0;
+  padding: clamp(20px, 3vh, 36px) clamp(18px, 2.2vw, 30px);
+  background: var(--sldr-surface);
+  border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
+  border-top: 3px solid var(--sldr-accent);
+  border-radius: var(--sldr-radius);
+  box-shadow: var(--sldr-shadow-sm);
+  font-size: clamp(14px, 1.6vw, 19px);
+  line-height: 1.5;
+}
+.sldr-slide[data-layout="pillars"] ul > li > strong:first-child {
+  display: block;
+  font-family: var(--sldr-heading-font);
+  font-size: clamp(17px, 2vw, 24px);
+  letter-spacing: var(--sldr-heading-tracking);
+  color: var(--sldr-text);
+  margin-bottom: 0.5em;
+}
+</style>
+<div class="sldr-content">
+  {{content}}
+</div>

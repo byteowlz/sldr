@@ -207,7 +207,7 @@ rationale, not a transcript.
 | Decoration | `flavor.toml [decoration]` | Edit the flavor |
 | Code style | `flavor.toml [code]` | Edit the flavor |
 | Logos | `flavor.toml [[logos]]` + `assets/` | Edit the flavor |
-| Slide layout | `scaffolds/*.md` (12 bundled) | Pick via `layout:` frontmatter |
+| Slide layout | `scaffolds/*.md` (30 bundled) | Pick via `layout:` frontmatter |
 | Slide content | `slides/*.md` | Edit the slide |
 | Curation hints | `flavor.toml [curation]` | Edit the flavor |
 

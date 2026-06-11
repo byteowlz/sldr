@@ -115,7 +115,7 @@ base.css + presenter.js (include_str!)  -------+             v
 
 - `crates/sldr-renderer/assets/base.css` - Layouts, transitions, toolbar, edit mode, print styles
 - `crates/sldr-renderer/assets/presenter.js` - Navigation, overview, notes, dark mode, flavors, editing
-- `crates/sldr-renderer/layouts/*.html` - 12 layouts (default, cover, center, two-cols, etc.)
+- `crates/sldr-renderer/layouts/*.html` - 26 layouts (default, cover, two-cols, hero-stat, timeline, versus, terminal, etc.), each an HTML file with scoped CSS
 
 ## Technology Stack
 
