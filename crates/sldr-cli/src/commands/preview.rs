@@ -93,7 +93,8 @@ pub fn run(slide: &str, _port: Option<String>) -> Result<()> {
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(Flavor::default());
-    renderer.add_slide(&found_slide);
+    renderer.load_layouts(&config.layout_dir())?;
+    renderer.add_slide(&found_slide)?;
 
     let output_path = temp_dir.join("index.html");
     renderer.render_to_file(&output_path)?;

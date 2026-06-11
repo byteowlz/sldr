@@ -6,14 +6,14 @@
 use std::fmt::Write as _;
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sldr_core::flavor::Flavor;
 use sldr_core::slide::Slide;
 use tracing::info;
 
 use crate::markdown::{render_markdown, MediaConfig};
 use crate::media::{self, ImageMode, MediaEmbed};
-use crate::layout::{wrap_slide, SlideOpts};
+use crate::layout::{wrap_slide, LayoutRegistry, SlideOpts};
 
 /// Validate horizontal alignment value, dropping unknown ones.
 fn sanitize_align(v: Option<&str>) -> Option<&'static str> {
@@ -88,17 +88,32 @@ pub struct HtmlRenderer {
     config: RenderConfig,
     flavors: Vec<Flavor>,
     slides: Vec<RenderedSlide>,
+    layouts: LayoutRegistry,
 }
 
 impl HtmlRenderer {
-    /// Create a new renderer with the given configuration
+    /// Create a new renderer with the given configuration and the built-in
+    /// layout set. Call `load_layouts` to add or override from a user dir.
     #[must_use]
     pub fn new(config: RenderConfig) -> Self {
         Self {
             config,
             flavors: Vec::new(),
             slides: Vec::new(),
+            layouts: LayoutRegistry::builtin(),
         }
+    }
+
+    /// Load user layouts from a directory, overriding built-ins by name.
+    /// Returns how many were loaded; a missing dir loads zero.
+    pub fn load_layouts(&mut self, dir: &std::path::Path) -> Result<usize> {
+        self.layouts.load_dir(dir)
+    }
+
+    /// Names of all available layouts (built-in + user), sorted.
+    #[must_use]
+    pub fn layout_names(&self) -> Vec<String> {
+        self.layouts.names()
     }
 
     /// Add a single flavor. The first flavor added is the active default.
@@ -115,8 +130,12 @@ impl HtmlRenderer {
         self
     }
 
-    /// Add a slide. Parses markdown content and applies layout layout.
-    pub fn add_slide(&mut self, slide: &Slide) {
+    /// Add a slide. Parses markdown content and applies its layout.
+    ///
+    /// Fails loudly when the slide references a layout that exists nowhere
+    /// (built-ins or loaded user dirs) — a deck must never silently render
+    /// with a substituted structure.
+    pub fn add_slide(&mut self, slide: &Slide) -> Result<()> {
         let layout = slide
             .metadata
             .layout
@@ -156,27 +175,37 @@ impl HtmlRenderer {
         let align = sanitize_align(slide.metadata.align.as_deref());
         let valign = sanitize_valign(slide.metadata.valign.as_deref());
 
-        // Wrap in layout layout
-        let html = wrap_slide(SlideOpts {
-            index,
-            layout,
-            align,
-            valign,
-            rendered,
-            speaker_notes: notes.as_deref(),
-        });
+        // Wrap in the slide's layout (fail loud on an unknown layout —
+        // the error names the slide and everything that was searched).
+        let def = self
+            .layouts
+            .resolve(layout)
+            .with_context(|| format!("Slide '{}'", slide.name))?;
+        let html = wrap_slide(
+            SlideOpts {
+                index,
+                layout,
+                align,
+                valign,
+                rendered,
+                speaker_notes: notes.as_deref(),
+            },
+            def,
+        );
 
         self.slides.push(RenderedSlide {
             html,
             layout: layout.to_string(),
         });
+        Ok(())
     }
 
     /// Add multiple slides in order
-    pub fn add_slides(&mut self, slides: &[Slide]) {
+    pub fn add_slides(&mut self, slides: &[Slide]) -> Result<()> {
         for slide in slides {
-            self.add_slide(slide);
+            self.add_slide(slide)?;
         }
+        Ok(())
     }
 
     /// Compile everything into a single self-contained HTML string
@@ -222,6 +251,24 @@ impl HtmlRenderer {
         html.push_str("  <style>\n");
         html.push_str(BASE_CSS);
         html.push_str("\n  </style>\n");
+
+        // Scoped CSS of the layouts actually used by this deck, in
+        // first-use order, once each. Built-ins carry no scoped CSS (their
+        // rules live in base.css); this is the user-layout channel.
+        let mut seen_layouts: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for slide in &self.slides {
+            if !seen_layouts.insert(slide.layout.as_str()) {
+                continue;
+            }
+            if let Some(css) = self.layouts.get(&slide.layout).and_then(|d| d.css.as_deref()) {
+                let _ = writeln!(
+                    html,
+                    "  <style data-layout-css=\"{}\">\n{}\n  </style>",
+                    html_escape_attr(&slide.layout),
+                    css
+                );
+            }
+        }
 
         // Flavor styles
         self.write_flavor_styles(&mut html);

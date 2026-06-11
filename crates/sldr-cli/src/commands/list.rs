@@ -147,6 +147,7 @@ pub fn run(what: &str, long: bool, json: bool) -> Result<()> {
         "playlists" | "playlist" | "pl" => list_playlists(&config, long, json),
         "flavors" | "flavor" | "f" => list_flavors(&config, long, json),
         "scaffolds" | "scaffold" | "sc" => list_scaffolds(&config, long, json),
+        "layouts" | "layout" | "la" => list_layouts(&config, json),
         _ => {
             if json {
                 let response: JsonResponse<()> = JsonResponse::error(
@@ -419,6 +420,36 @@ fn list_flavors(config: &Config, long: bool, json: bool) -> Result<()> {
     println!(
         "\n  {} flavor(s)",
         collection.flavors.len().to_string().bold()
+    );
+    Ok(())
+}
+
+/// List available layouts: built-ins plus user layouts from layout_dir
+/// (user files override built-ins by name).
+fn list_layouts(config: &Config, json: bool) -> Result<()> {
+    let mut renderer = sldr_renderer::HtmlRenderer::new(sldr_renderer::RenderConfig::default());
+    renderer.load_layouts(&config.layout_dir())?;
+    let names = renderer.layout_names();
+
+    if json {
+        let payload = serde_json::json!({
+            "list_type": "layouts",
+            "layout_dir": config.layout_dir().display().to_string(),
+            "items": names,
+        });
+        println!("{}", serde_json::to_string_pretty(&payload)?);
+        return Ok(());
+    }
+
+    println!("{}", "Layouts".bold());
+    for name in &names {
+        println!("  {name}");
+    }
+    println!(
+        "
+  {} user layouts in {} override built-ins by name",
+        "i".blue(),
+        config.layout_dir().display()
     );
     Ok(())
 }

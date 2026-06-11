@@ -33,6 +33,10 @@ pub struct CoreConfig {
     #[serde(default = "default_scaffold_dir")]
     pub scaffold_dir: String,
 
+    /// Directory containing user layouts (override/extend built-ins by name)
+    #[serde(default = "default_layout_dir")]
+    pub layout_dir: String,
+
     /// Directory containing flavors (themes/styles)
     #[serde(default = "default_flavor_dir")]
     pub flavor_dir: String,
@@ -87,6 +91,10 @@ fn default_scaffold_dir() -> String {
     "~/.config/sldr/scaffolds".to_string()
 }
 
+fn default_layout_dir() -> String {
+    "~/.config/sldr/layouts".to_string()
+}
+
 fn default_flavor_dir() -> String {
     "~/.config/sldr/flavors".to_string()
 }
@@ -137,6 +145,7 @@ impl Default for CoreConfig {
     fn default() -> Self {
         Self {
             scaffold_dir: default_scaffold_dir(),
+            layout_dir: default_layout_dir(),
             flavor_dir: default_flavor_dir(),
             default_flavor: default_flavor(),
             dev_port: default_dev_port(),
@@ -281,6 +290,11 @@ impl Config {
     /// Get the expanded scaffold directory path
     pub fn scaffold_dir(&self) -> PathBuf {
         Self::expand_path(&self.config.scaffold_dir)
+    }
+
+    /// Get the expanded user layout directory path
+    pub fn layout_dir(&self) -> PathBuf {
+        Self::expand_path(&self.config.layout_dir)
     }
 
     /// Get the expanded flavor directory path

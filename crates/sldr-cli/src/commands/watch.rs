@@ -260,7 +260,9 @@ fn build_html(
     slides: &[sldr_core::slide::Slide],
 ) -> Result<String> {
     let mut renderer = HtmlRenderer::new(config.clone()).add_flavor(flavor.clone());
-    renderer.add_slides(slides);
+    // Reload user layouts on every rebuild so layout edits live-reload too.
+    renderer.load_layouts(&sldr_core::config::Config::load()?.layout_dir())?;
+    renderer.add_slides(slides)?;
     renderer.render()
 }
 

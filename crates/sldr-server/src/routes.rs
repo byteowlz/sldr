@@ -370,7 +370,7 @@ async fn edit_scaffold(
 
     let mut renderer = HtmlRenderer::new(render_config)
         .add_flavor(sldr_core::flavor::Flavor::default());
-    renderer.add_slide(&slide);
+    renderer.add_slide(&slide).map_err(to_api_error("Failed to lay out slide"))?;
 
     let html_path = temp_dir.path().join("index.html");
     renderer
@@ -486,7 +486,10 @@ fn build_html_from_playlist(
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
-    renderer.add_slides(&resolved);
+    renderer
+        .load_layouts(&config.layout_dir())
+        .context("Failed to load user layouts")?;
+    renderer.add_slides(&resolved).context("Failed to lay out slides")?;
 
     fs::create_dir_all(&output_dir)?;
     let html_path = output_dir.join("index.html");

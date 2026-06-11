@@ -99,7 +99,8 @@ pub fn run(
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
-    renderer.add_slides(&resolved_slides);
+    renderer.load_layouts(&config.layout_dir())?;
+    renderer.add_slides(&resolved_slides)?;
 
     // Write to output_dir/index.html
     std::fs::create_dir_all(&output_dir)?;

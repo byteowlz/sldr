@@ -99,7 +99,8 @@ pub fn run(
 
     let mut renderer =
         sldr_renderer::HtmlRenderer::new(render_config).add_flavor(flavor);
-    renderer.add_slides(&resolved_slides);
+    renderer.load_layouts(&config.layout_dir())?;
+    renderer.add_slides(&resolved_slides)?;
     let html = renderer.render()?;
 
     // Inject print preparation script

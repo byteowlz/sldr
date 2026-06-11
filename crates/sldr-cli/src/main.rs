@@ -191,7 +191,7 @@ enum Commands {
     /// List available slides, presentations, or flavors
     #[command(name = "ls")]
     List {
-        /// What to list: slides, presentations, playlists, flavors, scaffolds
+        /// What to list: slides, presentations, playlists, flavors, scaffolds, layouts
         #[arg(default_value = "slides")]
         what: String,
 

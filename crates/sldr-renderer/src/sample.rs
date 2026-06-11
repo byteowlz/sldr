@@ -137,7 +137,7 @@ pub fn render_sample(flavor: Flavor, extra_flavors: &[Flavor]) -> Result<String>
             .replace("sample-square.svg", &square_uri)
             .replace("sample-image.svg", &portrait_uri);
         let slide = Slide::from_str(sample.name, virtual_path, &source);
-        renderer.add_slide(&slide);
+        renderer.add_slide(&slide)?;
     }
 
     renderer.render()
