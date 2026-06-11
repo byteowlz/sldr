@@ -218,18 +218,31 @@ pub fn load_flavor(config: &Config, name: &str) -> Result<Flavor> {
     }
 }
 
+/// Resolve a slide reference, prompting on ambiguity only when attached to a
+/// terminal. Non-interactive callers (agents, scripts, CI) get deterministic
+/// behavior instead: ambiguity and missing slides fail loudly with the
+/// candidate list / searched name in the error — a build must never silently
+/// skip or guess a slide.
 pub fn resolve_with_interactive(
     matcher: &SldrMatcher,
     slide_ref: &str,
     slides: &SlideCollection,
 ) -> Result<Option<sldr_core::slide::Slide>> {
+    use std::io::IsTerminal;
+
     match matcher.resolve(slide_ref, &slides.names()) {
         ResolveResult::Found(result) => Ok(slides.find(&result.value).cloned()),
         ResolveResult::NotFound => {
-            println!("  {} Slide not found: '{}'", "!".red(), slide_ref.yellow());
-            Ok(None)
+            anyhow::bail!("Slide not found: '{slide_ref}'");
         }
         ResolveResult::Multiple(matches) => {
+            if !std::io::stdin().is_terminal() {
+                let candidates: Vec<&str> = matches.iter().map(|m| m.value.as_str()).collect();
+                anyhow::bail!(
+                    "Ambiguous slide reference '{slide_ref}'. Candidates: {}",
+                    candidates.join(", ")
+                );
+            }
             let options: Vec<String> = matches
                 .iter()
                 .map(|m| {

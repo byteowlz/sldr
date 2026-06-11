@@ -68,20 +68,23 @@ pub fn run(presentation: &str, slides: Option<&String>, interactive: bool) -> Re
                                     indices.push(idx);
                                 }
                             } else {
-                                println!("  {} Index {idx} out of range", "!".yellow());
+                                anyhow::bail!(
+                                    "Index {idx} out of range (playlist has {} slides)",
+                                    playlist.slides.len()
+                                );
                             }
                         } else {
-                            println!(
-                                "  {} Slide '{slide_ref}' not found in playlist",
-                                "!".yellow()
-                            );
+                            anyhow::bail!("Slide '{slide_ref}' not found in playlist");
                         }
                     }
                     ResolveResult::Multiple(matches) => {
-                        println!(
-                            "  {} Multiple matches for '{slide_ref}': {:?}",
-                            "!".yellow(),
-                            matches.iter().map(|m| &m.value).collect::<Vec<_>>()
+                        anyhow::bail!(
+                            "Ambiguous slide reference '{slide_ref}'. Candidates: {}",
+                            matches
+                                .iter()
+                                .map(|m| m.value.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
                         );
                     }
                 }
@@ -89,7 +92,13 @@ pub fn run(presentation: &str, slides: Option<&String>, interactive: bool) -> Re
             indices
         }
     } else {
-        // No slides argument - use interactive mode
+        // No slides argument - use interactive mode (requires a terminal)
+        if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+            anyhow::bail!(
+                "No slides specified and not attached to a terminal. \
+                 Pass the slides to remove as an argument."
+            );
+        }
         select_slides_interactively(&playlist)?
     };
 

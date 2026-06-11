@@ -172,8 +172,14 @@ fn load_playlist(config: &Config, name: &str) -> Result<Playlist> {
             anyhow::bail!("Playlist not found");
         }
         ResolveResult::Multiple(matches) => {
-            // Interactive selection
+            // Interactive selection (terminal only — fail loud otherwise)
             let options: Vec<&str> = matches.iter().map(|m| m.value.as_str()).collect();
+            if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+                anyhow::bail!(
+                    "Ambiguous playlist reference '{name}'. Candidates: {}",
+                    options.join(", ")
+                );
+            }
             let selection = Select::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Multiple playlists match '{name}'. Select one:"))
                 .items(&options)

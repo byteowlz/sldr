@@ -121,6 +121,12 @@ fn resolve_presentation(config: &Config, name: &str) -> Result<std::path::PathBu
         }
         ResolveResult::Multiple(matches) => {
             let options: Vec<&str> = matches.iter().map(|m| m.value.as_str()).collect();
+            if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+                anyhow::bail!(
+                    "Ambiguous presentation reference '{name}'. Candidates: {}",
+                    options.join(", ")
+                );
+            }
             let selection = Select::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!(
                     "Multiple presentations match '{name}'. Select one:"

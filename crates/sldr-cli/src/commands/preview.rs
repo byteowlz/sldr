@@ -57,6 +57,12 @@ pub fn run(slide: &str, _port: Option<String>) -> Result<()> {
                 })
                 .collect();
 
+            if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+                anyhow::bail!(
+                    "Ambiguous slide reference '{slide}'. Candidates: {}",
+                    options.join(", ")
+                );
+            }
             let selection = Select::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Multiple slides match '{slide}'. Select one:"))
                 .items(&options)
