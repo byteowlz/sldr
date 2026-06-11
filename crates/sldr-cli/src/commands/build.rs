@@ -108,7 +108,9 @@ pub fn run(
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
-    renderer.load_layouts(&config.layout_dir())?;
+    for dir in config.layout_dirs() {
+        renderer.load_layouts(&dir)?;
+    }
     renderer.add_slides(&resolved_slides)?;
 
     // Write to output_dir/index.html
@@ -193,41 +195,72 @@ pub fn load_playlist(config: &Config, name: &str) -> Result<Playlist> {
     Playlist::load(&playlist_path).context(format!("Failed to load playlist: {playlist_name}"))
 }
 
+/// Resolve a flavor by name across the library and configured extra dirs
+/// (library wins, ADR-0007), falling through to the built-in default only
+/// for the name "default". Any other unresolved name fails loudly with the
+/// searched paths and available names — never a silent substitute.
 pub fn load_flavor(config: &Config, name: &str) -> Result<Flavor> {
-    let flavor_dir = config.flavor_dir();
+    let flavor_dirs = config.flavor_dirs();
     let matcher = SldrMatcher::new(config.matching.clone());
 
-    let collection = FlavorCollection::load_from_dir(&flavor_dir)?;
+    let collection = FlavorCollection::load_from_dirs(&flavor_dirs)?;
+
+    let searched = || {
+        flavor_dirs
+            .iter()
+            .map(|d| d.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
 
     if collection.flavors.is_empty() {
-        println!("  {} No flavors found, using built-in default", "i".blue());
-        return Ok(Flavor::default());
+        if name == "default" {
+            return Ok(Flavor::default());
+        }
+        anyhow::bail!(
+            "Flavor '{name}' not found (searched: {}, built-ins).              Only the built-in 'default' flavor is available.",
+            searched()
+        );
     }
 
     let flavor_names = collection.names();
 
     match matcher.resolve(name, &flavor_names) {
-        ResolveResult::Found(result) => {
-            let flavor_path = flavor_dir.join(&result.value);
-            Ok(Flavor::load(&flavor_path)?)
-        }
+        ResolveResult::Found(result) => collection
+            .find(&result.value)
+            .cloned()
+            .with_context(|| format!("Failed to load flavor '{}'", result.value)),
         ResolveResult::NotFound => {
-            println!(
-                "  {} Flavor '{}' not found, using default",
-                "!".yellow(),
-                name
+            if name == "default" {
+                // The built-in default is the last stop of the resolution
+                // order (library -> extras -> built-ins).
+                return Ok(Flavor::default());
+            }
+            anyhow::bail!(
+                "Flavor '{name}' not found (searched: {}, built-ins). Available: {}",
+                searched(),
+                flavor_names.join(", ")
             );
-            Ok(Flavor::default())
         }
         ResolveResult::Multiple(matches) => {
             let options: Vec<&str> = matches.iter().map(|m| m.value.as_str()).collect();
+            if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+                anyhow::bail!(
+                    "Ambiguous flavor reference '{name}'. Candidates: {}",
+                    options.join(", ")
+                );
+            }
             let selection = Select::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Multiple flavors match '{name}'. Select one:"))
                 .items(&options)
                 .default(0)
                 .interact()?;
-            let flavor_path = flavor_dir.join(&matches[selection].value);
-            Ok(Flavor::load(&flavor_path)?)
+            collection
+                .find(matches[selection].value.as_str())
+                .cloned()
+                .with_context(|| {
+                    format!("Failed to load flavor '{}'", matches[selection].value)
+                })
         }
     }
 }

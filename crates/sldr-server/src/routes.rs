@@ -281,7 +281,7 @@ async fn update_playlist(
 }
 
 async fn list_flavors(State(state): State<SldrState>) -> ApiResult<FlavorsResponse> {
-    let flavors = FlavorCollection::load_from_dir(&state.config.flavor_dir())
+    let flavors = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
         .map_err(to_api_error("Failed to load flavors"))?;
 
     Ok(Json(FlavorsResponse {
@@ -413,7 +413,7 @@ fn build_html_from_playlist(
         .or_else(|| playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
 
-    let flavor = if let Ok(collection) = FlavorCollection::load_from_dir(&config.flavor_dir()) {
+    let flavor = if let Ok(collection) = FlavorCollection::load_from_dirs(&config.flavor_dirs()) {
         if collection.flavors.is_empty() {
             sldr_core::flavor::Flavor::default()
         } else {
@@ -488,9 +488,11 @@ fn build_html_from_playlist(
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
-    renderer
-        .load_layouts(&config.layout_dir())
-        .context("Failed to load user layouts")?;
+    for dir in config.layout_dirs() {
+        renderer
+            .load_layouts(&dir)
+            .context("Failed to load user layouts")?;
+    }
     renderer.add_slides(&resolved).context("Failed to lay out slides")?;
 
     fs::create_dir_all(&output_dir)?;

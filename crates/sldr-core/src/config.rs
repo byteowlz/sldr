@@ -29,7 +29,15 @@ pub struct Config {
 /// Core application settings
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CoreConfig {
-    /// Directory containing slide scaffolds
+    /// Library root: the single self-sufficient tree carrying slides,
+    /// layouts, flavors, playlists, scaffolds, and media (ADR-0007).
+    /// Asset resolution searches the library first, then the extra dirs
+    /// below, then the built-ins embedded in the binary.
+    #[serde(default = "default_library")]
+    pub library: String,
+
+    /// Extra directory containing slide scaffolds (searched after the
+    /// library's scaffolds/)
     #[serde(default = "default_scaffold_dir")]
     pub scaffold_dir: String,
 
@@ -87,6 +95,10 @@ pub struct MatchingConfig {
 }
 
 // Default value functions
+fn default_library() -> String {
+    "~/sldr".to_string()
+}
+
 fn default_scaffold_dir() -> String {
     "~/.config/sldr/scaffolds".to_string()
 }
@@ -144,6 +156,7 @@ fn default_max_suggestions() -> usize {
 impl Default for CoreConfig {
     fn default() -> Self {
         Self {
+            library: default_library(),
             scaffold_dir: default_scaffold_dir(),
             layout_dir: default_layout_dir(),
             flavor_dir: default_flavor_dir(),
@@ -295,6 +308,30 @@ impl Config {
     /// Get the expanded user layout directory path
     pub fn layout_dir(&self) -> PathBuf {
         Self::expand_path(&self.config.layout_dir)
+    }
+
+    /// Get the expanded library root (ADR-0007)
+    pub fn library(&self) -> PathBuf {
+        Self::expand_path(&self.config.library)
+    }
+
+    /// Flavor search dirs, highest priority first:
+    /// library/flavors, then the configured extra flavor_dir.
+    pub fn flavor_dirs(&self) -> Vec<PathBuf> {
+        vec![self.library().join("flavors"), self.flavor_dir()]
+    }
+
+    /// Layout dirs in *load* order (later loads override earlier ones, so
+    /// the library wins over the configured extra dir, which wins over
+    /// built-ins).
+    pub fn layout_dirs(&self) -> Vec<PathBuf> {
+        vec![self.layout_dir(), self.library().join("layouts")]
+    }
+
+    /// Scaffold search dirs, highest priority first:
+    /// library/scaffolds, then the configured extra scaffold_dir.
+    pub fn scaffold_dirs(&self) -> Vec<PathBuf> {
+        vec![self.library().join("scaffolds"), self.scaffold_dir()]
     }
 
     /// Get the expanded flavor directory path

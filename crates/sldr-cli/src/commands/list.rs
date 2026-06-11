@@ -370,8 +370,8 @@ fn list_playlists(config: &Config, long: bool, json: bool) -> Result<()> {
 }
 
 fn list_flavors(config: &Config, long: bool, json: bool) -> Result<()> {
-    let flavor_dir = config.flavor_dir();
-    let collection = FlavorCollection::load_from_dir(&flavor_dir)?;
+    let flavor_dir = config.flavor_dirs()[0].clone();
+    let collection = FlavorCollection::load_from_dirs(&config.flavor_dirs())?;
 
     if json {
         let flavors: Vec<FlavorEntry> = collection
@@ -428,7 +428,9 @@ fn list_flavors(config: &Config, long: bool, json: bool) -> Result<()> {
 /// (user files override built-ins by name).
 fn list_layouts(config: &Config, json: bool) -> Result<()> {
     let mut renderer = sldr_renderer::HtmlRenderer::new(sldr_renderer::RenderConfig::default());
-    renderer.load_layouts(&config.layout_dir())?;
+    for dir in config.layout_dirs() {
+        renderer.load_layouts(&dir)?;
+    }
     let names = renderer.layout_names();
 
     if json {

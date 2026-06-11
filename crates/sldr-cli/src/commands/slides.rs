@@ -259,39 +259,54 @@ layout: default
     )
 }
 
-/// Load a scaffold file and apply the slide name
+/// Load a scaffold file and apply the slide name.
+/// Resolution: library/scaffolds -> configured extra dir -> built-ins;
+/// unresolved fails loudly (ADR-0007).
 fn load_scaffold(config: &Config, scaffold_name: &str, slide_name: &str) -> Result<String> {
-    let scaffold_dir = config.scaffold_dir();
+    let substitute = |content: &str| {
+        let base_name = std::path::Path::new(slide_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(slide_name);
+        let title = base_name.replace(['_', '-'], " ");
+        content
+            .replace("{{title}}", &title)
+            .replace("{{name}}", slide_name)
+    };
 
-    // Try with and without .md extension
-    let candidates = [
-        scaffold_dir.join(format!("{scaffold_name}.md")),
-        scaffold_dir.join(scaffold_name),
-    ];
-
-    for path in &candidates {
-        if path.exists() {
-            let content = std::fs::read_to_string(path)?;
-            // Replace placeholder with slide name
-            let base_name = std::path::Path::new(slide_name)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or(slide_name);
-            let title = base_name.replace(['_', '-'], " ");
-            return Ok(content
-                .replace("{{title}}", &title)
-                .replace("{{name}}", slide_name));
+    let dirs = config.scaffold_dirs();
+    for dir in &dirs {
+        for path in [
+            dir.join(format!("{scaffold_name}.md")),
+            dir.join(scaffold_name),
+        ] {
+            if path.exists() {
+                let content = std::fs::read_to_string(path)?;
+                return Ok(substitute(&content));
+            }
         }
     }
 
-    // Scaffold not found, use default with a warning
-    println!(
-        "  {} Scaffold '{}' not found, using default",
-        "!".yellow(),
-        scaffold_name
-    );
+    let bundled_name = format!("{}.md", scaffold_name.trim_end_matches(".md"));
+    if let Some(s) = crate::scaffolds::SCAFFOLDS
+        .iter()
+        .find(|s| s.name == bundled_name)
+    {
+        return Ok(substitute(s.content));
+    }
 
-    Ok(default_slide_scaffold(slide_name))
+    anyhow::bail!(
+        "Scaffold '{scaffold_name}' not found (searched: {}, built-ins). Available built-ins: {}",
+        dirs.iter()
+            .map(|d| d.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        crate::scaffolds::SCAFFOLDS
+            .iter()
+            .map(|s| s.name.trim_end_matches(".md"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 /// Output structure for created slides (JSON output mode)

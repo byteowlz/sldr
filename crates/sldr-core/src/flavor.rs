@@ -842,6 +842,26 @@ impl FlavorCollection {
         })
     }
 
+    /// Load flavors from several directories, highest priority first.
+    /// A name appearing in an earlier dir shadows the same name in later
+    /// dirs (library wins over config-dir extras, ADR-0007).
+    pub fn load_from_dirs(dirs: &[PathBuf]) -> Result<Self> {
+        let mut merged = Self {
+            flavors: Vec::new(),
+            base_dir: dirs.first().cloned().unwrap_or_default(),
+        };
+        for dir in dirs {
+            let collection = Self::load_from_dir(dir)?;
+            for flavor in collection.flavors {
+                if merged.find(&flavor.name).is_none() {
+                    merged.flavors.push(flavor);
+                }
+            }
+        }
+        merged.flavors.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(merged)
+    }
+
     /// Get flavor names for matching
     pub fn names(&self) -> Vec<String> {
         self.flavors.iter().map(|f| f.name.clone()).collect()

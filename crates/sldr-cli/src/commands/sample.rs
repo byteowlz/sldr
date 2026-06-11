@@ -56,8 +56,7 @@ pub fn run(flavor_name: &str, output: Option<PathBuf>, no_open: bool) -> Result<
 }
 
 fn resolve_flavor(config: &Config, name: &str) -> Result<Flavor> {
-    let flavor_dir = config.flavor_dir();
-    let collection = FlavorCollection::load_from_dir(&flavor_dir)?;
+    let collection = FlavorCollection::load_from_dirs(&config.flavor_dirs())?;
 
     if let Some(flavor) = collection.find(name) {
         return Ok(flavor.clone());

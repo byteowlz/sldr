@@ -198,7 +198,7 @@ async fn handle_sample_html(
 async fn handle_list_flavors(
     AxumState(state): AxumState<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let collection = FlavorCollection::load_from_dir(&state.config.flavor_dir())
+    let collection = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let flavors: Vec<serde_json::Value> = collection
         .flavors
@@ -226,7 +226,7 @@ async fn handle_get_flavor(
 }
 
 fn resolve_flavor(config: &Config, name: &str) -> Result<Flavor> {
-    let collection = FlavorCollection::load_from_dir(&config.flavor_dir())?;
+    let collection = FlavorCollection::load_from_dirs(&config.flavor_dirs())?;
     if let Some(f) = collection.find(name) {
         return Ok(f.clone());
     }

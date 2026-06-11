@@ -87,26 +87,38 @@ layout: default
 }
 
 fn load_scaffold(config: &Config, scaffold_name: &str) -> Result<String> {
-    let scaffold_dir = config.scaffold_dir();
-
-    // Try with and without .md extension
-    let candidates = [
-        scaffold_dir.join(format!("{scaffold_name}.md")),
-        scaffold_dir.join(scaffold_name),
-    ];
-
-    for path in &candidates {
-        if path.exists() {
-            return Ok(std::fs::read_to_string(path)?);
+    // Resolution order: library/scaffolds -> configured extra dir ->
+    // built-ins bundled in the binary. Unresolved fails loudly (ADR-0007).
+    let dirs = config.scaffold_dirs();
+    for dir in &dirs {
+        for path in [
+            dir.join(format!("{scaffold_name}.md")),
+            dir.join(scaffold_name),
+        ] {
+            if path.exists() {
+                return Ok(std::fs::read_to_string(path)?);
+            }
         }
     }
 
-    // Scaffold not found, use default with a warning
-    println!(
-        "  {} Scaffold '{}' not found, using default",
-        "!".yellow(),
-        scaffold_name
-    );
+    let bundled_name = format!("{}.md", scaffold_name.trim_end_matches(".md"));
+    if let Some(s) = crate::scaffolds::SCAFFOLDS
+        .iter()
+        .find(|s| s.name == bundled_name)
+    {
+        return Ok(s.content.to_string());
+    }
 
-    Ok(default_slide_scaffold(scaffold_name))
+    anyhow::bail!(
+        "Scaffold '{scaffold_name}' not found (searched: {}, built-ins). Available built-ins: {}",
+        dirs.iter()
+            .map(|d| d.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        crate::scaffolds::SCAFFOLDS
+            .iter()
+            .map(|s| s.name.trim_end_matches(".md"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }

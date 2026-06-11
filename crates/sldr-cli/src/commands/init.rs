@@ -36,6 +36,12 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
         ("Playlists", config.playlist_dir()),
         ("Scaffolds", config.scaffold_dir()),
         ("Flavors", config.flavor_dir()),
+        ("Layouts", config.layout_dir()),
+        // Library tree (ADR-0007): the self-sufficient, git-trackable root.
+        ("Library flavors", config.library().join("flavors")),
+        ("Library layouts", config.library().join("layouts")),
+        ("Library scaffolds", config.library().join("scaffolds")),
+        ("Library media", config.library().join("media")),
     ];
 
     for (name, path) in dirs_to_create {

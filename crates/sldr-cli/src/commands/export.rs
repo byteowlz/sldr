@@ -99,7 +99,9 @@ pub fn run(
 
     let mut renderer =
         sldr_renderer::HtmlRenderer::new(render_config).add_flavor(flavor);
-    renderer.load_layouts(&config.layout_dir())?;
+    for dir in config.layout_dirs() {
+        renderer.load_layouts(&dir)?;
+    }
     renderer.add_slides(&resolved_slides)?;
     let html = renderer.render()?;
 
