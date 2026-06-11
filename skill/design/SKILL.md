@@ -13,11 +13,11 @@ description: |
 This skill makes design decisions about sldr decks — picking the right flavor,
 extending it without breaking it, and improving slide-level craft. It is a
 companion to `sldr-presentations` (which handles the mechanics of creating
-slides and skeletons). Reach for this one whenever the question is taste,
+slides and playlists). Reach for this one whenever the question is taste,
 voice, or visual coherence.
 
 The mental model: sldr separates **content** (markdown slides) from **style**
-(flavors) from **layout** (templates). The design skill operates on all three,
+(flavors) from **layout** (layouts). The design skill operates on all three,
 but the design system lives in the **flavor**. When in doubt: respect the
 flavor and adapt the content, not the other way around.
 
@@ -111,7 +111,7 @@ inconsistent capitalization. Don't restructure. Don't introduce a new voice.
 Output: the same slides, sharper.
 
 ### `audit <deck>`
-Read every slide in the skeleton. Report inconsistencies: tonal drift, mixed
+Read every slide in the playlist. Report inconsistencies: tonal drift, mixed
 density (too-dense slides next to too-sparse), title/section labels that
 contradict each other, layouts used in incompatible ways, page-number
 mismatches. Output: a numbered punch list — slide N: issue, suggested fix.
@@ -131,8 +131,8 @@ the user can react to before any markdown gets written.
 ### `craft <outline>`
 Take an outline (from `shape`, or the user's own) and write the slide
 markdown files. Use `sldr slides create --file <json> --json` for batch
-creation. Choose layouts from the available set (`sldr ls templates`).
-Output: created slide files + a draft skeleton.
+creation. Choose layouts from the available set (`sldr ls scaffolds`).
+Output: created slide files + a draft playlist.
 
 ### `bolder <target>`
 Amp up confidence. Stronger verbs, higher-contrast headlines, fewer hedges,
@@ -191,7 +191,7 @@ For the final deck, also include:
 - A one-line note about which flavor you picked and *why* (the tone match).
 - Any caveats — e.g., "I designed slides 4 and 7 from scratch using the
   flavor's design system since you needed a comparison table and a 4-column
-  timeline that no template covered."
+  timeline that no layout covered."
 
 Don't narrate every step. The user wants the artifact + path + one-line
 rationale, not a transcript.
@@ -207,7 +207,7 @@ rationale, not a transcript.
 | Decoration | `flavor.toml [decoration]` | Edit the flavor |
 | Code style | `flavor.toml [code]` | Edit the flavor |
 | Logos | `flavor.toml [[logos]]` + `assets/` | Edit the flavor |
-| Slide layout | `templates/*.md` (12 bundled) | Pick via `layout:` frontmatter |
+| Slide layout | `scaffolds/*.md` (12 bundled) | Pick via `layout:` frontmatter |
 | Slide content | `slides/*.md` | Edit the slide |
 | Curation hints | `flavor.toml [curation]` | Edit the flavor |
 

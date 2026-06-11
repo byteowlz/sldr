@@ -5,7 +5,7 @@ use colored::Colorize;
 use sldr_core::config::Config;
 use std::io::Write;
 
-pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result<()> {
+pub fn run(name: &str, scaffold: Option<String>, dir: Option<&String>) -> Result<()> {
     let config = Config::load()?;
 
     let slide_dir = config.slide_dir();
@@ -40,11 +40,11 @@ pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result
         std::fs::create_dir_all(parent)?;
     }
 
-    // Get template content
-    let content = if let Some(template_name) = template {
-        load_template(&config, &template_name)?
+    // Get scaffold content
+    let content = if let Some(scaffold_name) = scaffold {
+        load_scaffold(&config, &scaffold_name)?
     } else {
-        default_slide_template(name)
+        default_slide_scaffold(name)
     };
 
     // Write the file
@@ -68,7 +68,7 @@ pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result
     Ok(())
 }
 
-fn default_slide_template(name: &str) -> String {
+fn default_slide_scaffold(name: &str) -> String {
     let title = name.trim_end_matches(".md").replace(['_', '-'], " ");
 
     format!(
@@ -86,13 +86,13 @@ layout: default
     )
 }
 
-fn load_template(config: &Config, template_name: &str) -> Result<String> {
-    let template_dir = config.template_dir();
+fn load_scaffold(config: &Config, scaffold_name: &str) -> Result<String> {
+    let scaffold_dir = config.scaffold_dir();
 
     // Try with and without .md extension
     let candidates = [
-        template_dir.join(format!("{template_name}.md")),
-        template_dir.join(template_name),
+        scaffold_dir.join(format!("{scaffold_name}.md")),
+        scaffold_dir.join(scaffold_name),
     ];
 
     for path in &candidates {
@@ -101,12 +101,12 @@ fn load_template(config: &Config, template_name: &str) -> Result<String> {
         }
     }
 
-    // Template not found, use default with a warning
+    // Scaffold not found, use default with a warning
     println!(
-        "  {} Template '{}' not found, using default",
+        "  {} Scaffold '{}' not found, using default",
         "!".yellow(),
-        template_name
+        scaffold_name
     );
 
-    Ok(default_slide_template(template_name))
+    Ok(default_slide_scaffold(scaffold_name))
 }

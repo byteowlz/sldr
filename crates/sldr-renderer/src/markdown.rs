@@ -40,7 +40,7 @@ impl Default for MediaConfig {
 /// Recognized layout markers (each split is mutually exclusive):
 /// - `::left::` + `::right::` — two-column layout (`two-cols`, `two-cols-header`)
 /// - `::content::` + `::image::` — content + image column (`image-left`,
-///   `image-right`). The template engine decides DOM order based on layout.
+///   `image-right`). The layout engine decides DOM order based on layout.
 ///
 /// Unrecognized markers pass through as raw text.
 pub fn render_markdown(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
@@ -66,7 +66,7 @@ pub enum MarkdownOutput {
         right: String,
     },
     /// Content + image split (used by image-left / image-right layouts).
-    /// The template engine picks DOM order from the layout name; the
+    /// The layout engine picks DOM order from the layout name; the
     /// markdown can declare the two halves in either order.
     ContentImage { content: String, image: String },
 }
@@ -74,7 +74,7 @@ pub enum MarkdownOutput {
 /// Parse a content+image slide by splitting on `::content::` and `::image::`.
 ///
 /// The two markers may appear in either order in the markdown — we identify
-/// the halves by marker name, not position. The template engine places them
+/// the halves by marker name, not position. The layout engine places them
 /// in the correct DOM order based on the layout (`image-left` puts image
 /// first, `image-right` puts content first).
 fn render_content_image(input: &str, media_config: &MediaConfig) -> MarkdownOutput {

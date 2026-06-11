@@ -371,7 +371,7 @@
       }
     },
     "Curation": {
-      "description": "Curatorial metadata for a flavor — how it *feels* and where it fits.\n\nAll fields are optional. Inspired by the per-template metadata in\n`beautiful-html-templates` (see CREDITS.md). Authors are encouraged\nto fill these in so agents can match a brief to a flavor without\nreading every flavor's TOML.",
+      "description": "Curatorial metadata for a flavor — how it *feels* and where it fits.\n\nAll fields are optional. Inspired by the per-layout metadata in\n`beautiful-html-templates` (see CREDITS.md). Authors are encouraged\nto fill these in so agents can match a brief to a flavor without\nreading every flavor's TOML.",
       "type": "object",
       "properties": {
         "avoid_for": {
@@ -501,6 +501,16 @@
           "description": "Filename in the flavor's assets directory (e.g. \"company-logo.svg\")",
           "type": "string"
         },
+        "layouts": {
+          "description": "Which layouts this logo appears on.\nUse [\"all\"] for every slide, or specific layouts like [\"default\", \"two-cols\"].",
+          "type": "array",
+          "default": [
+            "all"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "opacity": {
           "description": "Opacity 0.0-1.0",
           "type": "number",
@@ -511,16 +521,6 @@
           "description": "Named position preset: \"top-left\", \"top-right\", \"top-center\",\n\"bottom-left\", \"bottom-right\", \"bottom-center\"",
           "type": "string",
           "default": "top-right"
-        },
-        "templates": {
-          "description": "Which layouts this logo appears on.\nUse [\"all\"] for every slide, or specific layouts like [\"default\", \"two-cols\"].",
-          "type": "array",
-          "default": [
-            "all"
-          ],
-          "items": {
-            "type": "string"
-          }
         },
         "width": {
           "description": "Logo width (CSS value, e.g. \"120px\", \"8vw\")",

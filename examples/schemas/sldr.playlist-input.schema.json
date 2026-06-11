@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "sldr skeleton input schema",
-  "description": "JSON schema for creating presentation skeletons via sldr CLI",
+  "title": "sldr playlist input schema",
+  "description": "JSON schema for creating presentation playlists via sldr CLI",
   "type": "object",
   "properties": {
     "description": {
@@ -21,7 +21,7 @@
       "default": null
     },
     "name": {
-      "description": "Name of the skeleton (used as filename)",
+      "description": "Name of the playlist (used as filename)",
       "type": "string"
     },
     "slides": {
@@ -55,7 +55,7 @@
   ],
   "$defs": {
     "RenderOpts": {
-      "description": "Presentation rendering configuration\n\nSerialized as `slidev_config` for backwards compatibility with existing\nskeleton.toml files. Controls transition style, aspect ratio, and other\nrendering options for the self-contained HTML output.",
+      "description": "Presentation rendering configuration\n\nSerialized as `slidev_config` for backwards compatibility with existing\nplaylist.toml files. Controls transition style, aspect ratio, and other\nrendering options for the self-contained HTML output.",
       "type": "object",
       "properties": {
         "aspect_ratio": {

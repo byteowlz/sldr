@@ -20,9 +20,6 @@ pub enum Error {
     #[error("Flavor not found: {0}")]
     FlavorNotFound(String),
 
-    #[error("Template not found: {0}")]
-    TemplateNotFound(String),
-
     #[error("Multiple matches found for '{query}': {matches:?}")]
     MultipleMatches { query: String, matches: Vec<String> },
 

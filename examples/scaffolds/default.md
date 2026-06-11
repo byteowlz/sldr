@@ -7,7 +7,7 @@ layout: default
 
 # {{title}}
 
-Content goes here. This is a general-purpose slide template.
+Content goes here. This is a general-purpose slide.
 
 - Point one
 - Point two

@@ -131,10 +131,6 @@ pub struct SlideMetadata {
     #[serde(default)]
     pub tags: Vec<String>,
 
-    /// Template to use for this slide
-    #[serde(default)]
-    pub template: Option<String>,
-
     /// Preferred layout
     #[serde(default)]
     pub layout: Option<String>,

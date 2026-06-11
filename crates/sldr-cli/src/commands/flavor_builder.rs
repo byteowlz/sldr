@@ -161,7 +161,7 @@ async fn run_server(flavor_name: Option<String>, port: u16) -> Result<()> {
         url.cyan().bold()
     );
     println!("  {} Press {} to randomize, {} to shuffle colors, {} to toggle light/dark", "Keys:".dimmed(), "R".bold(), "C".bold(), "D".bold());
-    println!("  {} {} / {} to cycle templates", "     ".dimmed(), "Left".bold(), "Right".bold());
+    println!("  {} {} / {} to cycle layouts", "     ".dimmed(), "Left".bold(), "Right".bold());
     println!("  {} Press {} to quit\n", "     ".dimmed(), "Ctrl+C".bold());
 
     // Open in browser
@@ -258,7 +258,7 @@ async fn handle_get_flavor(
                     "y": l.y,
                     "width": l.width,
                     "opacity": l.opacity,
-                    "templates": l.templates,
+                    "layouts": l.layouts,
                     "dataUri": data_uri,
                 })
             }).collect();

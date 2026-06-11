@@ -45,13 +45,13 @@ Omit either field to inherit the layout's default. Unknown values are
 silently dropped — agents can pass `align` freely without worrying about
 breaking the build.
 
-## Skeleton Input Schema
+## Playlist Input Schema
 
-Used with `sldr skeleton create --file`:
+Used with `sldr playlist create --file`:
 
 ```json
 {
-  "name": "skeleton-filename",
+  "name": "playlist-filename",
   "title": "Presentation Title",
   "slides": ["dir/slide1", "dir/slide2"],
   "description": "Optional description",

@@ -1,20 +1,20 @@
-# Example presentation skeleton for sldr
+# Example presentation playlist for sldr
 #
-# Skeletons define which slides to include in a presentation and
+# Playlists define which slides to include in a presentation and
 # default settings for the presentation.
 #
-# Place this file in: ~/sldr/skeletons/<skeleton-name>.toml
+# Place this file in: ~/sldr/playlists/<playlist-name>.toml
 
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.skeleton.schema.json"
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json"
 
-# Name of the skeleton/presentation
+# Name of the playlist/presentation
 name = "example-talk"
 
 # Optional title for the presentation
 title = "Example Presentation"
 
 # Optional description
-description = "An example presentation skeleton"
+description = "An example presentation playlist"
 
 # List of slides to include (names or paths)
 # Slides can be:
@@ -30,7 +30,7 @@ slides = [
 flavor = "default"
 
 # Rendering configuration
-# (key kept as slidev_config for backwards compat with existing skeletons)
+# (key kept as slidev_config for backwards compat with existing playlists)
 [slidev_config]
 # Transition effect between slides: "fade", "slide-left", "slide-right", "none"
 transition = "fade"

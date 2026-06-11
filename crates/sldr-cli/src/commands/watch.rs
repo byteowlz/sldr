@@ -39,7 +39,7 @@ const LIVE_RELOAD_SCRIPT: &str = r"
 ";
 
 pub fn run(
-    skeleton_name: &str,
+    playlist_name: &str,
     flavor: Option<String>,
     port: Option<u16>,
 ) -> Result<()> {
@@ -48,15 +48,15 @@ pub fn run(
     println!(
         "{} presentation '{}' with live reload",
         "Watching".green().bold(),
-        skeleton_name.cyan()
+        playlist_name.cyan()
     );
 
-    // Load skeleton
-    let skeleton = super::build::load_skeleton(&config, skeleton_name)?;
+    // Load playlist
+    let playlist = super::build::load_playlist(&config, playlist_name)?;
 
     // Determine flavor
     let flavor_name = flavor
-        .or(skeleton.flavor.clone())
+        .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
     let flavor = super::build::load_flavor(&config, &flavor_name)?;
     println!("  {} {}", "Flavor:".dimmed(), flavor.name.yellow());
@@ -75,28 +75,28 @@ pub fn run(
     let matcher = sldr_core::fuzzy::SldrMatcher::new(config.matching.clone());
 
     let mut resolved_slides = Vec::new();
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         if let Some(slide) = super::build::resolve_with_interactive(&matcher, slide_ref, &slides)? {
             resolved_slides.push(slide);
         }
     }
 
     if resolved_slides.is_empty() {
-        anyhow::bail!("No slides resolved. Add slides to your skeleton first.");
+        anyhow::bail!("No slides resolved. Add slides to your playlist first.");
     }
 
-    let title = skeleton
+    let title = playlist
         .title
         .clone()
-        .unwrap_or_else(|| skeleton.name.clone());
+        .unwrap_or_else(|| playlist.name.clone());
 
-    let transition = skeleton
+    let transition = playlist
         .slidev_config
         .transition
         .clone()
         .unwrap_or_else(|| "fade".to_string());
 
-    let aspect_ratio = skeleton
+    let aspect_ratio = playlist
         .slidev_config
         .aspect_ratio
         .clone()
@@ -174,7 +174,7 @@ pub fn run(
 
         // Set up file watcher
         let slide_dir = config.slide_dir();
-        let skeleton_dir = config.skeleton_dir();
+        let playlist_dir = config.playlist_dir();
         let flavor_dir = config.flavor_dir();
 
         let html_for_watcher = Arc::clone(&html_state);
@@ -182,7 +182,7 @@ pub fn run(
 
         // Clone what the watcher callback needs
         let watch_config = config.clone();
-        let watch_skeleton_name = skeleton_name.to_string();
+        let watch_playlist_name = playlist_name.to_string();
         let watch_flavor = flavor.clone();
         let watch_render_config = render_config.clone();
 
@@ -190,7 +190,7 @@ pub fn run(
 
         let _watcher = spawn_file_watcher(
             &slide_dir,
-            &skeleton_dir,
+            &playlist_dir,
             &flavor_dir,
             watch_tx,
         )?;
@@ -205,7 +205,7 @@ pub fn run(
                 // Rebuild
                 match rebuild_presentation(
                     &watch_config,
-                    &watch_skeleton_name,
+                    &watch_playlist_name,
                     &watch_render_config,
                     &watch_flavor,
                 ) {
@@ -280,21 +280,21 @@ fn inject_live_reload(html: &str) -> String {
 
 fn rebuild_presentation(
     config: &Config,
-    skeleton_name: &str,
+    playlist_name: &str,
     render_config: &RenderConfig,
     flavor: &Flavor,
 ) -> Result<String> {
-    let skeleton = sldr_core::presentation::Skeleton::load(
+    let playlist = sldr_core::presentation::Playlist::load(
         &config
-            .skeleton_dir()
-            .join(format!("{skeleton_name}.toml")),
+            .playlist_dir()
+            .join(format!("{playlist_name}.toml")),
     )?;
 
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
     let matcher = sldr_core::fuzzy::SldrMatcher::new(config.matching.clone());
 
     let mut resolved = Vec::new();
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         if let sldr_core::fuzzy::ResolveResult::Found(result) =
             matcher.resolve(slide_ref, &slides.names())
         {
@@ -309,7 +309,7 @@ fn rebuild_presentation(
 
 fn spawn_file_watcher(
     slide_dir: &Path,
-    skeleton_dir: &Path,
+    playlist_dir: &Path,
     flavor_dir: &Path,
     tx: tokio::sync::mpsc::Sender<()>,
 ) -> Result<RecommendedWatcher> {
@@ -324,8 +324,8 @@ fn spawn_file_watcher(
     if slide_dir.exists() {
         watcher.watch(slide_dir, RecursiveMode::Recursive)?;
     }
-    if skeleton_dir.exists() {
-        watcher.watch(skeleton_dir, RecursiveMode::Recursive)?;
+    if playlist_dir.exists() {
+        watcher.watch(playlist_dir, RecursiveMode::Recursive)?;
     }
     if flavor_dir.exists() {
         watcher.watch(flavor_dir, RecursiveMode::Recursive)?;

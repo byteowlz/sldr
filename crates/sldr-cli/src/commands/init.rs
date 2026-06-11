@@ -1,7 +1,7 @@
 //! Init command - initialize sldr configuration and directories
 
 use crate::flavors;
-use crate::templates;
+use crate::scaffolds;
 use anyhow::Result;
 use colored::Colorize;
 use sldr_core::config::Config;
@@ -33,8 +33,8 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
     let dirs_to_create = [
         ("Slides", config.slide_dir()),
         ("Output", config.output_dir()),
-        ("Skeletons", config.skeleton_dir()),
-        ("Templates", config.template_dir()),
+        ("Playlists", config.playlist_dir()),
+        ("Scaffolds", config.scaffold_dir()),
         ("Flavors", config.flavor_dir()),
     ];
 
@@ -107,35 +107,35 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
         );
     }
 
-    // Install bundled templates
-    let template_dir = config.template_dir();
-    let installed = templates::install_templates(&template_dir, force)?;
+    // Install bundled scaffolds
+    let scaffold_dir = config.scaffold_dir();
+    let installed = scaffolds::install_scaffolds(&scaffold_dir, force)?;
     if installed > 0 {
         let verb = if force { "Updated" } else { "Installed" };
         println!(
-            "  {} {} {} templates in {}",
+            "  {} {} {} scaffolds in {}",
             "+".green(),
             verb,
             installed,
-            template_dir.display()
+            scaffold_dir.display()
         );
     } else {
         println!(
-            "  {} Templates already exist in {}",
+            "  {} Scaffolds already exist in {}",
             "~".yellow(),
-            template_dir.display()
+            scaffold_dir.display()
         );
     }
 
-    // Create example skeleton
-    let example_skeleton = config.skeleton_dir().join("example.toml");
-    if !example_skeleton.exists() {
+    // Create example playlist
+    let example_playlist = config.playlist_dir().join("example.toml");
+    if !example_playlist.exists() {
         std::fs::write(
-            &example_skeleton,
-            r#"# Example presentation skeleton
+            &example_playlist,
+            r#"# Example presentation playlist
 name = "example"
 title = "Example Presentation"
-description = "A sample presentation skeleton"
+description = "A sample presentation playlist"
 
 # List slides by name (fuzzy matched)
 slides = [
@@ -153,7 +153,7 @@ transition = "fade"
 aspect_ratio = "16/9"
 "#,
         )?;
-        println!("  {} Created example skeleton", "+".green());
+        println!("  {} Created example playlist", "+".green());
     }
 
     println!("\n{} sldr is ready!", "Done!".green().bold());
@@ -163,12 +163,12 @@ aspect_ratio = "16/9"
         config.slide_dir().display().to_string().cyan()
     );
     println!(
-        "  2. Create a skeleton in {}",
-        config.skeleton_dir().display().to_string().cyan()
+        "  2. Create a playlist in {}",
+        config.playlist_dir().display().to_string().cyan()
     );
     println!(
         "  3. Run {} to build your presentation",
-        "sldr build <skeleton>".cyan()
+        "sldr build <playlist>".cyan()
     );
 
     Ok(())

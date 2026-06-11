@@ -13,7 +13,7 @@ use tracing::info;
 
 use crate::markdown::{render_markdown, MediaConfig};
 use crate::media::{self, ImageMode, MediaEmbed};
-use crate::template::{wrap_slide, SlideOpts};
+use crate::layout::{wrap_slide, SlideOpts};
 
 /// Validate horizontal alignment value, dropping unknown ones.
 fn sanitize_align(v: Option<&str>) -> Option<&'static str> {
@@ -115,7 +115,7 @@ impl HtmlRenderer {
         self
     }
 
-    /// Add a slide. Parses markdown content and applies layout template.
+    /// Add a slide. Parses markdown content and applies layout layout.
     pub fn add_slide(&mut self, slide: &Slide) {
         let layout = slide
             .metadata
@@ -156,7 +156,7 @@ impl HtmlRenderer {
         let align = sanitize_align(slide.metadata.align.as_deref());
         let valign = sanitize_valign(slide.metadata.valign.as_deref());
 
-        // Wrap in layout template
+        // Wrap in layout layout
         let html = wrap_slide(SlideOpts {
             index,
             layout,

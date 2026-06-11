@@ -6,13 +6,13 @@
 
 sldr is an application for creating, managing and updating presentations. The goal is to define every new slide once at the most and reuse it in any way imaginable without having to manually copy anything.
 One important aspect is the concept of flavors. Every slide is defined in markdown first, including references for images to be used. The background can then be dynamically applied by specifying which "flavor" to use.
-A flavor can be as simple as a background color or background image along with the color scheme to be used for different elements of a slide. It can also be an svg containing vector logos. This means that we strictly separate content (e.g. slides/slide_1.md) from style (flavor/flavorXY/assets.*) and layout (e.g. templates/full_image.md or templates/multi_image.md) although we define which layout template we want to use within our slide_1.md.
+A flavor can be as simple as a background color or background image along with the color scheme to be used for different elements of a slide. It can also be an svg containing vector logos. This means that we strictly separate content (e.g. slides/slide_1.md) from style (flavor/flavorXY/assets.*) and layout (e.g. layouts/full-image.html or layouts/multi-image.html) although we define which layout we want to use within our slide_1.md.
 
 sldr compiles markdown slides into self-contained HTML files with zero runtime dependencies. No node, npm, or bun needed - a single Rust binary produces a single HTML file with all CSS and JS inlined. The HTML includes a built-in presenter engine with keyboard navigation, transitions, speaker notes, overview grid, dark/light mode, flavor switching, and inline editing.
 
 Each slide is usually an individual markdown file. This file can still contain multiple slides that should never be separated (concepts building on each other, for example) but each slide file should be reusable and mix-and-matchable into a *presentation*. It is therefore important that we provide as much context for a given slide as possible. A yaml header of a slide(set) should contain valuable information on the slide content, topic, research area etc. We can optionally use AI agents to enrich this.
 
-Presentations are a subset of our collective slide set that are created by selecting which slides to use. We can define presentations in skeletons or interactively via the CLI.
+Presentations are a subset of our collective slide set that are created by selecting which slides to use. We can define presentations in playlists or interactively via the CLI.
 
 By creating this modular scaffold, we also enable the use of AI Agents (e.g. Claude Code, OpenAI Codex, or opencode) for easily creating new slides and presentations.
 
@@ -21,20 +21,20 @@ By creating this modular scaffold, we also enable the use of AI Agents (e.g. Cla
 The primary interface for creating a full presentation from our slides is the CLI.
 
 ```bash
-sldr build name_of_skeleton                          # Build HTML with default flavor
-sldr build name_of_skeleton --flavor name_of_flavor  # Build with specific flavor
-sldr build name_of_skeleton --pdf                    # Build and export to PDF
-sldr watch name_of_skeleton                          # Dev server with live-reload
-sldr watch name_of_skeleton --flavor dark --port 8080
+sldr build name_of_playlist                          # Build HTML with default flavor
+sldr build name_of_playlist --flavor name_of_flavor  # Build with specific flavor
+sldr build name_of_playlist --pdf                    # Build and export to PDF
+sldr watch name_of_playlist                          # Dev server with live-reload
+sldr watch name_of_playlist --flavor dark --port 8080
 sldr open name_of_presentation                       # Open built HTML in browser
-sldr export name_of_skeleton --format pdf            # Export to PDF via headless Chrome
-sldr export name_of_skeleton --format pptx           # Export to PPTX (slide screenshots)
+sldr export name_of_playlist --format pdf            # Export to PDF via headless Chrome
+sldr export name_of_playlist --format pptx           # Export to PPTX (slide screenshots)
 sldr preview slide_name                              # Quick single-slide preview
-sldr add name_of_presentation slide_names            # Append slides to a skeleton
+sldr add name_of_presentation slide_names            # Append slides to a playlist
 sldr ls slides                                       # List available slides
-sldr ls skeletons                                    # List available skeletons
+sldr ls playlists                                    # List available playlists
 sldr ls flavors                                      # List available flavors
-sldr new slide_name --template two-cols              # Create a new slide
+sldr new slide_name --scaffold two-cols              # Create a new slide
 sldr init                                            # Initialize sldr directories
 ```
 
@@ -64,7 +64,7 @@ sldr is configured via a config.toml file in $XDG_CONFIG_HOME/sldr/ (defaults to
 "$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
 
 [config]
-template_dir = "~/.config/sldr/templates"
+scaffold_dir = "~/.config/sldr/scaffolds"
 flavor_dir = "~/.config/sldr/flavors"
 default_flavor = "default"
 dev_port = "3030"           # Port for sldr watch dev server
@@ -73,7 +73,7 @@ agent = "opencode"          # AI agent: "opencode", "claude code", "codex"
 [presentations]
 slide_dir = "~/sldr/slides"
 output_dir = "~/sldr/presentations"
-skeleton_dir = "~/sldr/skeletons"
+playlist_dir = "~/sldr/playlists"
 
 [matching]
 resolution_order = ["anchor", "exact", "fuzzy", "index", "interactive"]
@@ -87,8 +87,8 @@ max_suggestions = 6
 
 | Crate | Purpose |
 |-------|---------|
-| `sldr-core` | Config, slide parsing, flavor loading, fuzzy matching, skeleton management |
-| `sldr-renderer` | Markdown-to-HTML compiler (pulldown-cmark + syntect), template engine, PPTX writer |
+| `sldr-core` | Config, slide parsing, flavor loading, fuzzy matching, playlist management |
+| `sldr-renderer` | Markdown-to-HTML compiler (pulldown-cmark + syntect), layout engine, PPTX writer |
 | `sldr-cli` | CLI commands (build, watch, export, open, preview, add, etc.) |
 | `sldr-server` | HTTP API for programmatic access |
 | `schema-gen` | JSON schema and example config generator |
@@ -110,7 +110,7 @@ base.css + presenter.js (include_str!)  -------+             v
 
 - `crates/sldr-renderer/assets/base.css` - Layouts, transitions, toolbar, edit mode, print styles
 - `crates/sldr-renderer/assets/presenter.js` - Navigation, overview, notes, dark mode, flavors, editing
-- `crates/sldr-renderer/templates/*.html` - 12 layout templates (default, cover, center, two-cols, etc.)
+- `crates/sldr-renderer/layouts/*.html` - 12 layouts (default, cover, center, two-cols, etc.)
 
 ## Technology Stack
 

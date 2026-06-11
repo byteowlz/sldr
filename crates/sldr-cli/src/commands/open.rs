@@ -30,7 +30,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
 
     if !index_path.exists() && !slides_path.exists() {
         anyhow::bail!(
-            "No presentation found in {}. Build one first with: sldr build <skeleton>",
+            "No presentation found in {}. Build one first with: sldr build <playlist>",
             output_dir.display()
         );
     }
@@ -104,7 +104,7 @@ fn resolve_presentation(config: &Config, name: &str) -> Result<std::path::PathBu
 
     if presentations.is_empty() {
         anyhow::bail!(
-            "No presentations found in {}\nBuild one first with: sldr build <skeleton>",
+            "No presentations found in {}\nBuild one first with: sldr build <playlist>",
             output_dir.display()
         );
     }

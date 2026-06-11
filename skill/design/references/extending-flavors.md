@@ -7,7 +7,7 @@ slide inside the flavor's existing language.** Do not bail to a different
 flavor. Do not import a new visual vocabulary mid-deck.
 
 These rules are adapted from [beautiful-html-templates](https://github.com/zarazhangrui/beautiful-html-templates)'
-AGENTS.md §5, translated to sldr's flavor / template / slide model. Credit
+AGENTS.md §5, translated to sldr's flavor / layout / slide model. Credit
 goes to that project — see `CREDITS.md` at the repo root.
 
 ## The rules

@@ -2,7 +2,7 @@
 name: sldr-presentations
 description: |
   Create markdown-based presentations using sldr CLI. Use this skill when asked to:
-  create slides, build presentations, manage presentation skeletons, or work with
+  create slides, build presentations, manage presentation playlists, or work with
   self-contained HTML presentations. Triggers: "create a presentation", "make slides",
   "build a talk", "presentation about X", "sldr".
 ---
@@ -14,17 +14,17 @@ sldr is a CLI tool for creating modular, reusable markdown presentations rendere
 ## Key Concepts
 
 - **Slides**: Individual markdown files in `~/sldr/slides/` (can be in subdirectories)
-- **Skeletons**: TOML files in `~/sldr/skeletons/` that define which slides to include
+- **Playlists**: TOML files in `~/sldr/playlists/` that define which slides to include
 - **Flavors**: Style definitions in `~/.config/sldr/flavors/` (colors, fonts, backgrounds, dark mode)
-- **Templates**: Slide templates in `~/.config/sldr/templates/` (layouts like cover, two-cols, code)
+- **Scaffolds**: Pre-filled slide starters in `~/.config/sldr/scaffolds/` (named after the layouts they demonstrate: cover, two-cols, code, ...)
 
 ## Agent Workflow
 
 ### Creating a Presentation
 
 1. Create slides using JSON input
-2. Create a skeleton referencing those slides
-3. Validate the skeleton
+2. Create a playlist referencing those slides
+3. Validate the playlist
 4. Build the presentation
 
 ### Step 1: Create Slides
@@ -60,12 +60,12 @@ sldr slides create --file /tmp/slides.json --json
 - `--dry-run`: Preview without creating files
 - `--force`: Overwrite existing slides
 
-### Step 2: Create Skeleton
+### Step 2: Create Playlist
 
-Use `sldr skeleton create` with JSON input:
+Use `sldr playlist create` with JSON input:
 
 ```bash
-sldr skeleton create --file /tmp/skeleton.json --json
+sldr playlist create --file /tmp/playlist.json --json
 ```
 
 **JSON Schema**:
@@ -85,10 +85,10 @@ sldr skeleton create --file /tmp/skeleton.json --json
 
 **Flags**: Same as slides create (`--file`, `--json`, `--dry-run`, `--force`)
 
-### Step 3: Validate Skeleton
+### Step 3: Validate Playlist
 
 ```bash
-sldr skeleton validate presentation-name --json
+sldr playlist validate presentation-name --json
 ```
 
 Returns list of found/missing slides.
@@ -146,12 +146,12 @@ On error:
 ```bash
 # List available resources
 sldr ls slides          # List all slides
-sldr ls skeletons       # List all skeletons  
-sldr ls templates       # List available templates
+sldr ls playlists       # List all playlists  
+sldr ls scaffolds       # List available scaffolds
 sldr ls flavors         # List available flavors
 
-# Create missing slides from skeleton
-sldr slides derive skeleton-name --template default
+# Create missing slides from playlist
+sldr slides derive playlist-name --scaffold default
 ```
 
 ## Slide Content Tips
@@ -203,8 +203,8 @@ EOF
 # 2. Create slides
 sldr slides create --file /tmp/slides.json --json
 
-# 3. Create skeleton JSON
-cat > /tmp/skeleton.json << 'EOF'
+# 3. Create playlist JSON
+cat > /tmp/playlist.json << 'EOF'
 {
   "name": "rust-talk",
   "title": "Introduction to Rust",
@@ -213,11 +213,11 @@ cat > /tmp/skeleton.json << 'EOF'
 }
 EOF
 
-# 4. Create skeleton
-sldr skeleton create --file /tmp/skeleton.json --json
+# 4. Create playlist
+sldr playlist create --file /tmp/playlist.json --json
 
 # 5. Validate
-sldr skeleton validate rust-talk --json
+sldr playlist validate rust-talk --json
 
 # 6. Build (produces ~/sldr/presentations/rust-talk/index.html)
 sldr build rust-talk

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.skeleton-input.schema.json",
+  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist-input.schema.json",
   "name": "my-presentation",
   "title": "My Awesome Presentation",
   "description": "A presentation about interesting topics",

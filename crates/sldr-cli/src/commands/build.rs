@@ -1,4 +1,4 @@
-//! Build command - assemble a presentation from a skeleton into self-contained HTML
+//! Build command - assemble a presentation from a playlist into self-contained HTML
 
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -6,12 +6,12 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use sldr_core::config::Config;
 use sldr_core::flavor::{Flavor, FlavorCollection};
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::presentation::Skeleton;
+use sldr_core::presentation::Playlist;
 use sldr_core::slide::SlideCollection;
 use sldr_renderer::{HtmlRenderer, RenderConfig};
 
 pub fn run(
-    skeleton_name: &str,
+    playlist_name: &str,
     flavor: Option<String>,
     pdf: bool,
     _pptx: bool,
@@ -21,17 +21,17 @@ pub fn run(
     let config = Config::load()?;
 
     println!(
-        "{} presentation from skeleton '{}'",
+        "{} presentation from playlist '{}'",
         "Building".green().bold(),
-        skeleton_name.cyan()
+        playlist_name.cyan()
     );
 
-    // Load skeleton
-    let skeleton = load_skeleton(&config, skeleton_name)?;
+    // Load playlist
+    let playlist = load_playlist(&config, playlist_name)?;
 
     // Determine flavor
     let flavor_name = flavor
-        .or(skeleton.flavor.clone())
+        .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
 
     // Load flavor
@@ -44,7 +44,7 @@ pub fn run(
 
     // Resolve slide references
     let mut resolved_slides = Vec::new();
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         match resolve_with_interactive(&matcher, slide_ref, &slides)? {
             Some(slide) => {
                 println!("  {} {}", "+".green(), slide.name);
@@ -57,28 +57,28 @@ pub fn run(
     }
 
     if resolved_slides.is_empty() {
-        anyhow::bail!("No slides resolved. Add slides to your skeleton first.");
+        anyhow::bail!("No slides resolved. Add slides to your playlist first.");
     }
 
     // Determine output directory
     let output_dir = output.map_or_else(
-        || config.output_dir().join(&skeleton.name),
+        || config.output_dir().join(&playlist.name),
         |o| Config::expand_path(&o),
     );
 
     // Build HTML presentation using sldr-renderer
-    let title = skeleton
+    let title = playlist
         .title
         .clone()
-        .unwrap_or_else(|| skeleton.name.clone());
+        .unwrap_or_else(|| playlist.name.clone());
 
-    let transition = skeleton
+    let transition = playlist
         .slidev_config
         .transition
         .clone()
         .unwrap_or_else(|| "fade".to_string());
 
-    let aspect_ratio = skeleton
+    let aspect_ratio = playlist
         .slidev_config
         .aspect_ratio
         .clone()
@@ -118,56 +118,56 @@ pub fn run(
         "  Open {} in your browser",
         output_path.display().to_string().underline()
     );
-    println!("  Or run: sldr open {}", skeleton_name);
+    println!("  Or run: sldr open {}", playlist_name);
 
     if pdf {
         println!("\n  {} Exporting to PDF...", ">".cyan());
-        super::export::run(skeleton_name, None, None, "pdf")?;
+        super::export::run(playlist_name, None, None, "pdf")?;
     }
 
     Ok(())
 }
 
-pub fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
-    let skeleton_dir = config.skeleton_dir();
+pub fn load_playlist(config: &Config, name: &str) -> Result<Playlist> {
+    let playlist_dir = config.playlist_dir();
     let matcher = SldrMatcher::new(config.matching.clone());
 
-    // Find all skeleton files
-    let mut skeleton_files: Vec<String> = Vec::new();
-    if skeleton_dir.exists() {
-        for entry in std::fs::read_dir(&skeleton_dir)? {
+    // Find all playlist files
+    let mut playlist_files: Vec<String> = Vec::new();
+    if playlist_dir.exists() {
+        for entry in std::fs::read_dir(&playlist_dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "toml") {
                 if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
-                    skeleton_files.push(name.to_string());
+                    playlist_files.push(name.to_string());
                 }
             }
         }
     }
 
-    if skeleton_files.is_empty() {
+    if playlist_files.is_empty() {
         anyhow::bail!(
-            "No skeletons found in {}\nCreate one with: sldr add <name> <slides>",
-            skeleton_dir.display()
+            "No playlists found in {}\nCreate one with: sldr add <name> <slides>",
+            playlist_dir.display()
         );
     }
 
-    // Resolve the skeleton name
-    let skeleton_name = match matcher.resolve(name, &skeleton_files) {
+    // Resolve the playlist name
+    let playlist_name = match matcher.resolve(name, &playlist_files) {
         ResolveResult::Found(result) => result.value,
         ResolveResult::NotFound => {
-            println!("{} Skeleton '{}' not found.", "!".red(), name);
-            println!("Available skeletons:");
-            for s in &skeleton_files {
+            println!("{} Playlist '{}' not found.", "!".red(), name);
+            println!("Available playlists:");
+            for s in &playlist_files {
                 println!("  - {}", s.cyan());
             }
-            anyhow::bail!("Skeleton not found");
+            anyhow::bail!("Playlist not found");
         }
         ResolveResult::Multiple(matches) => {
             let options: Vec<&str> = matches.iter().map(|m| m.value.as_str()).collect();
             let selection = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt(format!("Multiple skeletons match '{name}'. Select one:"))
+                .with_prompt(format!("Multiple playlists match '{name}'. Select one:"))
                 .items(&options)
                 .default(0)
                 .interact()?;
@@ -175,8 +175,8 @@ pub fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
         }
     };
 
-    let skeleton_path = skeleton_dir.join(format!("{skeleton_name}.toml"));
-    Skeleton::load(&skeleton_path).context(format!("Failed to load skeleton: {skeleton_name}"))
+    let playlist_path = playlist_dir.join(format!("{playlist_name}.toml"));
+    Playlist::load(&playlist_path).context(format!("Failed to load playlist: {playlist_name}"))
 }
 
 pub fn load_flavor(config: &Config, name: &str) -> Result<Flavor> {

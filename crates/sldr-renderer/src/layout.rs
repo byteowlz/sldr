@@ -1,4 +1,4 @@
-//! Template engine for wrapping slide HTML into layout structures
+//! Layout engine for wrapping slide HTML into layout structures
 //!
 //! Each layout (cover, two-cols, image-left, etc.) wraps the rendered
 //! markdown content in the appropriate HTML structure with CSS hooks.
@@ -199,7 +199,7 @@ pub fn wrap_slide(opts: SlideOpts<'_>) -> String {
         }
         MarkdownOutput::ContentImage { content, image } => {
             // image-left puts the image column first; image-right puts content first.
-            // base.css sets grid-template-columns accordingly (45% image / 1fr content).
+            // base.css sets grid-layout-columns accordingly (45% image / 1fr content).
             let image_first = layout == "image-left";
 
             html.push_str("  <div class=\"sldr-content\">\n");

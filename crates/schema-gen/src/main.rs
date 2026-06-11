@@ -5,18 +5,18 @@
 /// **Schemas** (for IDE autocompletion):
 /// - sldr.config.schema.json (main configuration)
 /// - sldr.flavor.schema.json (flavor/theme configuration)
-/// - sldr.skeleton.schema.json (presentation skeleton configuration)
+/// - sldr.playlist.schema.json (presentation playlist configuration)
 /// - sldr.slide-input.schema.json (JSON input for batch slide creation)
-/// - sldr.skeleton-input.schema.json (JSON input for skeleton creation)
+/// - sldr.playlist-input.schema.json (JSON input for playlist creation)
 ///
 /// **Example Configs** (showing defaults with comments):
 /// - config.toml (main configuration)
 /// - example-flavor.toml (flavor configuration)
-/// - example-skeleton.toml (skeleton configuration)
+/// - example-playlist.toml (playlist configuration)
 use schemars::schema_for;
-use sldr_core::presentation::SkeletonInput;
+use sldr_core::presentation::PlaylistInput;
 use sldr_core::slide::SlideInputBatch;
-use sldr_core::{Config, Flavor, Skeleton};
+use sldr_core::{Config, Flavor, Playlist};
 use std::fs;
 use std::path::PathBuf;
 
@@ -33,15 +33,15 @@ fn main() {
     println!("\n=== Generating JSON Schemas ===");
     generate_config_schema(&schemas_dir);
     generate_flavor_schema(&schemas_dir);
-    generate_skeleton_schema(&schemas_dir);
+    generate_playlist_schema(&schemas_dir);
     generate_slide_input_schema(&schemas_dir);
-    generate_skeleton_input_schema(&schemas_dir);
+    generate_playlist_input_schema(&schemas_dir);
 
     // Generate example configs
     println!("\n=== Generating Example Configs ===");
     generate_config_example(&examples_dir);
     generate_flavor_example(&examples_dir);
-    generate_skeleton_example(&examples_dir);
+    generate_playlist_example(&examples_dir);
 
     println!("\n✓ All schemas and examples generated successfully!");
     println!("  Schemas:   {:?}", schemas_dir);
@@ -90,14 +90,14 @@ fn generate_flavor_schema(schemas_dir: &PathBuf) {
     println!("  ✓ Generated flavor schema: {:?}", output_path);
 }
 
-/// Generate schema for skeleton.toml
-fn generate_skeleton_schema(schemas_dir: &PathBuf) {
-    let schema = schema_for!(Skeleton);
+/// Generate schema for playlist.toml
+fn generate_playlist_schema(schemas_dir: &PathBuf) {
+    let schema = schema_for!(Playlist);
 
-    let output_path = schemas_dir.join("sldr.skeleton.schema.json");
+    let output_path = schemas_dir.join("sldr.playlist.schema.json");
     let json = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
-    fs::write(&output_path, json).expect("Failed to write skeleton schema");
-    println!("  ✓ Generated skeleton schema: {:?}", output_path);
+    fs::write(&output_path, json).expect("Failed to write playlist schema");
+    println!("  ✓ Generated playlist schema: {:?}", output_path);
 }
 
 /// Generate example config.toml
@@ -114,8 +114,8 @@ fn generate_config_example(examples_dir: &PathBuf) {
 "$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
 
 [config]
-# Directory containing slide templates
-template_dir = "~/.config/sldr/templates"
+# Directory containing slide scaffolds
+scaffold_dir = "~/.config/sldr/scaffolds"
 
 # Directory containing flavors (themes/styles)
 flavor_dir = "~/.config/sldr/flavors"
@@ -137,8 +137,8 @@ slide_dir = "~/sldr/slides"
 # Directory for generated/built presentations
 output_dir = "~/sldr/presentations"
 
-# Directory containing presentation skeletons
-skeleton_dir = "~/sldr/skeletons"
+# Directory containing presentation playlists
+playlist_dir = "~/sldr/playlists"
 
 [matching]
 # Order in which to try resolution methods when finding slides
@@ -260,26 +260,26 @@ opacity = 1.0
     println!("  ✓ Generated flavor example: {:?}", output_path);
 }
 
-/// Generate example skeleton.toml
-fn generate_skeleton_example(examples_dir: &PathBuf) {
-    let output_path = examples_dir.join("example-skeleton.toml");
-    let content = r##"# Example presentation skeleton for sldr
+/// Generate example playlist.toml
+fn generate_playlist_example(examples_dir: &PathBuf) {
+    let output_path = examples_dir.join("example-playlist.toml");
+    let content = r##"# Example presentation playlist for sldr
 #
-# Skeletons define which slides to include in a presentation and
+# Playlists define which slides to include in a presentation and
 # default settings for the presentation.
 #
-# Place this file in: ~/sldr/skeletons/<skeleton-name>.toml
+# Place this file in: ~/sldr/playlists/<playlist-name>.toml
 
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.skeleton.schema.json"
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json"
 
-# Name of the skeleton/presentation
+# Name of the playlist/presentation
 name = "example-talk"
 
 # Optional title for the presentation
 title = "Example Presentation"
 
 # Optional description
-description = "An example presentation skeleton"
+description = "An example presentation playlist"
 
 # List of slides to include (names or paths)
 # Slides can be:
@@ -295,7 +295,7 @@ slides = [
 flavor = "default"
 
 # Rendering configuration
-# (key kept as slidev_config for backwards compat with existing skeletons)
+# (key kept as slidev_config for backwards compat with existing playlists)
 [slidev_config]
 # Transition effect between slides: "fade", "slide-left", "slide-right", "none"
 transition = "fade"
@@ -306,8 +306,8 @@ aspect_ratio = "16/9"
 # Start in dark mode
 dark_mode = false
 "##;
-    fs::write(&output_path, content).expect("Failed to write skeleton example");
-    println!("  ✓ Generated skeleton example: {:?}", output_path);
+    fs::write(&output_path, content).expect("Failed to write playlist example");
+    println!("  ✓ Generated playlist example: {:?}", output_path);
 }
 
 /// Generate schema for slide input JSON (used by agents)
@@ -323,17 +323,17 @@ fn generate_slide_input_schema(schemas_dir: &PathBuf) {
     generate_slide_input_example(&schemas_dir.parent().unwrap().to_path_buf());
 }
 
-/// Generate schema for skeleton input JSON (used by agents)
-fn generate_skeleton_input_schema(schemas_dir: &PathBuf) {
-    let schema = schema_for!(SkeletonInput);
+/// Generate schema for playlist input JSON (used by agents)
+fn generate_playlist_input_schema(schemas_dir: &PathBuf) {
+    let schema = schema_for!(PlaylistInput);
 
-    let output_path = schemas_dir.join("sldr.skeleton-input.schema.json");
+    let output_path = schemas_dir.join("sldr.playlist-input.schema.json");
     let json = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
-    fs::write(&output_path, json).expect("Failed to write skeleton input schema");
-    println!("  ✓ Generated skeleton input schema: {:?}", output_path);
+    fs::write(&output_path, json).expect("Failed to write playlist input schema");
+    println!("  ✓ Generated playlist input schema: {:?}", output_path);
 
     // Also generate example JSON
-    generate_skeleton_input_example(&schemas_dir.parent().unwrap().to_path_buf());
+    generate_playlist_input_example(&schemas_dir.parent().unwrap().to_path_buf());
 }
 
 /// Generate example slide input JSON
@@ -374,11 +374,11 @@ fn generate_slide_input_example(examples_dir: &PathBuf) {
     println!("  ✓ Generated slide input example: {:?}", output_path);
 }
 
-/// Generate example skeleton input JSON
-fn generate_skeleton_input_example(examples_dir: &PathBuf) {
-    let output_path = examples_dir.join("example-skeleton-input.json");
+/// Generate example playlist input JSON
+fn generate_playlist_input_example(examples_dir: &PathBuf) {
+    let output_path = examples_dir.join("example-playlist-input.json");
     let content = r##"{
-  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.skeleton-input.schema.json",
+  "$schema": "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist-input.schema.json",
   "name": "my-presentation",
   "title": "My Awesome Presentation",
   "description": "A presentation about interesting topics",
@@ -395,6 +395,6 @@ fn generate_skeleton_input_example(examples_dir: &PathBuf) {
   }
 }
 "##;
-    fs::write(&output_path, content).expect("Failed to write skeleton input example");
-    println!("  ✓ Generated skeleton input example: {:?}", output_path);
+    fs::write(&output_path, content).expect("Failed to write playlist input example");
+    println!("  ✓ Generated playlist input example: {:?}", output_path);
 }

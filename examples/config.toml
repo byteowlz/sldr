@@ -9,8 +9,8 @@
 "$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
 
 [config]
-# Directory containing slide templates
-template_dir = "~/.config/sldr/templates"
+# Directory containing slide scaffolds
+scaffold_dir = "~/.config/sldr/scaffolds"
 
 # Directory containing flavors (themes/styles)
 flavor_dir = "~/.config/sldr/flavors"
@@ -32,8 +32,8 @@ slide_dir = "~/sldr/slides"
 # Directory for generated/built presentations
 output_dir = "~/sldr/presentations"
 
-# Directory containing presentation skeletons
-skeleton_dir = "~/sldr/skeletons"
+# Directory containing presentation playlists
+playlist_dir = "~/sldr/playlists"
 
 [matching]
 # Order in which to try resolution methods when finding slides

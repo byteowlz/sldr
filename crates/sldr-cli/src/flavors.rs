@@ -1,7 +1,7 @@
 //! Embedded example flavors
 //!
 //! These flavors ship bundled in the binary and get installed into the user's
-//! `flavor_dir` on `sldr init` (similar to bundled templates in `templates.rs`).
+//! `flavor_dir` on `sldr init` (similar to bundled scaffolds in `scaffolds.rs`).
 //! Once installed they behave like any other flavor — users are free to edit,
 //! rename, or delete them.
 

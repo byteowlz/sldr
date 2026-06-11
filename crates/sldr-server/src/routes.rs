@@ -16,14 +16,14 @@ use tracing::{info, warn};
 use sldr_core::config::Config;
 use sldr_core::flavor::FlavorCollection;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::presentation::Skeleton;
+use sldr_core::presentation::Playlist;
 use sldr_core::slide::{Slide, SlideCollection, SlideMetadata};
 use sldr_renderer::{HtmlRenderer, RenderConfig};
 
 use crate::models::{
-    BuildRequest, BuildResponse, CreateSkeletonRequest, CreateSlideRequest, FlavorsResponse,
-    PreviewResponse, SkeletonsResponse, SlideDetail, SlideSummary, SlidesResponse,
-    TemplateEditResponse, UpdateSlideRequest,
+    BuildRequest, BuildResponse, CreatePlaylistRequest, CreateSlideRequest, FlavorsResponse,
+    PreviewResponse, PlaylistsResponse, SlideDetail, SlideSummary, SlidesResponse,
+    ScaffoldEditResponse, UpdateSlideRequest,
 };
 use crate::state::SldrState;
 
@@ -66,12 +66,12 @@ pub fn router(state: SldrState) -> Router {
     Router::new()
         .route("/slides", get(list_slides).post(create_slide))
         .route("/slides/{name}", get(get_slide).put(update_slide))
-        .route("/skeletons", get(list_skeletons).post(create_skeleton))
-        .route("/skeletons/{name}", put(update_skeleton))
+        .route("/playlists", get(list_playlists).post(create_playlist))
+        .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
         .route("/build", post(build_presentation))
-        .route("/preview/{skeleton}", get(preview_skeleton))
-        .route("/templates/{name}/edit", post(edit_template))
+        .route("/preview/{playlist}", get(preview_playlist))
+        .route("/scaffolds/{name}/edit", post(edit_scaffold))
         .with_state(state)
 }
 
@@ -139,7 +139,7 @@ async fn create_slide(
 
     let content = match payload.content {
         Some(content) => build_slide_content(payload.metadata.clone(), content),
-        None => default_slide_template(&payload.name, payload.metadata.clone()),
+        None => default_slide_scaffold(&payload.name, payload.metadata.clone()),
     };
 
     fs::write(&path, content)
@@ -187,52 +187,52 @@ async fn update_slide(
     }))
 }
 
-async fn list_skeletons(State(state): State<SldrState>) -> ApiResult<SkeletonsResponse> {
-    let skeleton_dir = state.config.skeleton_dir();
-    let mut skeletons = Vec::new();
+async fn list_playlists(State(state): State<SldrState>) -> ApiResult<PlaylistsResponse> {
+    let playlist_dir = state.config.playlist_dir();
+    let mut playlists = Vec::new();
 
-    if skeleton_dir.exists() {
-        for entry in fs::read_dir(&skeleton_dir)
+    if playlist_dir.exists() {
+        for entry in fs::read_dir(&playlist_dir)
             .with_context(|| {
                 format!(
-                    "Failed to read skeleton directory {}",
-                    skeleton_dir.display()
+                    "Failed to read playlist directory {}",
+                    playlist_dir.display()
                 )
             })
-            .map_err(to_api_error("Failed to read skeletons"))?
+            .map_err(to_api_error("Failed to read playlists"))?
         {
-            let entry = entry.map_err(to_api_error("Failed to read skeleton entry"))?;
+            let entry = entry.map_err(to_api_error("Failed to read playlist entry"))?;
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "toml") {
-                match Skeleton::load(&path) {
-                    Ok(skeleton) => skeletons.push(skeleton),
+                match Playlist::load(&path) {
+                    Ok(playlist) => playlists.push(playlist),
                     Err(err) => {
-                        warn!("Failed to load skeleton {:?}: {}", path, err);
+                        warn!("Failed to load playlist {:?}: {}", path, err);
                     }
                 }
             }
         }
     }
 
-    Ok(Json(SkeletonsResponse { skeletons }))
+    Ok(Json(PlaylistsResponse { playlists }))
 }
 
-async fn create_skeleton(
+async fn create_playlist(
     State(state): State<SldrState>,
-    Json(payload): Json<CreateSkeletonRequest>,
+    Json(payload): Json<CreatePlaylistRequest>,
 ) -> ApiResult<serde_json::Value> {
-    let skeleton_dir = state.config.skeleton_dir();
+    let playlist_dir = state.config.playlist_dir();
     let filename = format!("{}.toml", payload.name);
-    let path = skeleton_dir.join(&filename);
+    let path = playlist_dir.join(&filename);
 
     if path.exists() {
         return Err(ApiError::new(
             StatusCode::CONFLICT,
-            format!("Skeleton already exists: {}", payload.name),
+            format!("Playlist already exists: {}", payload.name),
         ));
     }
 
-    let skeleton = Skeleton {
+    let playlist = Playlist {
         name: payload.name.clone(),
         title: payload.title,
         description: payload.description,
@@ -241,27 +241,27 @@ async fn create_skeleton(
         slidev_config: payload.slidev_config,
     };
 
-    skeleton
+    playlist
         .save(&path)
-        .with_context(|| format!("Failed to save skeleton {}", path.display()))
-        .map_err(to_api_error("Failed to save skeleton"))?;
+        .with_context(|| format!("Failed to save playlist {}", path.display()))
+        .map_err(to_api_error("Failed to save playlist"))?;
 
     Ok(Json(json!({ "name": payload.name })))
 }
 
-async fn update_skeleton(
+async fn update_playlist(
     State(state): State<SldrState>,
     AxumPath(name): AxumPath<String>,
-    Json(payload): Json<CreateSkeletonRequest>,
+    Json(payload): Json<CreatePlaylistRequest>,
 ) -> ApiResult<serde_json::Value> {
-    let skeleton_dir = state.config.skeleton_dir();
-    let path = skeleton_dir.join(format!("{name}.toml"));
+    let playlist_dir = state.config.playlist_dir();
+    let path = playlist_dir.join(format!("{name}.toml"));
 
     if !path.exists() {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Skeleton not found"));
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "Playlist not found"));
     }
 
-    let skeleton = Skeleton {
+    let playlist = Playlist {
         name: name.clone(),
         title: payload.title,
         description: payload.description,
@@ -270,10 +270,10 @@ async fn update_skeleton(
         slidev_config: payload.slidev_config,
     };
 
-    skeleton
+    playlist
         .save(&path)
-        .with_context(|| format!("Failed to update skeleton {}", path.display()))
-        .map_err(to_api_error("Failed to update skeleton"))?;
+        .with_context(|| format!("Failed to update playlist {}", path.display()))
+        .map_err(to_api_error("Failed to update playlist"))?;
 
     Ok(Json(json!({ "name": name })))
 }
@@ -292,7 +292,7 @@ async fn build_presentation(
     Json(payload): Json<BuildRequest>,
 ) -> ApiResult<BuildResponse> {
     let config = state.config.as_ref();
-    let (name, output_dir, html_path) = build_html_from_skeleton(config, &payload)
+    let (name, output_dir, html_path) = build_html_from_playlist(config, &payload)
         .map_err(to_api_error("Build failed"))?;
 
     Ok(Json(BuildResponse {
@@ -308,20 +308,20 @@ struct PreviewQuery {
     flavor: Option<String>,
 }
 
-async fn preview_skeleton(
+async fn preview_playlist(
     State(state): State<SldrState>,
-    AxumPath(skeleton): AxumPath<String>,
+    AxumPath(playlist): AxumPath<String>,
     Query(query): Query<PreviewQuery>,
 ) -> ApiResult<PreviewResponse> {
     let payload = BuildRequest {
-        skeleton: skeleton.clone(),
+        playlist: playlist.clone(),
         flavor: query.flavor,
         output: None,
         pdf: false,
         pptx: false,
     };
 
-    let (name, _output_dir, html_path) = build_html_from_skeleton(state.config.as_ref(), &payload)
+    let (name, _output_dir, html_path) = build_html_from_playlist(state.config.as_ref(), &payload)
         .map_err(to_api_error("Build failed"))?;
 
     info!("Preview build complete for {}", name);
@@ -339,24 +339,24 @@ async fn preview_skeleton(
     }))
 }
 
-async fn edit_template(
+async fn edit_scaffold(
     State(state): State<SldrState>,
     AxumPath(name): AxumPath<String>,
-) -> ApiResult<TemplateEditResponse> {
-    let template_path = resolve_template_path(&state.config, &name)
-        .map_err(to_api_error("Failed to resolve template"))?;
+) -> ApiResult<ScaffoldEditResponse> {
+    let scaffold_path = resolve_scaffold_path(&state.config, &name)
+        .map_err(to_api_error("Failed to resolve scaffold"))?;
 
-    // Create a temp dir and render the template as a single-slide presentation
+    // Create a temp dir and render the scaffold as a single-slide presentation
     let temp_dir = tempfile::tempdir().map_err(to_api_error("Failed to create temp dir"))?;
 
-    let content = fs::read_to_string(&template_path)
-        .with_context(|| format!("Failed to read template {}", template_path.display()))
-        .map_err(to_api_error("Failed to read template"))?;
+    let content = fs::read_to_string(&scaffold_path)
+        .with_context(|| format!("Failed to read scaffold {}", scaffold_path.display()))
+        .map_err(to_api_error("Failed to read scaffold"))?;
 
-    // Create a temporary slide from the template content
+    // Create a temporary slide from the scaffold content
     let slide = Slide {
         name: name.clone(),
-        path: template_path,
+        path: scaffold_path,
         relative_path: format!("{name}.md"),
         metadata: SlideMetadata::default(),
         content,
@@ -375,40 +375,40 @@ async fn edit_template(
     let html_path = temp_dir.path().join("index.html");
     renderer
         .render_to_file(&html_path)
-        .map_err(to_api_error("Failed to render template preview"))?;
+        .map_err(to_api_error("Failed to render scaffold preview"))?;
 
     let session = state
         .preview
         .spawn_preview_with_temp(html_path, temp_dir)
         .await
-        .map_err(to_api_error("Failed to start template edit preview"))?;
+        .map_err(to_api_error("Failed to start scaffold edit preview"))?;
 
-    Ok(Json(TemplateEditResponse {
+    Ok(Json(ScaffoldEditResponse {
         session_id: session.id,
         url: session.url,
         port: session.port,
     }))
 }
 
-/// Build a self-contained HTML presentation from a skeleton
-fn build_html_from_skeleton(
+/// Build a self-contained HTML presentation from a playlist
+fn build_html_from_playlist(
     config: &Config,
     payload: &BuildRequest,
 ) -> Result<(String, PathBuf, PathBuf)> {
-    let skeleton_dir = config.skeleton_dir();
-    let skeleton_path = skeleton_dir.join(format!("{}.toml", payload.skeleton));
+    let playlist_dir = config.playlist_dir();
+    let playlist_path = playlist_dir.join(format!("{}.toml", payload.playlist));
 
-    if !skeleton_path.exists() {
-        anyhow::bail!("Skeleton not found: {}", payload.skeleton);
+    if !playlist_path.exists() {
+        anyhow::bail!("Playlist not found: {}", payload.playlist);
     }
 
-    let skeleton = Skeleton::load(&skeleton_path)
-        .with_context(|| format!("Failed to load skeleton {}", skeleton_path.display()))?;
+    let playlist = Playlist::load(&playlist_path)
+        .with_context(|| format!("Failed to load playlist {}", playlist_path.display()))?;
 
     let flavor_name = payload
         .flavor
         .clone()
-        .or_else(|| skeleton.flavor.clone())
+        .or_else(|| playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
 
     let flavor = if let Ok(collection) = FlavorCollection::load_from_dir(&config.flavor_dir()) {
@@ -431,7 +431,7 @@ fn build_html_from_skeleton(
     let matcher = SldrMatcher::new(config.matching.clone());
 
     let mut resolved = Vec::new();
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         match matcher.resolve(slide_ref, &slides.names()) {
             ResolveResult::Found(result) => {
                 let slide = slides
@@ -458,20 +458,20 @@ fn build_html_from_skeleton(
         .output
         .as_ref()
         .map(|path| Config::expand_path(path))
-        .unwrap_or_else(|| config.output_dir().join(&skeleton.name));
+        .unwrap_or_else(|| config.output_dir().join(&playlist.name));
 
-    let title = skeleton
+    let title = playlist
         .title
         .clone()
-        .unwrap_or_else(|| skeleton.name.clone());
+        .unwrap_or_else(|| playlist.name.clone());
 
-    let transition = skeleton
+    let transition = playlist
         .slidev_config
         .transition
         .clone()
         .unwrap_or_else(|| "fade".to_string());
 
-    let aspect_ratio = skeleton
+    let aspect_ratio = playlist
         .slidev_config
         .aspect_ratio
         .clone()
@@ -492,7 +492,7 @@ fn build_html_from_skeleton(
     let html_path = output_dir.join("index.html");
     renderer.render_to_file(&html_path)?;
 
-    Ok((skeleton.name, output_dir, html_path))
+    Ok((playlist.name, output_dir, html_path))
 }
 
 fn build_slide_content(metadata: Option<SlideMetadata>, content: String) -> String {
@@ -501,7 +501,7 @@ fn build_slide_content(metadata: Option<SlideMetadata>, content: String) -> Stri
     format!("---\n{yaml}---\n\n{content}")
 }
 
-fn default_slide_template(name: &str, metadata: Option<SlideMetadata>) -> String {
+fn default_slide_scaffold(name: &str, metadata: Option<SlideMetadata>) -> String {
     let title = name.trim_end_matches(".md").replace(['_', '-'], " ");
     let mut metadata = metadata.unwrap_or_default();
     if metadata.title.is_none() {
@@ -523,11 +523,11 @@ fn ensure_md_extension(name: &str) -> String {
     }
 }
 
-fn resolve_template_path(config: &Config, name: &str) -> Result<PathBuf> {
-    let template_dir = config.template_dir();
+fn resolve_scaffold_path(config: &Config, name: &str) -> Result<PathBuf> {
+    let scaffold_dir = config.scaffold_dir();
     let candidates = [
-        template_dir.join(format!("{name}.md")),
-        template_dir.join(name),
+        scaffold_dir.join(format!("{name}.md")),
+        scaffold_dir.join(name),
     ];
 
     for candidate in candidates {
@@ -536,7 +536,7 @@ fn resolve_template_path(config: &Config, name: &str) -> Result<PathBuf> {
         }
     }
 
-    anyhow::bail!("Template not found: {name}");
+    anyhow::bail!("Scaffold not found: {name}");
 }
 
 fn to_api_error<E>(context: &'static str) -> impl FnOnce(E) -> ApiError

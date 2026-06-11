@@ -4,7 +4,7 @@
 //! External tools (web-to-slide pipelines, MCP servers, custom scripts)
 //! drive sldr over HTTP instead of forking the CLI per call.
 //!
-//! Boundary: sldr handles slide/skeleton/asset CRUD + rendering. It does
+//! Boundary: sldr handles slide/playlist/asset CRUD + rendering. It does
 //! NOT fetch URLs, OCR, or summarize content — those are agent jobs.
 //!
 //! See `trx-jbpj.2` for design rationale.
@@ -31,7 +31,7 @@
 //!   filename agents can reference in slide markdown
 //!
 //! Build:
-//! - `POST /api/build/{skeleton}` — render a presentation, returns output path
+//! - `POST /api/build/{playlist}` — render a presentation, returns output path
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -74,7 +74,7 @@ async fn run_server(port: u16, open_browser: bool) -> Result<()> {
         .route("/api/slides", get(handle_list_slides).post(handle_create_slides))
         .route("/api/slides/{name}", get(handle_get_slide))
         .route("/api/assets", post(handle_upload_asset))
-        .route("/api/build/{skeleton}", post(handle_build))
+        .route("/api/build/{playlist}", post(handle_build))
         .with_state(shared);
 
     let addr = format!("127.0.0.1:{port}");
@@ -133,7 +133,7 @@ async fn handle_root() -> Html<&'static str> {
 <h2>Assets &amp; build</h2>
 <ul>
 <li><code>POST /api/assets</code> — body: <code>{filename, mime, data_base64}</code></li>
-<li><code>POST /api/build/{skeleton}</code> — body: <code>{flavor?}</code></li>
+<li><code>POST /api/build/{playlist}</code> — body: <code>{flavor?}</code></li>
 </ul>
 "#,
     )
@@ -439,18 +439,18 @@ struct BuildRequest {
 
 #[derive(Serialize)]
 struct BuildResponse {
-    skeleton: String,
+    playlist: String,
     flavor: String,
     output_path: String,
 }
 
 async fn handle_build(
     AxumState(state): AxumState<Arc<AppState>>,
-    AxumPath(skeleton): AxumPath<String>,
+    AxumPath(playlist): AxumPath<String>,
     body: Option<Json<BuildRequest>>,
 ) -> Result<Json<BuildResponse>, (StatusCode, String)> {
     let req = body.map(|Json(r)| r).unwrap_or_default();
-    let skeleton_name = skeleton.clone();
+    let playlist_name = playlist.clone();
     let flavor_arg = req.flavor.clone();
     let output_dir = state.config.output_dir();
     let config_clone = state.config.clone();
@@ -458,32 +458,32 @@ async fn handle_build(
     // build::run writes to the config's output_dir; run on a blocking thread
     // since the existing CLI logic is synchronous.
     let result = tokio::task::spawn_blocking(move || {
-        run_build_sync(&config_clone, &skeleton_name, flavor_arg)
+        run_build_sync(&config_clone, &playlist_name, flavor_arg)
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let output_path = output_dir.join(&skeleton).join("index.html");
+    let output_path = output_dir.join(&playlist).join("index.html");
     Ok(Json(BuildResponse {
-        skeleton: result.skeleton,
+        playlist: result.playlist,
         flavor: result.flavor,
         output_path: output_path.display().to_string(),
     }))
 }
 
 struct BuildOutcome {
-    skeleton: String,
+    playlist: String,
     flavor: String,
 }
 
 fn run_build_sync(
     _config: &Config,
-    skeleton_name: &str,
+    playlist_name: &str,
     flavor_arg: Option<String>,
 ) -> Result<BuildOutcome> {
     crate::commands::build::run(
-        skeleton_name,
+        playlist_name,
         flavor_arg.clone(),
         false,
         false,
@@ -491,7 +491,7 @@ fn run_build_sync(
         "embed",
     )?;
     Ok(BuildOutcome {
-        skeleton: skeleton_name.to_string(),
+        playlist: playlist_name.to_string(),
         flavor: flavor_arg.unwrap_or_else(|| "default".to_string()),
     })
 }

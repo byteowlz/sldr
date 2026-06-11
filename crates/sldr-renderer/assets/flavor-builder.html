@@ -256,19 +256,19 @@ input[type="range"]::-moz-range-thumb {
   flex-shrink:0;
 }
 
-.preview-toolbar .template-tabs {
+.preview-toolbar .layout-tabs {
   display:flex;gap:2px;flex:1;flex-wrap:wrap;
 }
 
-.template-tab {
+.layout-tab {
   padding:5px 12px;border:none;border-radius:5px;
   background:transparent;color:var(--ui-text-dim);
   font-family:var(--ui-mono);font-size:10px;font-weight:500;
   cursor:pointer;transition:all 0.15s;
   text-transform:lowercase;
 }
-.template-tab:hover {color:var(--ui-text);background:var(--ui-surface2)}
-.template-tab.active {color:var(--ui-accent);background:var(--ui-accent-dim)}
+.layout-tab:hover {color:var(--ui-text);background:var(--ui-surface2)}
+.layout-tab.active {color:var(--ui-accent);background:var(--ui-accent-dim)}
 
 .preview-container {
   flex:1;display:flex;align-items:center;justify-content:center;
@@ -388,7 +388,7 @@ input[type="range"]::-moz-range-thumb {
 .logo-slot .ctrl-label {min-width:64px;font-size:10px}
 .logo-slot .ctrl-select,.logo-slot .ctrl-hex {font-size:10px;padding:4px 6px}
 
-.logo-slot-templates {
+.logo-slot-layouts {
   display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;
 }
 .logo-tmpl-tag {
@@ -966,8 +966,8 @@ input[type="range"]::-moz-range-thumb {
   <div class="preview-area">
     <div class="preview-toolbar">
       <div class="preview-mode-toggle" id="previewModeToggle">
-        <button class="template-tab active" data-mode="gallery" onclick="setPreviewMode('gallery')">gallery</button>
-        <button class="template-tab" data-mode="focus" onclick="setPreviewMode('focus')">focus</button>
+        <button class="layout-tab active" data-mode="gallery" onclick="setPreviewMode('gallery')">gallery</button>
+        <button class="layout-tab" data-mode="focus" onclick="setPreviewMode('focus')">focus</button>
       </div>
       <div style="flex:1"></div>
       <button class="btn-icon" onclick="randomizeFlavor()" title="Randomize everything">&#x1f3b2;</button>
@@ -1064,7 +1064,7 @@ const state = {
     syntax_theme: 'auto',
     frame_style: 'card',
   },
-  activeTemplate: 'default',
+  activeLayout: 'default',
   logos: [],
   // Tracks next logo ID for stable references
   nextLogoId: 1,
@@ -1422,9 +1422,9 @@ const PRESETS = [
 ];
 
 // ================================================================
-// TEMPLATE CONTENT (sample slides)
+// LAYOUT CONTENT (sample slides)
 // ================================================================
-const TEMPLATES = {
+const LAYOUTS = {
   default: {
     label: 'default',
     layout: 'default',
@@ -1565,13 +1565,13 @@ const TEMPLATES = {
 function init() {
   populateFontSelects();
   renderPresets();
-  renderTemplateTabs();
+  renderLayoutTabs();
   renderLogoSlots();
   bindColorControls();
   bindSliderControls();
   bindSelectControls();
   applyState();
-  showTemplate('default');
+  showLayout('default');
 }
 
 function renderPresets() {
@@ -1823,7 +1823,7 @@ function broadcastMode() {
 function setPreviewMode(mode) {
   if (mode !== 'gallery' && mode !== 'focus') return;
   state.previewMode = mode;
-  document.querySelectorAll('#previewModeToggle .template-tab').forEach(b => {
+  document.querySelectorAll('#previewModeToggle .layout-tab').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
   broadcastMode();
@@ -1843,12 +1843,12 @@ window.addEventListener('message', function (e) {
   }
 });
 
-// updateGlow / showTemplate / renderTemplateTabs were tied to the mock
+// updateGlow / showLayout / renderLayoutTabs were tied to the mock
 // preview slide. The iframe now renders the full sample deck via the real
 // renderer, so these are no-ops kept only to satisfy callers in init().
 function updateGlow() { /* gallery iframe has no separate glow overlay */ }
-function showTemplate(_key) { /* focus mode now uses presenter nav inside the iframe */ }
-function renderTemplateTabs() { /* gallery/focus toggle replaces template tabs */ }
+function showLayout(_key) { /* focus mode now uses presenter nav inside the iframe */ }
+function renderLayoutTabs() { /* gallery/focus toggle replaces layout tabs */ }
 
 // ================================================================
 // PRESETS
@@ -2019,7 +2019,7 @@ function addLogoSlot() {
     y: Math.min(offsetY, 85) + '%',
     width: '100px',
     opacity: 0.8,
-    templates: ['all'],
+    layouts: ['all'],
     dataUri: null,  // populated when image is uploaded/pasted
   });
   selectedLogoId = id;
@@ -2041,20 +2041,20 @@ function updateLogo(id, field, value) {
   applyState();
 }
 
-function toggleLogoTemplate(id, tmpl) {
+function toggleLogoLayout(id, tmpl) {
   const logo = state.logos.find(l => l.id === id);
   if (!logo) return;
 
   if (tmpl === 'all') {
     // Toggle between "all" and empty
-    logo.templates = logo.templates.includes('all') ? [] : ['all'];
+    logo.layouts = logo.layouts.includes('all') ? [] : ['all'];
   } else {
-    // Remove "all" if selecting specific templates
-    logo.templates = logo.templates.filter(t => t !== 'all');
-    if (logo.templates.includes(tmpl)) {
-      logo.templates = logo.templates.filter(t => t !== tmpl);
+    // Remove "all" if selecting specific layouts
+    logo.layouts = logo.layouts.filter(t => t !== 'all');
+    if (logo.layouts.includes(tmpl)) {
+      logo.layouts = logo.layouts.filter(t => t !== tmpl);
     } else {
-      logo.templates.push(tmpl);
+      logo.layouts.push(tmpl);
     }
   }
   renderLogoSlots();
@@ -2107,10 +2107,10 @@ function renderLogoSlots() {
         w: <span>${logo.width}</span>
       </div>
 
-      <div class="logo-slot-templates">
+      <div class="logo-slot-layouts">
         ${ALL_LAYOUTS.map(t => `
-          <span class="logo-tmpl-tag${logo.templates.includes(t)?' active':''}"
-                onclick="event.stopPropagation();toggleLogoTemplate(${logo.id},'${t}')">${t}</span>
+          <span class="logo-tmpl-tag${logo.layouts.includes(t)?' active':''}"
+                onclick="event.stopPropagation();toggleLogoLayout(${logo.id},'${t}')">${t}</span>
         `).join('')}
       </div>
     </div>`;
@@ -2271,9 +2271,9 @@ function renderLogoPreview() {
   slide.querySelectorAll('.preview-logo').forEach(el => el.remove());
   ensureGuides();
 
-  const layout = state.activeTemplate;
+  const layout = state.activeLayout;
   state.logos.forEach(logo => {
-    const applies = logo.templates.includes('all') || logo.templates.includes(layout);
+    const applies = logo.layouts.includes('all') || logo.layouts.includes(layout);
     if (!applies) return;
 
     const el = document.createElement('div');
@@ -2425,7 +2425,7 @@ function onDrag(e) {
   // Add other logos as snap targets
   state.logos.forEach(other => {
     if (other.id === logo.id) return;
-    const applies = other.templates.includes('all') || other.templates.includes(state.activeTemplate);
+    const applies = other.layouts.includes('all') || other.layouts.includes(state.activeLayout);
     if (!applies) return;
     const oPos = resolveLogoPosition(other);
     // Add horizontal alignment to other logo's top
@@ -2729,7 +2729,7 @@ value = "${lt.background}"
     if (logo.y) logoToml += `y = "${logo.y}"\n`;
     logoToml += `width = "${logo.width}"\n`;
     logoToml += `opacity = ${logo.opacity}\n`;
-    logoToml += `templates = [${logo.templates.map(t => `"${t}"`).join(', ')}]\n`;
+    logoToml += `layouts = [${logo.layouts.map(t => `"${t}"`).join(', ')}]\n`;
   }
 
   return toml + logoToml;
@@ -2837,18 +2837,18 @@ document.addEventListener('keydown', e => {
   if (e.key === 'd' && !e.ctrlKey && !e.metaKey && notInput) {
     switchMode(state.activeMode === 'light' ? 'dark' : 'light');
   }
-  // Arrow keys cycle templates
+  // Arrow keys cycle layouts
   if (e.key === 'ArrowRight' && notInput) {
     e.preventDefault();
-    const keys = Object.keys(TEMPLATES);
-    const idx = keys.indexOf(state.activeTemplate);
-    showTemplate(keys[(idx + 1) % keys.length]);
+    const keys = Object.keys(LAYOUTS);
+    const idx = keys.indexOf(state.activeLayout);
+    showLayout(keys[(idx + 1) % keys.length]);
   }
   if (e.key === 'ArrowLeft' && notInput) {
     e.preventDefault();
-    const keys = Object.keys(TEMPLATES);
-    const idx = keys.indexOf(state.activeTemplate);
-    showTemplate(keys[(idx - 1 + keys.length) % keys.length]);
+    const keys = Object.keys(LAYOUTS);
+    const idx = keys.indexOf(state.activeLayout);
+    showLayout(keys[(idx - 1 + keys.length) % keys.length]);
   }
 });
 
@@ -2955,7 +2955,7 @@ async function loadExistingFlavor() {
           y: l.y || null,
           width: l.width || '100px',
           opacity: l.opacity ?? 0.8,
-          templates: l.templates || ['all'],
+          layouts: l.layouts || ['all'],
           dataUri: l.dataUri || null,
         }));
         renderLogoSlots();

@@ -37,7 +37,7 @@ if (window.location.search.includes('print')) {
 ";
 
 pub fn run(
-    skeleton_name: &str,
+    playlist_name: &str,
     flavor: Option<String>,
     output: Option<String>,
     format: &str,
@@ -47,14 +47,14 @@ pub fn run(
     println!(
         "{} presentation '{}' to {}",
         "Exporting".green().bold(),
-        skeleton_name.cyan(),
+        playlist_name.cyan(),
         format.to_uppercase().yellow()
     );
 
     // Build the presentation first
-    let skeleton = super::build::load_skeleton(&config, skeleton_name)?;
+    let playlist = super::build::load_playlist(&config, playlist_name)?;
     let flavor_name = flavor
-        .or(skeleton.flavor.clone())
+        .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
     let flavor = super::build::load_flavor(&config, &flavor_name)?;
 
@@ -62,7 +62,7 @@ pub fn run(
     let matcher = sldr_core::fuzzy::SldrMatcher::new(config.matching.clone());
 
     let mut resolved_slides = Vec::new();
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         if let Some(slide) =
             super::build::resolve_with_interactive(&matcher, slide_ref, &slides)?
         {
@@ -74,12 +74,12 @@ pub fn run(
         anyhow::bail!("No slides resolved.");
     }
 
-    let title = skeleton
+    let title = playlist
         .title
         .clone()
-        .unwrap_or_else(|| skeleton.name.clone());
+        .unwrap_or_else(|| playlist.name.clone());
 
-    let transition = skeleton
+    let transition = playlist
         .slidev_config
         .transition
         .clone()
@@ -88,7 +88,7 @@ pub fn run(
     let render_config = sldr_renderer::RenderConfig {
         title,
         transition,
-        aspect_ratio: skeleton
+        aspect_ratio: playlist
             .slidev_config
             .aspect_ratio
             .clone()
@@ -109,9 +109,9 @@ pub fn run(
     let output_path = if let Some(out) = output {
         PathBuf::from(out)
     } else {
-        let output_dir = config.output_dir().join(&skeleton.name);
+        let output_dir = config.output_dir().join(&playlist.name);
         std::fs::create_dir_all(&output_dir)?;
-        output_dir.join(format!("{}.pdf", skeleton.name))
+        output_dir.join(format!("{}.pdf", playlist.name))
     };
 
     match format {

@@ -7,9 +7,9 @@ Modular markdown presentations rendered as self-contained HTML. No runtime depen
 sldr separates **content**, **layout**, and **style** for presentations:
 
 - **Slides** - Individual markdown files with YAML frontmatter
-- **Templates** - Reusable layouts (cover, two-cols, image-left, etc.)
+- **Layouts** - Reusable slide structures (cover, two-cols, image-left, etc.)
 - **Flavors** - Brand themes (colors, fonts, backgrounds, dark mode overrides)
-- **Skeletons** - Presentation definitions that reference which slides to include
+- **Playlists** - Presentation definitions that reference which slides to include
 
 Build a presentation once, export with different branding. Create a slide once, reuse across presentations.
 
@@ -27,8 +27,8 @@ Build a presentation once, export with different branding. Create a slide once, 
                               |
                               v
 +-------------------------------------------------------------+
-|                         Skeleton                            |
-|  ~/sldr/skeletons/my-talk.toml                              |
+|                         Playlist                            |
+|  ~/sldr/playlists/my-talk.toml                              |
 |  +-----------------------------------------------------+   |
 |  | name = "my-talk"                                     |   |
 |  | slides = ["intro", "ai/transformers", "conclusion"]  |   |
@@ -66,14 +66,14 @@ sldr init --global
 
 ```bash
 sldr new my-slide
-sldr new ai/transformers --template two-cols
+sldr new ai/transformers --scaffold two-cols
 ```
 
-### List slides, skeletons, flavors
+### List slides, playlists, flavors
 
 ```bash
 sldr ls slides
-sldr ls skeletons
+sldr ls playlists
 sldr ls flavors
 ```
 
@@ -92,7 +92,7 @@ sldr watch my-talk                       # Default port (3030)
 sldr watch my-talk --flavor dark --port 8080
 ```
 
-Watches slide files, skeletons, and flavors for changes. Rebuilds and reloads the browser automatically via Server-Sent Events.
+Watches slide files, playlists, and flavors for changes. Rebuilds and reloads the browser automatically via Server-Sent Events.
 
 ### Export
 
@@ -101,7 +101,7 @@ sldr export my-talk --format pdf         # PDF via headless Chrome
 sldr export my-talk --format pptx        # PPTX (slide screenshots)
 ```
 
-### Add slides to a skeleton
+### Add slides to a playlist
 
 ```bash
 sldr add my-talk "intro, ai/transformers, conclusion"
@@ -212,7 +212,7 @@ value = "#ffffff"
 "$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
 
 [config]
-template_dir = "~/.config/sldr/templates"
+scaffold_dir = "~/.config/sldr/scaffolds"
 flavor_dir = "~/.config/sldr/flavors"
 default_flavor = "default"
 dev_port = "3030"            # Port for sldr watch
@@ -221,7 +221,7 @@ agent = "opencode"           # AI agent: "opencode", "claude code", "codex"
 [presentations]
 slide_dir = "~/sldr/slides"
 output_dir = "~/sldr/presentations"
-skeleton_dir = "~/sldr/skeletons"
+playlist_dir = "~/sldr/playlists"
 
 [matching]
 threshold = 50.0
@@ -232,7 +232,7 @@ max_suggestions = 6
 
 All config files support JSON Schema validation. Install the **Even Better TOML** extension in VS Code/editors for inline docs, autocompletion, and validation.
 
-Example configs: `examples/config.toml`, `examples/example-flavor.toml`, `examples/example-skeleton.toml`
+Example configs: `examples/config.toml`, `examples/example-flavor.toml`, `examples/example-playlist.toml`
 
 ### Regenerating Schemas
 
@@ -246,17 +246,17 @@ just copy-schemas   # Copy to byteowlz/schemas repository
 ```
 sldr/
 +-- crates/
-|   +-- sldr-core/       # Library: config, slides, skeletons, flavors, fuzzy matching
+|   +-- sldr-core/       # Library: config, slides, playlists, flavors, fuzzy matching
 |   +-- sldr-renderer/   # HTML compiler: markdown -> self-contained HTML
 |   +-- sldr-cli/        # CLI binary (build, watch, export, open, preview, etc.)
 |   +-- sldr-server/     # HTTP API for programmatic access
 |   +-- schema-gen/      # JSON schema and example config generator
 +-- examples/
 |   +-- schemas/          # JSON schemas for IDE autocompletion
-|   +-- templates/        # Markdown slide templates (30 layouts)
+|   +-- scaffolds/        # Markdown slide scaffolds (30 bundled)
 |   +-- config.toml       # Example configuration
 |   +-- example-flavor.toml
-|   +-- example-skeleton.toml
+|   +-- example-playlist.toml
 +-- skill/                # AI agent skill for creating presentations
 ```
 

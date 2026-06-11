@@ -1,4 +1,4 @@
-//! Skeleton command - skeleton management utilities
+//! Playlist command - playlist management utilities
 
 use super::json_output::JsonResponse;
 use anyhow::{Context, Result};
@@ -6,14 +6,14 @@ use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use sldr_core::config::Config;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::presentation::{Skeleton, SkeletonInput};
+use sldr_core::presentation::{Playlist, PlaylistInput};
 use sldr_core::slide::{SlideCollection, SlideInput};
 use std::io::Read;
 use std::path::Path;
 
-/// Output structure for skeleton creation (JSON output mode)
+/// Output structure for playlist creation (JSON output mode)
 #[derive(Serialize)]
-struct SkeletonCreateResult {
+struct PlaylistCreateResult {
     name: String,
     path: String,
     slides_count: usize,
@@ -28,7 +28,7 @@ struct SavedSlide {
     path: String,
 }
 
-/// Output structure for skeleton validation (JSON output mode)
+/// Output structure for playlist validation (JSON output mode)
 #[derive(Serialize)]
 struct ValidationResult {
     name: String,
@@ -55,12 +55,12 @@ struct FromDirResult {
     slides: Vec<String>,
 }
 
-/// Extended skeleton input that optionally includes slide content.
+/// Extended playlist input that optionally includes slide content.
 ///
 /// When `--save-slides` is used, this format allows the caller to provide
-/// both skeleton metadata and full slide content in a single JSON payload.
+/// both playlist metadata and full slide content in a single JSON payload.
 /// The slides are saved as individual markdown files in the slides directory,
-/// and the skeleton TOML references them.
+/// and the playlist TOML references them.
 ///
 /// # Example JSON input with slide_definitions:
 /// ```json
@@ -87,17 +87,17 @@ struct FromDirResult {
 /// }
 /// ```
 #[derive(Deserialize)]
-struct ExtendedSkeletonInput {
-    /// Standard skeleton fields
+struct ExtendedPlaylistInput {
+    /// Standard playlist fields
     #[serde(flatten)]
-    skeleton: SkeletonInput,
+    playlist: PlaylistInput,
 
     /// Optional slide definitions to save as markdown files
     #[serde(default)]
     slide_definitions: Vec<SlideInput>,
 }
 
-/// Create a skeleton from JSON input (stdin or file)
+/// Create a playlist from JSON input (stdin or file)
 ///
 /// When `save_slides` is true, the JSON input can include a `slide_definitions`
 /// array with full slide content. Each definition is saved as an individual
@@ -144,22 +144,22 @@ fn create_inner(
     };
 
     // Parse the input - use extended format if save_slides is requested
-    let (input, slide_definitions): (SkeletonInput, Vec<SlideInput>) = if save_slides {
-        let extended: ExtendedSkeletonInput =
+    let (input, slide_definitions): (PlaylistInput, Vec<SlideInput>) = if save_slides {
+        let extended: ExtendedPlaylistInput =
             serde_json::from_str(&json_input).context("Failed to parse JSON input")?;
-        (extended.skeleton, extended.slide_definitions)
+        (extended.playlist, extended.slide_definitions)
     } else {
-        let input: SkeletonInput =
+        let input: PlaylistInput =
             serde_json::from_str(&json_input).context("Failed to parse JSON input")?;
         (input, Vec::new())
     };
 
-    let skeleton_dir = config.skeleton_dir();
-    let skeleton_path = skeleton_dir.join(format!("{}.toml", input.name));
+    let playlist_dir = config.playlist_dir();
+    let playlist_path = playlist_dir.join(format!("{}.toml", input.name));
 
     if !json_output {
         println!(
-            "{} Creating skeleton '{}'{}...",
+            "{} Creating playlist '{}'{}...",
             "sldr".green().bold(),
             input.name.cyan(),
             if dry_run { " (dry run)" } else { "" }
@@ -185,9 +185,9 @@ fn create_inner(
                 });
             }
         }
-        let result = SkeletonCreateResult {
+        let result = PlaylistCreateResult {
             name: input.name.clone(),
-            path: skeleton_path.display().to_string(),
+            path: playlist_path.display().to_string(),
             slides_count: input.slides.len(),
             saved_slides,
         };
@@ -197,7 +197,7 @@ fn create_inner(
             println!(
                 "  {} Would create: {}",
                 ">".cyan(),
-                skeleton_path.display().to_string().cyan()
+                playlist_path.display().to_string().cyan()
             );
             println!("  {} slides: {}", "i".blue(), input.slides.len());
         }
@@ -205,11 +205,11 @@ fn create_inner(
     }
 
     // Check if file already exists (unless --force is set)
-    if skeleton_path.exists() && !force {
+    if playlist_path.exists() && !force {
         anyhow::bail!(
-            "Skeleton '{}' already exists at {} (use --force to overwrite)",
+            "Playlist '{}' already exists at {} (use --force to overwrite)",
             input.name,
-            skeleton_path.display()
+            playlist_path.display()
         );
     }
 
@@ -270,20 +270,20 @@ fn create_inner(
         }
     }
 
-    // Convert to Skeleton and save
-    let skeleton: Skeleton = input.into();
+    // Convert to Playlist and save
+    let playlist: Playlist = input.into();
 
     // Create parent directory if needed
-    if let Some(parent) = skeleton_path.parent() {
+    if let Some(parent) = playlist_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    skeleton.save(&skeleton_path)?;
+    playlist.save(&playlist_path)?;
 
-    let result = SkeletonCreateResult {
-        name: skeleton.name.clone(),
-        path: skeleton_path.display().to_string(),
-        slides_count: skeleton.slides.len(),
+    let result = PlaylistCreateResult {
+        name: playlist.name.clone(),
+        path: playlist_path.display().to_string(),
+        slides_count: playlist.slides.len(),
         saved_slides,
     };
 
@@ -293,23 +293,23 @@ fn create_inner(
         println!(
             "\n  {} Created: {}",
             "+".green(),
-            skeleton_path.display().to_string().cyan()
+            playlist_path.display().to_string().cyan()
         );
         println!(
-            "\n{} Skeleton '{}' created with {} slides",
+            "\n{} Playlist '{}' created with {} slides",
             "Done!".green().bold(),
-            skeleton.name,
-            skeleton.slides.len()
+            playlist.name,
+            playlist.slides.len()
         );
     }
 
     Ok(())
 }
 
-/// Auto-generate a skeleton from all slides in a directory
+/// Auto-generate a playlist from all slides in a directory
 ///
 /// Scans the given directory (relative to slide_dir or absolute) for .md files
-/// and creates a skeleton TOML referencing all found slides.
+/// and creates a playlist TOML referencing all found slides.
 pub fn create_from_dir(
     dir: &str,
     name: Option<&str>,
@@ -356,8 +356,8 @@ fn create_from_dir_inner(
         anyhow::bail!("'{}' is not a directory", scan_dir.display());
     }
 
-    // Derive skeleton name from directory name if not provided
-    let skeleton_name = name.map(String::from).unwrap_or_else(|| {
+    // Derive playlist name from directory name if not provided
+    let playlist_name = name.map(String::from).unwrap_or_else(|| {
         scan_dir
             .file_name()
             .and_then(|n| n.to_str())
@@ -392,14 +392,14 @@ fn create_from_dir_inner(
         })
         .collect();
 
-    let skeleton_dir = config.skeleton_dir();
-    let skeleton_path = skeleton_dir.join(format!("{skeleton_name}.toml"));
+    let playlist_dir = config.playlist_dir();
+    let playlist_path = playlist_dir.join(format!("{playlist_name}.toml"));
 
     if !json_output {
         println!(
-            "{} Generating skeleton '{}' from {}{}...",
+            "{} Generating playlist '{}' from {}{}...",
             "sldr".green().bold(),
-            skeleton_name.cyan(),
+            playlist_name.cyan(),
             scan_dir.display().to_string().dimmed(),
             if dry_run { " (dry run)" } else { "" }
         );
@@ -411,8 +411,8 @@ fn create_from_dir_inner(
 
     if dry_run {
         let result = FromDirResult {
-            name: skeleton_name.clone(),
-            path: skeleton_path.display().to_string(),
+            name: playlist_name.clone(),
+            path: playlist_path.display().to_string(),
             slides_count: slide_refs.len(),
             slides: slide_refs,
         };
@@ -422,26 +422,26 @@ fn create_from_dir_inner(
             println!(
                 "\n  {} Would create: {}",
                 ">".cyan(),
-                skeleton_path.display().to_string().cyan()
+                playlist_path.display().to_string().cyan()
             );
         }
         return Ok(());
     }
 
     // Check if file already exists
-    if skeleton_path.exists() && !force {
+    if playlist_path.exists() && !force {
         anyhow::bail!(
-            "Skeleton '{}' already exists at {} (use --force to overwrite)",
-            skeleton_name,
-            skeleton_path.display()
+            "Playlist '{}' already exists at {} (use --force to overwrite)",
+            playlist_name,
+            playlist_path.display()
         );
     }
 
     // Build the title from the directory name
-    let title = skeleton_name.replace(['_', '-'], " ");
+    let title = playlist_name.replace(['_', '-'], " ");
 
-    let skeleton = Skeleton {
-        name: skeleton_name.clone(),
+    let playlist = Playlist {
+        name: playlist_name.clone(),
         title: Some(title),
         description: Some(format!("Auto-generated from {}", scan_dir.display())),
         slides: slide_refs.clone(),
@@ -450,15 +450,15 @@ fn create_from_dir_inner(
     };
 
     // Create parent directory if needed
-    if let Some(parent) = skeleton_path.parent() {
+    if let Some(parent) = playlist_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    skeleton.save(&skeleton_path)?;
+    playlist.save(&playlist_path)?;
 
     let result = FromDirResult {
-        name: skeleton_name.clone(),
-        path: skeleton_path.display().to_string(),
+        name: playlist_name.clone(),
+        path: playlist_path.display().to_string(),
         slides_count: slide_refs.len(),
         slides: slide_refs,
     };
@@ -469,12 +469,12 @@ fn create_from_dir_inner(
         println!(
             "\n  {} Created: {}",
             "+".green(),
-            skeleton_path.display().to_string().cyan()
+            playlist_path.display().to_string().cyan()
         );
         println!(
-            "\n{} Skeleton '{}' created with {} slides",
+            "\n{} Playlist '{}' created with {} slides",
             "Done!".green().bold(),
-            skeleton_name,
+            playlist_name,
             result.slides_count
         );
     }
@@ -482,15 +482,15 @@ fn create_from_dir_inner(
     Ok(())
 }
 
-/// Validate a skeleton - check if all referenced slides exist
+/// Validate a playlist - check if all referenced slides exist
 ///
 /// Exit codes:
 /// - 0: All slides exist (valid)
 /// - 1: Some slides missing (invalid)
-/// - 2: Command failed (skeleton not found, etc.)
-pub fn validate(skeleton_name: &str, json_output: bool) -> Result<()> {
+/// - 2: Command failed (playlist not found, etc.)
+pub fn validate(playlist_name: &str, json_output: bool) -> Result<()> {
     // Wrap the entire operation to handle errors as JSON
-    let result = validate_inner(skeleton_name, json_output);
+    let result = validate_inner(playlist_name, json_output);
 
     match result {
         Ok(()) => Ok(()),
@@ -505,40 +505,40 @@ pub fn validate(skeleton_name: &str, json_output: bool) -> Result<()> {
     }
 }
 
-fn validate_inner(skeleton_name: &str, json_output: bool) -> Result<()> {
+fn validate_inner(playlist_name: &str, json_output: bool) -> Result<()> {
     let config = Config::load()?;
 
-    // Load the skeleton
-    let skeleton_dir = config.skeleton_dir();
+    // Load the playlist
+    let playlist_dir = config.playlist_dir();
     let matcher = SldrMatcher::new(config.matching.clone());
 
-    // Find skeleton file with fuzzy matching
-    let mut skeleton_files: Vec<String> = Vec::new();
-    if skeleton_dir.exists() {
-        for entry in std::fs::read_dir(&skeleton_dir)? {
+    // Find playlist file with fuzzy matching
+    let mut playlist_files: Vec<String> = Vec::new();
+    if playlist_dir.exists() {
+        for entry in std::fs::read_dir(&playlist_dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "toml") {
                 if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
-                    skeleton_files.push(name.to_string());
+                    playlist_files.push(name.to_string());
                 }
             }
         }
     }
 
-    let resolved_name = match matcher.resolve(skeleton_name, &skeleton_files) {
+    let resolved_name = match matcher.resolve(playlist_name, &playlist_files) {
         ResolveResult::Found(result) => result.value,
         ResolveResult::NotFound => {
-            anyhow::bail!("Skeleton '{skeleton_name}' not found");
+            anyhow::bail!("Playlist '{playlist_name}' not found");
         }
         ResolveResult::Multiple(matches) => {
             let names: Vec<_> = matches.iter().map(|m| m.value.as_str()).collect();
-            anyhow::bail!("Multiple skeletons match '{skeleton_name}': {names:?}");
+            anyhow::bail!("Multiple playlists match '{playlist_name}': {names:?}");
         }
     };
 
-    let skeleton_path = skeleton_dir.join(format!("{resolved_name}.toml"));
-    let skeleton = Skeleton::load(&skeleton_path)?;
+    let playlist_path = playlist_dir.join(format!("{resolved_name}.toml"));
+    let playlist = Playlist::load(&playlist_path)?;
 
     // Load existing slides
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
@@ -548,7 +548,7 @@ fn validate_inner(skeleton_name: &str, json_output: bool) -> Result<()> {
     let mut found: Vec<ResolvedSlide> = Vec::new();
     let mut missing: Vec<String> = Vec::new();
 
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         match matcher.resolve(slide_ref, &existing_names) {
             ResolveResult::Found(result) => {
                 found.push(ResolvedSlide {
@@ -573,9 +573,9 @@ fn validate_inner(skeleton_name: &str, json_output: bool) -> Result<()> {
 
     if json_output {
         let result = ValidationResult {
-            name: skeleton.name.clone(),
+            name: playlist.name.clone(),
             valid: is_valid,
-            slides_total: skeleton.slides.len(),
+            slides_total: playlist.slides.len(),
             slides_found: found.len(),
             slides_missing: missing.len(),
             found,
@@ -584,12 +584,12 @@ fn validate_inner(skeleton_name: &str, json_output: bool) -> Result<()> {
         JsonResponse::success(result).print();
     } else {
         println!(
-            "{} Validating skeleton '{}'...",
+            "{} Validating playlist '{}'...",
             "sldr".green().bold(),
-            skeleton.name.cyan()
+            playlist.name.cyan()
         );
 
-        println!("\n  {} Total slides: {}", "i".blue(), skeleton.slides.len());
+        println!("\n  {} Total slides: {}", "i".blue(), playlist.slides.len());
         println!("  {} Found: {}", "+".green(), found.len());
 
         if !missing.is_empty() {
@@ -602,21 +602,21 @@ fn validate_inner(skeleton_name: &str, json_output: bool) -> Result<()> {
 
         if is_valid {
             println!(
-                "\n{} Skeleton '{}' is valid - all slides exist",
+                "\n{} Playlist '{}' is valid - all slides exist",
                 "Valid!".green().bold(),
-                skeleton.name
+                playlist.name
             );
         } else {
             println!(
-                "\n{} Skeleton '{}' has {} missing slide(s)",
+                "\n{} Playlist '{}' has {} missing slide(s)",
                 "Invalid!".red().bold(),
-                skeleton.name,
+                playlist.name,
                 missing.len()
             );
             println!(
                 "\n  {} Run 'sldr slides derive {}' to create missing slides",
                 "Tip:".cyan(),
-                skeleton.name
+                playlist.name
             );
         }
     }

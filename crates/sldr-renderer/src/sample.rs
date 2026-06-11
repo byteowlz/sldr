@@ -93,9 +93,9 @@ pub const SAMPLE_LANDSCAPE_SVG: &str =
     include_str!("../samples/sample/slides/sample-landscape.svg");
 pub const SAMPLE_SQUARE_SVG: &str = include_str!("../samples/sample/slides/sample-square.svg");
 
-/// Skeleton TOML for the sample deck.
-pub const SAMPLE_SKELETON_TOML: &str =
-    include_str!("../samples/sample/skeletons/sample.toml");
+/// Playlist TOML for the sample deck.
+pub const SAMPLE_PLAYLIST_TOML: &str =
+    include_str!("../samples/sample/playlists/sample.toml");
 
 /// Render the bundled sample deck against the given flavor.
 ///

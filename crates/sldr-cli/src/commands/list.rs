@@ -1,7 +1,7 @@
-//! List command - show available slides, presentations, skeletons, flavors, or templates
+//! List command - show available slides, presentations, playlists, flavors, or scaffolds
 
 use super::json_output::JsonResponse;
-use crate::templates::TEMPLATES;
+use crate::scaffolds::SCAFFOLDS;
 use anyhow::Result;
 use colored::Colorize;
 use serde::Serialize;
@@ -32,9 +32,9 @@ struct PresentationEntry {
     status: String,
 }
 
-/// JSON output for a skeleton entry
+/// JSON output for a playlist entry
 #[derive(Serialize)]
-struct SkeletonEntry {
+struct PlaylistEntry {
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     slides_count: Option<usize>,
@@ -44,7 +44,7 @@ struct SkeletonEntry {
     title: Option<String>,
 }
 
-/// BHT-compatible flavor entry — mirrors the per-template shape in
+/// BHT-compatible flavor entry — mirrors the per-scaffold shape in
 /// `beautiful-html-templates/index.json` so an agent can read one file
 /// and match a brief to a flavor by feeling.
 #[derive(Serialize)]
@@ -121,9 +121,9 @@ fn iso8601_utc_now() -> String {
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
-/// JSON output for a template entry
+/// JSON output for a scaffold entry
 #[derive(Serialize)]
-struct TemplateEntry {
+struct ScaffoldEntry {
     name: String,
     installed: bool,
     bundled: bool,
@@ -144,19 +144,19 @@ pub fn run(what: &str, long: bool, json: bool) -> Result<()> {
     match what.to_lowercase().as_str() {
         "slides" | "slide" | "s" => list_slides(&config, long, json),
         "presentations" | "presentation" | "p" => list_presentations(&config, long, json),
-        "skeletons" | "skeleton" | "sk" => list_skeletons(&config, long, json),
+        "playlists" | "playlist" | "pl" => list_playlists(&config, long, json),
         "flavors" | "flavor" | "f" => list_flavors(&config, long, json),
-        "templates" | "template" | "t" => list_templates(&config, long, json),
+        "scaffolds" | "scaffold" | "sc" => list_scaffolds(&config, long, json),
         _ => {
             if json {
                 let response: JsonResponse<()> = JsonResponse::error(
-                    format!("Unknown type '{what}'. Use: slides, presentations, skeletons, flavors, or templates"),
+                    format!("Unknown type '{what}'. Use: slides, presentations, playlists, flavors, or scaffolds"),
                     None,
                 );
                 response.print();
             } else {
                 println!(
-                    "{}: Unknown type '{}'. Use: slides, presentations, skeletons, flavors, or templates",
+                    "{}: Unknown type '{}'. Use: slides, presentations, playlists, flavors, or scaffolds",
                     "Error".red(),
                     what
                 );
@@ -289,13 +289,13 @@ fn list_presentations(config: &Config, long: bool, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn list_skeletons(config: &Config, long: bool, json: bool) -> Result<()> {
-    let skeleton_dir = config.skeleton_dir();
+fn list_playlists(config: &Config, long: bool, json: bool) -> Result<()> {
+    let playlist_dir = config.playlist_dir();
 
     let mut entries = Vec::new();
 
-    if skeleton_dir.exists() {
-        for entry in std::fs::read_dir(&skeleton_dir)? {
+    if playlist_dir.exists() {
+        for entry in std::fs::read_dir(&playlist_dir)? {
             let entry = entry?;
             let path = entry.path();
 
@@ -305,17 +305,17 @@ fn list_skeletons(config: &Config, long: bool, json: bool) -> Result<()> {
                 };
                 let name = stem.to_string_lossy().to_string();
 
-                match sldr_core::presentation::Skeleton::load(&path) {
-                    Ok(skeleton) => {
-                        entries.push(SkeletonEntry {
+                match sldr_core::presentation::Playlist::load(&path) {
+                    Ok(playlist) => {
+                        entries.push(PlaylistEntry {
                             name,
-                            slides_count: Some(skeleton.slides.len()),
-                            flavor: skeleton.flavor.clone(),
-                            title: skeleton.title.clone(),
+                            slides_count: Some(playlist.slides.len()),
+                            flavor: playlist.flavor.clone(),
+                            title: playlist.title.clone(),
                         });
                     }
                     Err(_) => {
-                        entries.push(SkeletonEntry {
+                        entries.push(PlaylistEntry {
                             name,
                             slides_count: None,
                             flavor: None,
@@ -329,7 +329,7 @@ fn list_skeletons(config: &Config, long: bool, json: bool) -> Result<()> {
 
     if json {
         let result = ListResult {
-            list_type: "skeletons".to_string(),
+            list_type: "playlists".to_string(),
             count: entries.len(),
             items: entries,
         };
@@ -339,12 +339,12 @@ fn list_skeletons(config: &Config, long: bool, json: bool) -> Result<()> {
 
     println!(
         "{} ({})",
-        "Skeletons".green().bold(),
-        skeleton_dir.display().to_string().dimmed()
+        "Playlists".green().bold(),
+        playlist_dir.display().to_string().dimmed()
     );
 
     if entries.is_empty() {
-        println!("  {}", "No skeletons found".dimmed());
+        println!("  {}", "No playlists found".dimmed());
     } else {
         for entry in &entries {
             if long {
@@ -363,7 +363,7 @@ fn list_skeletons(config: &Config, long: bool, json: bool) -> Result<()> {
                 println!("  {}", entry.name);
             }
         }
-        println!("\n  {} skeleton(s)", entries.len().to_string().bold());
+        println!("\n  {} playlist(s)", entries.len().to_string().bold());
     }
     Ok(())
 }
@@ -423,41 +423,41 @@ fn list_flavors(config: &Config, long: bool, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
-    let template_dir = config.template_dir();
+fn list_scaffolds(config: &Config, long: bool, json: bool) -> Result<()> {
+    let scaffold_dir = config.scaffold_dir();
 
-    // Collect installed templates from filesystem
-    let mut installed_templates: HashSet<String> = HashSet::new();
-    if template_dir.exists() {
-        for entry in std::fs::read_dir(&template_dir)? {
+    // Collect installed scaffolds from filesystem
+    let mut installed_scaffolds: HashSet<String> = HashSet::new();
+    if scaffold_dir.exists() {
+        for entry in std::fs::read_dir(&scaffold_dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "md") {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    installed_templates.insert(name.to_string());
+                    installed_scaffolds.insert(name.to_string());
                 }
             }
         }
     }
 
-    let bundled_names: HashSet<_> = TEMPLATES.iter().map(|t| t.name.to_string()).collect();
+    let bundled_names: HashSet<_> = SCAFFOLDS.iter().map(|t| t.name.to_string()).collect();
 
     if json {
-        let mut items: Vec<TemplateEntry> = Vec::new();
+        let mut items: Vec<ScaffoldEntry> = Vec::new();
 
-        // Add bundled templates
-        for t in TEMPLATES {
-            items.push(TemplateEntry {
+        // Add bundled scaffolds
+        for t in SCAFFOLDS {
+            items.push(ScaffoldEntry {
                 name: t.name.trim_end_matches(".md").to_string(),
-                installed: installed_templates.contains(t.name),
+                installed: installed_scaffolds.contains(t.name),
                 bundled: true,
             });
         }
 
-        // Add custom (non-bundled) installed templates
-        for name in &installed_templates {
+        // Add custom (non-bundled) installed scaffolds
+        for name in &installed_scaffolds {
             if !bundled_names.contains(name) {
-                items.push(TemplateEntry {
+                items.push(ScaffoldEntry {
                     name: name.trim_end_matches(".md").to_string(),
                     installed: true,
                     bundled: false,
@@ -466,7 +466,7 @@ fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
         }
 
         let result = ListResult {
-            list_type: "templates".to_string(),
+            list_type: "scaffolds".to_string(),
             count: items.len(),
             items,
         };
@@ -476,11 +476,11 @@ fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
 
     println!(
         "{} ({})",
-        "Templates".green().bold(),
-        template_dir.display().to_string().dimmed()
+        "Scaffolds".green().bold(),
+        scaffold_dir.display().to_string().dimmed()
     );
 
-    // Categorize bundled templates
+    // Categorize bundled scaffolds
     let categories = [
         (
             "Cover/Title",
@@ -520,11 +520,11 @@ fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
 
     if long {
         // Show categorized view
-        println!("\n  {} Bundled templates:", "Bundled".cyan());
-        for (category, templates) in &categories {
+        println!("\n  {} Bundled scaffolds:", "Bundled".cyan());
+        for (category, scaffolds) in &categories {
             println!("\n    {}:", category.yellow());
-            for name in templates {
-                let status = if installed_templates.contains(*name) {
+            for name in scaffolds {
+                let status = if installed_scaffolds.contains(*name) {
                     "installed".green()
                 } else {
                     "not installed".dimmed()
@@ -534,14 +534,14 @@ fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
             }
         }
 
-        // Show custom templates (not in bundled list)
-        let custom: Vec<_> = installed_templates
+        // Show custom scaffolds (not in bundled list)
+        let custom: Vec<_> = installed_scaffolds
             .iter()
             .filter(|n| !bundled_names.contains(*n))
             .collect();
 
         if !custom.is_empty() {
-            println!("\n  {} Custom templates:", "Custom".cyan());
+            println!("\n  {} Custom scaffolds:", "Custom".cyan());
             for name in &custom {
                 let name_display = name.trim_end_matches(".md");
                 println!("    {name_display}");
@@ -549,14 +549,14 @@ fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
         }
     } else {
         // Simple list
-        if installed_templates.is_empty() {
-            println!("  {}", "No templates installed".dimmed());
+        if installed_scaffolds.is_empty() {
+            println!("  {}", "No scaffolds installed".dimmed());
             println!(
-                "  {} Run 'sldr init' to install bundled templates",
+                "  {} Run 'sldr init' to install bundled scaffolds",
                 "Tip:".blue()
             );
         } else {
-            for name in &installed_templates {
+            for name in &installed_scaffolds {
                 let name_display = name.trim_end_matches(".md");
                 let is_bundled = bundled_names.contains(name);
                 if is_bundled {
@@ -570,8 +570,8 @@ fn list_templates(config: &Config, long: bool, json: bool) -> Result<()> {
 
     println!(
         "\n  {} installed, {} bundled available",
-        installed_templates.len().to_string().bold(),
-        TEMPLATES.len().to_string().bold()
+        installed_scaffolds.len().to_string().bold(),
+        SCAFFOLDS.len().to_string().bold()
     );
 
     Ok(())

@@ -385,7 +385,7 @@ pub struct Code {
 
 /// Curatorial metadata for a flavor — how it *feels* and where it fits.
 ///
-/// All fields are optional. Inspired by the per-template metadata in
+/// All fields are optional. Inspired by the per-layout metadata in
 /// `beautiful-html-templates` (see CREDITS.md). Authors are encouraged
 /// to fill these in so agents can match a brief to a flavor without
 /// reading every flavor's TOML.
@@ -487,8 +487,8 @@ pub struct LogoPlacement {
 
     /// Which layouts this logo appears on.
     /// Use ["all"] for every slide, or specific layouts like ["default", "two-cols"].
-    #[serde(default = "default_logo_templates")]
-    pub templates: Vec<String>,
+    #[serde(default = "default_logo_layouts")]
+    pub layouts: Vec<String>,
 }
 
 fn default_logo_position() -> String {
@@ -503,7 +503,7 @@ fn default_logo_opacity() -> f32 {
     0.8
 }
 
-fn default_logo_templates() -> Vec<String> {
+fn default_logo_layouts() -> Vec<String> {
     vec!["all".to_string()]
 }
 
@@ -541,7 +541,7 @@ impl LogoPlacement {
 
     /// Check if this logo should appear on a given layout
     pub fn applies_to_layout(&self, layout: &str) -> bool {
-        self.templates.iter().any(|t| t == "all" || t == layout)
+        self.layouts.iter().any(|t| t == "all" || t == layout)
     }
 }
 
