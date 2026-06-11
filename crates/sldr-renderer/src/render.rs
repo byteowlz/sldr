@@ -62,6 +62,14 @@ pub struct RenderConfig {
 
     /// Output directory (used for creating assets/ subdirectory in external mode)
     pub output_dir: Option<std::path::PathBuf>,
+
+    /// Requested language for slides with in-file `::lang:xx::` blocks.
+    /// None renders the deck default language (ADR-0007).
+    pub language: Option<String>,
+
+    /// Deck default language — what `::lang::`-blocked slides fall back to
+    /// when the requested language is missing (with a loud warning).
+    pub default_language: String,
 }
 
 impl Default for RenderConfig {
@@ -73,6 +81,8 @@ impl Default for RenderConfig {
             speaker_notes: true,
             image_mode: ImageMode::Embed,
             output_dir: None,
+            language: None,
+            default_language: "en".to_string(),
         }
     }
 }
@@ -89,6 +99,9 @@ pub struct HtmlRenderer {
     flavors: Vec<Flavor>,
     slides: Vec<RenderedSlide>,
     layouts: LayoutRegistry,
+    /// Build warnings (e.g. language fallbacks). Warn, never refuse — but
+    /// never silently either; the CLI prints these after rendering.
+    warnings: Vec<String>,
 }
 
 impl HtmlRenderer {
@@ -101,7 +114,15 @@ impl HtmlRenderer {
             flavors: Vec::new(),
             slides: Vec::new(),
             layouts: LayoutRegistry::builtin(),
+            warnings: Vec::new(),
         }
+    }
+
+    /// Build warnings accumulated while adding slides (language fallbacks
+    /// etc.). Drain and surface these to the user — warn, never silently.
+    #[must_use]
+    pub fn warnings(&self) -> &[String] {
+        &self.warnings
     }
 
     /// Load user layouts from a directory, overriding built-ins by name.
@@ -144,8 +165,30 @@ impl HtmlRenderer {
 
         let index = self.slides.len();
 
+        // Select the build language from in-file ::lang:xx:: blocks.
+        // A gap falls back to the deck default — loudly, never silently.
+        let lang_sel = sldr_core::lang::select_language(
+            &slide.content,
+            self.config.language.as_deref(),
+            &self.config.default_language,
+        );
+        if let sldr_core::lang::LanguageOutcome::Fallback {
+            requested,
+            used,
+            available,
+        } = &lang_sel.outcome
+        {
+            self.warnings.push(format!(
+                "Slide '{}' has no '{requested}' content — using '{used}' \
+                 (available: {})",
+                slide.name,
+                available.join(", ")
+            ));
+        }
+        let content = lang_sel.content;
+
         // Parse speaker notes from content (<!-- notes: ... --> convention)
-        let notes = extract_speaker_notes(&slide.content);
+        let notes = extract_speaker_notes(&content);
 
         // Build media config from renderer config and slide path
         let assets_dir = self.config.output_dir.as_ref().map(|d| d.join("assets"));
@@ -167,7 +210,7 @@ impl HtmlRenderer {
         };
 
         // Render markdown to HTML with media embedding
-        let rendered = render_markdown(&slide.content, &media_config);
+        let rendered = render_markdown(&content, &media_config);
 
         // Per-slide alignment overrides (orthogonal to layout). Validated
         // here so a typo in frontmatter doesn't ship a silently broken

@@ -238,6 +238,7 @@ async fn create_playlist(
         description: payload.description,
         slides: payload.slides,
         flavor: payload.flavor,
+        default_lang: None,
         slidev_config: payload.slidev_config,
     };
 
@@ -267,6 +268,7 @@ async fn update_playlist(
         description: payload.description,
         slides: payload.slides,
         flavor: payload.flavor,
+        default_lang: None,
         slidev_config: payload.slidev_config,
     };
 

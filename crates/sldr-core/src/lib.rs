@@ -6,6 +6,7 @@
 pub mod config;
 pub mod error;
 pub mod fuzzy;
+pub mod lang;
 pub mod slide;
 pub mod presentation;
 pub mod flavor;

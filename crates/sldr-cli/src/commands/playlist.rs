@@ -446,6 +446,7 @@ fn create_from_dir_inner(
         description: Some(format!("Auto-generated from {}", scan_dir.display())),
         slides: slide_refs.clone(),
         flavor: None,
+        default_lang: None,
         slidev_config: Default::default(),
     };
 

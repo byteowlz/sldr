@@ -485,6 +485,7 @@ fn run_build_sync(
     crate::commands::build::run(
         playlist_name,
         flavor_arg.clone(),
+        None,
         false,
         false,
         None,

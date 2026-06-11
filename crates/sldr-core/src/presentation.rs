@@ -31,6 +31,12 @@ pub struct Playlist {
     #[serde(default)]
     pub flavor: Option<String>,
 
+    /// Default language for slides with in-file language blocks
+    /// (`::lang:xx::`). A suggestion, not identity — the build's --lang
+    /// takes precedence (ADR-0007).
+    #[serde(default)]
+    pub default_lang: Option<String>,
+
     /// Rendering configuration
     #[serde(default)]
     pub slidev_config: RenderOpts,
@@ -143,6 +149,7 @@ impl From<PlaylistInput> for Playlist {
             description: input.description,
             slides: input.slides,
             flavor: input.flavor,
+            default_lang: None,
             slidev_config: input.slidev_config.unwrap_or_default(),
         }
     }

@@ -13,6 +13,7 @@ use sldr_renderer::{HtmlRenderer, RenderConfig};
 pub fn run(
     playlist_name: &str,
     flavor: Option<String>,
+    lang: Option<String>,
     pdf: bool,
     _pptx: bool,
     output: Option<String>,
@@ -89,6 +90,12 @@ pub fn run(
         _ => sldr_renderer::ImageMode::Embed,
     };
 
+    // Language axis: CLI --lang > playlist default_lang > "en" (ADR-0007).
+    let default_language = playlist
+        .default_lang
+        .clone()
+        .unwrap_or_else(|| "en".to_string());
+
     let render_config = RenderConfig {
         title,
         transition,
@@ -96,6 +103,8 @@ pub fn run(
         speaker_notes: true,
         image_mode,
         output_dir: Some(output_dir.clone()),
+        language: lang,
+        default_language,
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(flavor);
@@ -106,6 +115,10 @@ pub fn run(
     std::fs::create_dir_all(&output_dir)?;
     let output_path = output_dir.join("index.html");
     renderer.render_to_file(&output_path)?;
+
+    for warning in renderer.warnings() {
+        eprintln!("  {} {}", "!".yellow(), warning.yellow());
+    }
 
     println!(
         "\n{} Presentation written to {}",

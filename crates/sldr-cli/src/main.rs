@@ -37,6 +37,11 @@ enum Commands {
         #[arg(short, long)]
         flavor: Option<String>,
 
+        /// Language to build (slides with ::lang:xx:: blocks; overrides
+        /// the playlist's default_lang)
+        #[arg(short, long)]
+        lang: Option<String>,
+
         /// Export to PDF after building
         #[arg(long)]
         pdf: bool,
@@ -373,11 +378,12 @@ fn main() -> anyhow::Result<()> {
         Commands::Build {
             playlist,
             flavor,
+            lang,
             pdf,
             pptx,
             output,
             images,
-        } => commands::build::run(&playlist, flavor, pdf, pptx, output, &images),
+        } => commands::build::run(&playlist, flavor, lang, pdf, pptx, output, &images),
 
         Commands::Add {
             presentation,

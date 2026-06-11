@@ -41,6 +41,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
         super::build::run(
             presentation_name,
             None,
+            None,
             false,
             false,
             Some(output_dir.to_string_lossy().to_string()),
@@ -65,6 +66,7 @@ pub fn run(presentation: &str, _port: Option<String>, rebuild: bool) -> Result<(
         );
         super::build::run(
             presentation_name,
+            None,
             None,
             false,
             false,
