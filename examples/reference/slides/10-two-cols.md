@@ -1,6 +1,6 @@
 ---
 title: Column Markers
-description: Two-cols layout — ::left:: and ::right:: markers
+description: "Two-cols layout — the left/right column markers"
 tags: [reference, guide]
 layout: two-cols
 ---

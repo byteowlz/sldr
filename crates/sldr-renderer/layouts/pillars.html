@@ -1,36 +1,52 @@
-<!-- Layout: pillars — a heading and a list whose items become equal column cards. -->
+<!-- Layout: pillars — a heading and a list whose items become editorial columns: hairline separators, small mono indices, no boxes. -->
 <style>
 .sldr-slide[data-layout="pillars"] .sldr-content {
   justify-content: center;
-  gap: clamp(20px, 3.5vh, 44px);
+  gap: clamp(24px, 4.5vh, 56px);
 }
 .sldr-slide[data-layout="pillars"] ul {
   list-style: none;
+  counter-reset: pillar;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  gap: clamp(16px, 2.2vw, 32px);
+  gap: 0;
   padding: 0;
   margin: 0;
 }
 .sldr-slide[data-layout="pillars"] ul > li {
+  counter-increment: pillar;
   margin: 0;
-  padding: clamp(20px, 3vh, 36px) clamp(18px, 2.2vw, 30px);
-  background: var(--sldr-surface);
-  border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
-  border-top: 3px solid var(--sldr-accent);
-  border-radius: var(--sldr-radius);
-  box-shadow: var(--sldr-shadow-sm);
+  padding: 0 clamp(20px, 2.8vw, 44px);
+  border-left: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
   font-size: clamp(14px, 1.6vw, 19px);
-  line-height: 1.5;
+  line-height: 1.55;
+}
+.sldr-slide[data-layout="pillars"] ul > li:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+.sldr-slide[data-layout="pillars"] ul > li:last-child {
+  padding-right: 0;
+}
+.sldr-slide[data-layout="pillars"] ul > li::before {
+  content: counter(pillar, decimal-leading-zero);
+  display: block;
+  font-family: var(--sldr-code-font);
+  font-size: clamp(12px, 1.3vw, 15px);
+  letter-spacing: 2px;
+  color: var(--sldr-accent);
+  margin-bottom: clamp(12px, 2vh, 22px);
 }
 .sldr-slide[data-layout="pillars"] ul > li > strong:first-child {
   display: block;
   font-family: var(--sldr-heading-font);
-  font-size: clamp(17px, 2vw, 24px);
+  font-size: clamp(18px, 2.1vw, 26px);
+  font-weight: var(--sldr-heading-weight);
   letter-spacing: var(--sldr-heading-tracking);
+  line-height: var(--sldr-heading-leading);
   color: var(--sldr-text);
-  margin-bottom: 0.5em;
+  margin-bottom: 0.55em;
 }
 </style>
 <div class="sldr-content">

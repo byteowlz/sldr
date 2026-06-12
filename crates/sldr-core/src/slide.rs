@@ -250,7 +250,18 @@ fn parse_frontmatter(content: &str) -> (SlideMetadata, String) {
         let yaml_content = &rest[..end_idx].trim();
         let markdown_content = &rest[end_idx + 4..].trim();
 
-        let metadata: SlideMetadata = serde_yaml_ng::from_str(yaml_content).unwrap_or_default();
+        // Invalid YAML must not silently become default metadata — a slide
+        // quietly losing its layout/title is exactly the kind of failure
+        // that ships unnoticed. Surface it loudly on stderr.
+        let metadata: SlideMetadata = match serde_yaml_ng::from_str(yaml_content) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!(
+                    "  ! Invalid slide frontmatter (using defaults — layout, title etc. are LOST): {e}"
+                );
+                SlideMetadata::default()
+            }
+        };
 
         (metadata, markdown_content.to_string())
     } else {

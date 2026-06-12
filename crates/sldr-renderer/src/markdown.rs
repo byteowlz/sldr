@@ -45,17 +45,46 @@ impl Default for MediaConfig {
 /// - `::content::` + `::image::` — content + image column (`image-left`,
 ///   `image-right`). The layout engine decides DOM order based on layout.
 ///
-/// Unrecognized markers pass through as raw text.
+/// A marker counts only when it stands alone on a line *outside* fenced
+/// code blocks — so slides can document the markers in code samples and
+/// inline code without getting split apart. Unrecognized markers pass
+/// through as raw text.
 pub fn render_markdown(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
-    if content.contains("::left::") && content.contains("::right::") {
-        return render_two_cols(content, media_config);
+    let markers = scan_markers(content);
+    if markers.contains_key("left") && markers.contains_key("right") {
+        return render_two_cols(content, &markers, media_config);
     }
-    if content.contains("::content::") && content.contains("::image::") {
-        return render_content_image(content, media_config);
+    if markers.contains_key("content") && markers.contains_key("image") {
+        return render_content_image(content, &markers, media_config);
     }
 
     let html = markdown_to_html(content, media_config);
     MarkdownOutput::Single(html)
+}
+
+/// Byte offsets of split markers: lines that are exactly `::name::`
+/// (whitespace-tolerant), skipping fenced code blocks (``` or ~~~).
+/// Only the first occurrence of each marker is recorded.
+fn scan_markers(content: &str) -> std::collections::HashMap<&'static str, (usize, usize)> {
+    let mut markers = std::collections::HashMap::new();
+    let mut in_fence = false;
+    let mut offset = 0;
+    for line in content.split_inclusive('\n') {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+        } else if !in_fence {
+            for name in ["left", "right", "content", "image"] {
+                if trimmed == format!("::{name}::") {
+                    markers
+                        .entry(name)
+                        .or_insert((offset, offset + line.len()));
+                }
+            }
+        }
+        offset += line.len();
+    }
+    markers
 }
 
 /// Result of rendering markdown — either a single block or split columns
@@ -74,51 +103,48 @@ pub enum MarkdownOutput {
     ContentImage { content: String, image: String },
 }
 
-/// Parse a content+image slide by splitting on `::content::` and `::image::`.
+/// Parse a content+image slide using pre-scanned marker positions.
 ///
 /// The two markers may appear in either order in the markdown — we identify
 /// the halves by marker name, not position. The layout engine places them
 /// in the correct DOM order based on the layout (`image-left` puts image
 /// first, `image-right` puts content first).
-fn render_content_image(input: &str, media_config: &MediaConfig) -> MarkdownOutput {
-    // Find both markers; either may come first in the source.
-    let content_idx = input.find("::content::");
-    let image_idx = input.find("::image::");
+fn render_content_image(
+    input: &str,
+    markers: &std::collections::HashMap<&'static str, (usize, usize)>,
+    media_config: &MediaConfig,
+) -> MarkdownOutput {
+    let (c_start, c_end) = markers["content"];
+    let (i_start, i_end) = markers["image"];
 
-    match (content_idx, image_idx) {
-        (Some(ci), Some(ii)) => {
-            let (content_md, image_md) = if ci < ii {
-                let content_part = &input[ci + "::content::".len()..ii];
-                let image_part = &input[ii + "::image::".len()..];
-                (content_part, image_part)
-            } else {
-                let image_part = &input[ii + "::image::".len()..ci];
-                let content_part = &input[ci + "::content::".len()..];
-                (content_part, image_part)
-            };
+    let (content_md, image_md) = if c_start < i_start {
+        (&input[c_end..i_start], &input[i_end..])
+    } else {
+        (&input[c_end..], &input[i_end..c_start])
+    };
 
-            MarkdownOutput::ContentImage {
-                content: markdown_to_html(content_md.trim(), media_config),
-                image: markdown_to_html(image_md.trim(), media_config),
-            }
-        }
-        _ => MarkdownOutput::Single(markdown_to_html(input, media_config)),
+    MarkdownOutput::ContentImage {
+        content: markdown_to_html(content_md.trim(), media_config),
+        image: markdown_to_html(image_md.trim(), media_config),
     }
 }
 
-/// Parse a two-column slide by splitting on ::left:: and ::right:: markers
-fn render_two_cols(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
-    // Split on ::left:: first
-    let (before_left, after_left) = match content.split_once("::left::") {
-        Some((before, after)) => (before.trim(), after),
-        None => return MarkdownOutput::Single(markdown_to_html(content, media_config)),
-    };
+/// Parse a two-column slide using pre-scanned marker positions.
+fn render_two_cols(
+    content: &str,
+    markers: &std::collections::HashMap<&'static str, (usize, usize)>,
+    media_config: &MediaConfig,
+) -> MarkdownOutput {
+    let (l_start, l_end) = markers["left"];
+    let (r_start, r_end) = markers["right"];
+    if r_start < l_start {
+        // ::right:: before ::left:: is not a recognized shape.
+        return MarkdownOutput::Single(markdown_to_html(content, media_config));
+    }
 
-    // Split the remainder on ::right::
-    let (left_md, right_md) = match after_left.split_once("::right::") {
-        Some((left, right)) => (left.trim(), right.trim()),
-        None => return MarkdownOutput::Single(markdown_to_html(content, media_config)),
-    };
+    let before_left = content[..l_start].trim();
+    let left_md = content[l_end..r_start].trim();
+    let right_md = content[r_end..].trim();
 
     let heading = if before_left.is_empty() {
         String::new()
@@ -475,5 +501,41 @@ mod tests {
     #[test]
     fn test_html_escape() {
         assert_eq!(html_escape("<script>"), "&lt;script&gt;");
+    }
+
+    #[test]
+    fn markers_inside_code_fences_do_not_split() {
+        // A slide documenting the markers must not get cut apart by its
+        // own code samples (fence-aware, line-anchored scanning).
+        let md = "# Real two-col\n\n::left::\nBefore code.\n```markdown\n::left::\nfirst\n::right::\nsecond\n```\n::right::\nRight column.\n";
+        match render_markdown(md, &MediaConfig::default()) {
+            MarkdownOutput::TwoCols { left, right, .. } => {
+                assert!(left.contains("Before code."), "left: {left}");
+                assert!(left.contains("first"), "code stays in left: {left}");
+                assert!(right.contains("Right column."), "right: {right}");
+            }
+            _ => panic!("expected TwoCols"),
+        }
+    }
+
+    #[test]
+    fn inline_code_markers_do_not_split() {
+        let md = "::left::\nUses `::left::` and `::right::` markers.\n::right::\nRight.\n";
+        match render_markdown(md, &MediaConfig::default()) {
+            MarkdownOutput::TwoCols { left, right, .. } => {
+                assert!(left.contains("markers"), "left: {left}");
+                assert!(right.trim_end().ends_with("Right.</p>"), "right: {right}");
+            }
+            _ => panic!("expected TwoCols"),
+        }
+    }
+
+    #[test]
+    fn markers_must_stand_alone_on_a_line() {
+        let md = "Some prose mentioning ::left:: and ::right:: inline.\n";
+        assert!(matches!(
+            render_markdown(md, &MediaConfig::default()),
+            MarkdownOutput::Single(_)
+        ));
     }
 }

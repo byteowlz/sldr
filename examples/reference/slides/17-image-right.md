@@ -1,6 +1,6 @@
 ---
 title: Media
-description: Image-right layout — ::content:: and ::image:: markers
+description: "Image-right layout — the content/image markers"
 tags: [reference, guide]
 layout: image-right
 ---

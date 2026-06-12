@@ -67,9 +67,14 @@ fn split_languages(content: &str) -> (String, Vec<(String, String)>) {
     let mut shared = String::new();
     let mut sections: Vec<(String, String)> = Vec::new();
     let mut current: Option<usize> = None;
+    let mut in_fence = false;
 
     for line in content.lines() {
-        if let Some(code) = parse_marker(line) {
+        let t = line.trim();
+        if t.starts_with("```") || t.starts_with("~~~") {
+            in_fence = !in_fence;
+        }
+        if let Some(code) = parse_marker(line).filter(|_| !in_fence) {
             let code = code.to_lowercase();
             current = Some(
                 sections
@@ -255,5 +260,15 @@ Second.
     fn lists_available_languages_in_order() {
         assert_eq!(available_languages(BILINGUAL), vec!["en", "de"]);
         assert!(available_languages("plain content").is_empty());
+    }
+
+    #[test]
+    fn lang_markers_inside_code_fences_are_ignored() {
+        let md = "::lang:en::\nReal English.\n```markdown\n::lang:de::\nthis is documentation\n```\nStill English.\n";
+        let sel = select_language(md, Some("en"), "en");
+        assert_eq!(sel.outcome, LanguageOutcome::Found("en".to_string()));
+        assert!(sel.content.contains("Still English."));
+        assert!(sel.content.contains("this is documentation"));
+        assert_eq!(available_languages(md), vec!["en"]);
     }
 }
