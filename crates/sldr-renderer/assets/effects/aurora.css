@@ -15,7 +15,7 @@
   border-radius: 50%;
   filter: blur(80px);
   mix-blend-mode: screen;
-  opacity: 0.16;
+  opacity: 0.20;
 }
 .sldr-fx::before {
   background: radial-gradient(ellipse at center,
@@ -31,10 +31,10 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .sldr-fx::before {
-    animation: sldr-fx-aurora-a 47s ease-in-out infinite alternate;
+    animation: sldr-fx-aurora-a 26s ease-in-out infinite alternate;
   }
   .sldr-fx::after {
-    animation: sldr-fx-aurora-b 59s ease-in-out infinite alternate;
+    animation: sldr-fx-aurora-b 34s ease-in-out infinite alternate;
   }
 }
 @keyframes sldr-fx-aurora-a {

@@ -1,8 +1,8 @@
 /* sldr effect: stardust — drifting, twinkling particles in the flavor's
  * accent color. Pure CSS: two baked box-shadow fields (deterministic,
- * seeded at authoring time), animated by transform drift + opacity
- * twinkle. Subtle by design — dust in the projector beam, never a veil
- * over the words. */
+ * seeded at authoring time). Two layers at different speeds give
+ * parallax: a faint far field and a brighter near field that visibly
+ * travels — alive at a glance, not snowfall. */
 .sldr-fx {
   display: block;
 }
@@ -18,31 +18,41 @@
   color: var(--sldr-accent);
   background: transparent;
 }
+/* Far field: small, faint, slow. */
 .sldr-fx::before {
-  box-shadow: 63.94vw 2.5vh, 27.5vw 22.32vh, 73.65vw 67.67vh, 89.22vw 8.69vh, 42.19vw 2.98vh, 21.86vw 50.54vh, 2.65vw 19.88vh, 64.99vw 54.49vh, 22.04vw 58.93vh, 80.94vw 0.65vh, 80.58vw 69.81vh, 34.03vw 15.55vh, 95.72vw 33.66vh, 9.27vw 9.67vh, 84.75vw 60.37vh, 80.71vw 72.97vh, 53.62vw 97.31vh, 37.85vw 55.2vh, 82.94vw 61.85vh, 86.17vw 57.74vh, 70.46vw 4.58vh, 22.79vw 28.94vh, 7.98vw 23.28vh, 10.1vw 27.8vh, 63.57vw 36.48vh, 37.02vw 20.95vh, 26.7vw 93.67vh, 64.8vw 60.91vh, 17.11vw 72.91vh, 16.34vw 37.95vh, 98.95vw 64.0vh, 55.69vw 68.46vh, 84.29vw 77.6vh, 22.9vw 3.21vh, 31.55vw 26.77vh, 21.1vw 94.29vh, 87.64vw 31.47vh, 65.54vw 39.56vh, 91.45vw 45.89vh, 26.49vw 24.66vh, 56.14vw 26.27vh, 58.46vw 89.78vh, 39.94vw 21.93vh, 99.75vw 50.95vh, 9.09vw 4.71vh, 10.96vw 62.74vh, 79.21vw 42.22vh, 6.35vw 38.16vh, 99.61vw 52.91vh, 97.11vw 86.08vh, 1.15vw 72.07vh, 68.17vw 53.7vh, 26.68vw 64.1vh, 11.16vw 43.48vh, 45.37vw 95.38vh, 87.59vw 26.34vh, 50.06vw 17.87vh, 91.26vw 87.05vh, 29.84vw 63.89vh, 60.9vw 15.28vh, 76.25vw 53.94vh, 77.86vw 53.04vh, 0.06vw 32.42vh, 1.95vw 92.91vh, 87.87vw 83.17vh, 30.75vw 5.79vh, 87.8vw 94.69vh, 8.57vw 48.6vh, 6.92vw 76.06vh, 76.58vw 12.84vh, 47.53vw 54.98vh, 26.51vw 87.24vh, 42.31vw 21.18vh, 53.93vw 72.99vh, 20.12vw 31.17vh, 99.51vw 64.99vh, 43.81vw 51.76vh, 12.1vw 22.47vh, 33.81vw 58.83vh, 23.01vw 22.02vh, 7.1vw 63.11vh, 22.89vw 90.54vh, 85.96vw 7.09vh, 23.8vw 66.9vh, 21.42vw 13.23vh, 93.55vw 57.1vh, 47.27vw 78.46vh, 80.75vw 19.04vh, 9.69vw 43.11vh, 42.36vw 46.7vh;
-  opacity: 0.28;
+  box-shadow: 63.94vw 2.5vh, 27.5vw 22.32vh, 73.65vw 67.67vh, 89.22vw 8.69vh, 42.19vw 2.98vh, 21.86vw 50.54vh, 2.65vw 19.88vh, 64.99vw 54.49vh, 22.04vw 58.93vh, 80.94vw 0.65vh, 80.58vw 69.81vh, 34.03vw 15.55vh, 95.72vw 33.66vh, 9.27vw 9.67vh, 84.75vw 60.37vh, 80.71vw 72.97vh, 53.62vw 97.31vh, 37.85vw 55.2vh, 82.94vw 61.85vh, 86.17vw 57.74vh, 70.46vw 4.58vh, 22.79vw 28.94vh, 7.98vw 23.28vh, 10.1vw 27.8vh, 63.57vw 36.48vh, 37.02vw 20.95vh, 26.7vw 93.67vh, 64.8vw 60.91vh, 17.11vw 72.91vh, 16.34vw 37.95vh, 98.95vw 64.0vh, 55.69vw 68.46vh, 84.29vw 77.6vh, 22.9vw 3.21vh, 31.55vw 26.77vh, 21.1vw 94.29vh, 87.64vw 31.47vh, 65.54vw 39.56vh, 91.45vw 45.89vh, 26.49vw 24.66vh, 56.14vw 26.27vh, 58.46vw 89.78vh, 39.94vw 21.93vh, 99.75vw 50.95vh, 9.09vw 4.71vh, 10.96vw 62.74vh, 79.21vw 42.22vh, 6.35vw 38.16vh, 99.61vw 52.91vh, 97.11vw 86.08vh, 1.15vw 72.07vh, 68.17vw 53.7vh, 26.68vw 64.1vh, 11.16vw 43.48vh, 45.37vw 95.38vh, 87.59vw 26.34vh, 50.06vw 17.87vh, 91.26vw 87.05vh, 29.84vw 63.89vh, 60.9vw 15.28vh, 76.25vw 53.94vh, 77.86vw 53.04vh, 0.06vw 32.42vh, 1.95vw 92.91vh, 87.87vw 83.17vh, 30.75vw 5.79vh, 87.8vw 94.69vh, 8.57vw 48.6vh, 6.92vw 76.06vh, 76.58vw 12.84vh, 47.53vw 54.98vh, 26.51vw 87.24vh, 42.31vw 21.18vh, 53.93vw 72.99vh, 20.12vw 31.17vh, 99.51vw 64.99vh, 43.81vw 51.76vh, 12.1vw 22.47vh, 33.81vw 58.83vh, 23.01vw 22.02vh;
+  opacity: 0.25;
 }
+/* Near field: bigger, brighter, visibly moving. */
 .sldr-fx::after {
-  width: 3px;
-  height: 3px;
-  box-shadow: 72.91vw 67.34vh, 98.42vw 9.84vh, 40.26vw 33.93vh, 86.17vw 24.87vh, 19.02vw 44.86vh, 42.19vw 27.85vh, 24.98vw 92.33vh, 44.31vw 86.13vh, 55.03vw 5.06vh, 99.93vw 83.6vh, 96.9vw 92.64vh, 84.87vw 16.63vh, 48.56vw 21.37vh, 40.1vw 5.86vh, 37.9vw 98.53vh, 26.52vw 78.41vh, 45.5vw 42.3vh, 95.73vw 99.54vh, 55.58vw 71.84vh, 15.48vw 29.67vh, 96.87vw 57.92vh, 54.22vw 74.8vh, 5.72vw 58.42vh, 50.29vw 85.27vh, 15.74vw 96.08vh, 8.01vw 18.58vh, 59.5vw 67.52vh, 23.52vw 11.99vh, 89.03vw 24.62vh, 59.45vw 61.94vh, 41.92vw 58.37vh, 52.28vw 93.47vh, 20.43vw 71.62vh, 23.87vw 39.58vh, 67.17vw 30.0vh;
-  opacity: 0.18;
+  width: 4px;
+  height: 4px;
+  box-shadow: 7.1vw 63.11vh, 22.89vw 90.54vh, 85.96vw 7.09vh, 23.8vw 66.9vh, 21.42vw 13.23vh, 93.55vw 57.1vh, 47.27vw 78.46vh, 80.75vw 19.04vh, 9.69vw 43.11vh, 42.36vw 46.7vh, 72.91vw 67.34vh, 98.42vw 9.84vh, 40.26vw 33.93vh, 86.17vw 24.87vh, 19.02vw 44.86vh, 42.19vw 27.85vh, 24.98vw 92.33vh, 44.31vw 86.13vh, 55.03vw 5.06vh, 99.93vw 83.6vh, 96.9vw 92.64vh, 84.87vw 16.63vh, 48.56vw 21.37vh, 40.1vw 5.86vh, 37.9vw 98.53vh, 26.52vw 78.41vh, 45.5vw 42.3vh, 95.73vw 99.54vh, 55.58vw 71.84vh, 15.48vw 29.67vh;
+  opacity: 0.4;
 }
 @media (prefers-reduced-motion: no-preference) {
   .sldr-fx::before {
-    animation: sldr-fx-drift 160s linear infinite,
-               sldr-fx-twinkle 7s ease-in-out infinite;
+    animation: sldr-fx-drift-far 70s linear infinite,
+               sldr-fx-twinkle-far 8s ease-in-out infinite;
   }
   .sldr-fx::after {
-    animation: sldr-fx-drift 240s linear infinite reverse,
-               sldr-fx-twinkle 11s ease-in-out infinite 2s;
+    animation: sldr-fx-drift-near 36s linear infinite,
+               sldr-fx-twinkle-near 4.5s ease-in-out infinite 1.5s;
   }
 }
-@keyframes sldr-fx-drift {
+@keyframes sldr-fx-drift-far {
   from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(-18vw, -100vh, 0); }
+  to   { transform: translate3d(-12vw, -100vh, 0); }
 }
-@keyframes sldr-fx-twinkle {
-  0%, 100% { opacity: 0.10; }
-  50%      { opacity: 0.32; }
+@keyframes sldr-fx-drift-near {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(14vw, -100vh, 0); }
+}
+@keyframes sldr-fx-twinkle-far {
+  0%, 100% { opacity: 0.12; }
+  50%      { opacity: 0.30; }
+}
+@keyframes sldr-fx-twinkle-near {
+  0%, 100% { opacity: 0.18; }
+  50%      { opacity: 0.55; }
 }
