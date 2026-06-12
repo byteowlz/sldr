@@ -55,12 +55,24 @@ pub fn run(
     // Load playlist
     let playlist = super::build::load_playlist(&config, playlist_name)?;
 
-    // Determine flavor
-    let flavor_name = flavor
+    // Flavor axis: comma list = embed set, first active (same as build).
+    let flavor_arg = flavor
         .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
-    let flavor = super::build::load_flavor(&config, &flavor_name)?;
-    println!("  {} {}", "Flavor:".dimmed(), flavor.name.yellow());
+    let mut flavors = Vec::new();
+    for name in flavor_arg.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        flavors.push(super::build::load_flavor(&config, name)?);
+    }
+    println!(
+        "  {} {}",
+        "Flavor:".dimmed(),
+        flavors
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+            .yellow()
+    );
 
     // Determine port
     let port = port.unwrap_or_else(|| {
@@ -111,7 +123,7 @@ pub fn run(
         ..Default::default()
     };
 
-    let html = build_html(&render_config, &flavor, &resolved_slides)?;
+    let html = build_html(&render_config, &flavors, &resolved_slides)?;
     let html = inject_live_reload(&html);
 
     // Shared state for the server
@@ -192,7 +204,7 @@ pub fn run(
         // Clone what the watcher callback needs
         let watch_config = config.clone();
         let watch_playlist_name = playlist_name.to_string();
-        let watch_flavor = flavor.clone();
+        let watch_flavors = flavors.clone();
         let watch_render_config = render_config.clone();
 
         let (watch_tx, mut watch_rx) = tokio::sync::mpsc::channel::<()>(1);
@@ -216,7 +228,7 @@ pub fn run(
                     &watch_config,
                     &watch_playlist_name,
                     &watch_render_config,
-                    &watch_flavor,
+                    &watch_flavors,
                 ) {
                     Ok(new_html) => {
                         let new_html = inject_live_reload(&new_html);
@@ -265,10 +277,10 @@ pub fn run(
 
 fn build_html(
     config: &RenderConfig,
-    flavor: &Flavor,
+    flavors: &[Flavor],
     slides: &[sldr_core::slide::Slide],
 ) -> Result<String> {
-    let mut renderer = HtmlRenderer::new(config.clone()).add_flavor(flavor.clone());
+    let mut renderer = HtmlRenderer::new(config.clone()).add_flavors(flavors.to_vec());
     // Reload user layouts on every rebuild so layout edits live-reload too.
     for dir in sldr_core::config::Config::load()?.layout_dirs() {
         renderer.load_layouts(&dir)?;
@@ -295,7 +307,7 @@ fn rebuild_presentation(
     config: &Config,
     playlist_name: &str,
     render_config: &RenderConfig,
-    flavor: &Flavor,
+    flavors: &[Flavor],
 ) -> Result<String> {
     let playlist = sldr_core::presentation::Playlist::load(
         &config
@@ -317,7 +329,7 @@ fn rebuild_presentation(
         }
     }
 
-    build_html(render_config, flavor, &resolved)
+    build_html(render_config, flavors, &resolved)
 }
 
 fn spawn_file_watcher(
