@@ -42,6 +42,7 @@ pub fn run(
     playlist_name: &str,
     flavor: Option<String>,
     port: Option<u16>,
+    host: &str,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -123,7 +124,7 @@ pub fn run(
 
     rt.block_on(async {
         // Check if port is available
-        let addr = format!("127.0.0.1:{port}");
+        let addr = format!("{host}:{port}");
         let listener = tokio::net::TcpListener::bind(&addr)
             .await
             .with_context(|| format!("Port {port} is already in use"))?;

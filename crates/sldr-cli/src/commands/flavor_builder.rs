@@ -122,12 +122,12 @@ struct UploadLogoRequest {
     mime: String,
 }
 
-pub fn run(flavor_name: Option<String>, port: u16) -> Result<()> {
+pub fn run(flavor_name: Option<String>, port: u16, host: &str) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(async { run_server(flavor_name, port).await })
+    rt.block_on(async { run_server(flavor_name, port, host).await })
 }
 
-async fn run_server(flavor_name: Option<String>, port: u16) -> Result<()> {
+async fn run_server(flavor_name: Option<String>, port: u16, host: &str) -> Result<()> {
     let config = Config::load()?;
     let flavor_dir = config.flavor_dir();
 
@@ -148,7 +148,7 @@ async fn run_server(flavor_name: Option<String>, port: u16) -> Result<()> {
         .route("/api/logo/list", get(handle_list_logos))
         .with_state(shared);
 
-    let addr = format!("127.0.0.1:{port}");
+    let addr = format!("{host}:{port}");
     let listener = TcpListener::bind(&addr)
         .await
         .context("Failed to bind port")?;

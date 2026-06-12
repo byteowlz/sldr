@@ -133,6 +133,10 @@ enum Commands {
         /// Port for the dev server (default: from config or 3030)
         #[arg(short, long)]
         port: Option<u16>,
+
+        /// Address to bind (use 0.0.0.0 to expose on the network)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
     },
 
     /// Preview a single slide quickly in the browser
@@ -155,6 +159,10 @@ enum Commands {
         /// Port for the builder server
         #[arg(short, long, default_value = "3031")]
         port: u16,
+
+        /// Address to bind (use 0.0.0.0 to expose on the network)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
     },
 
     /// Run a long-lived HTTP daemon that exposes sldr to external agents.
@@ -174,6 +182,10 @@ enum Commands {
         /// Open the API landing page in the browser on start
         #[arg(long)]
         open: bool,
+
+        /// Address to bind (use 0.0.0.0 to expose on the network)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
     },
 
     /// Render the bundled sample deck against a flavor and open it.
@@ -443,12 +455,13 @@ fn main() -> anyhow::Result<()> {
             playlist,
             flavor,
             port,
-        } => commands::watch::run(&playlist, flavor, port),
+            host,
+        } => commands::watch::run(&playlist, flavor, port, &host),
 
         Commands::Preview { slide, port } => commands::preview::run(&slide, port),
 
-        Commands::FlavorBuilder { name, port } => commands::flavor_builder::run(name, port),
-        Commands::Serve { port, open } => commands::serve::run(port, open),
+        Commands::FlavorBuilder { name, port, host } => commands::flavor_builder::run(name, port, &host),
+        Commands::Serve { port, open, host } => commands::serve::run(port, open, &host),
         Commands::Sample {
             flavor,
             output,

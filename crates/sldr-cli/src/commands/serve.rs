@@ -55,12 +55,12 @@ struct AppState {
     config: Config,
 }
 
-pub fn run(port: u16, open_browser: bool) -> Result<()> {
+pub fn run(port: u16, open_browser: bool, host: &str) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(async { run_server(port, open_browser).await })
+    rt.block_on(async { run_server(port, open_browser, host).await })
 }
 
-async fn run_server(port: u16, open_browser: bool) -> Result<()> {
+async fn run_server(port: u16, open_browser: bool, host: &str) -> Result<()> {
     let config = Config::load()?;
     let shared = Arc::new(AppState { config });
 
@@ -77,7 +77,7 @@ async fn run_server(port: u16, open_browser: bool) -> Result<()> {
         .route("/api/build/{playlist}", post(handle_build))
         .with_state(shared);
 
-    let addr = format!("127.0.0.1:{port}");
+    let addr = format!("{host}:{port}");
     let listener = TcpListener::bind(&addr)
         .await
         .context("Failed to bind port")?;
