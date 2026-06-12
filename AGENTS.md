@@ -57,6 +57,7 @@ Slides can be in subdirs and nested subdirs. Fuzzy matching works without full p
 | D | Toggle dark/light mode |
 | T | Flavor selector (multi-flavor only) |
 | L | Cycle languages (multi-language only) |
+| M | Toggle decoration motion (overrides OS reduced-motion) |
 | E | Toggle edit mode (contenteditable) |
 | Ctrl+S (in edit mode) | Download modified HTML |
 | Home / End | First / last slide |

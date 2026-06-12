@@ -80,6 +80,30 @@
     updateProgress();
   }
 
+  // Motion toggle (M): forces decoration animation on/off regardless of
+  // the OS prefers-reduced-motion setting. Persisted per browser.
+  try {
+    var savedMotion = localStorage.getItem("sldr-motion");
+    if (savedMotion === "on" || savedMotion === "off") {
+      document.documentElement.setAttribute("data-sldr-motion", savedMotion);
+    }
+  } catch (err) { /* file:// or private mode */ }
+
+  function toggleMotion() {
+    var el = document.documentElement;
+    var next;
+    if (el.getAttribute("data-sldr-motion") === "on") {
+      next = "off";
+    } else if (el.getAttribute("data-sldr-motion") === "off") {
+      next = "on";
+    } else {
+      // No explicit choice yet: flip away from whatever the OS does.
+      next = matchMedia("(prefers-reduced-motion: reduce)").matches ? "on" : "off";
+    }
+    el.setAttribute("data-sldr-motion", next);
+    try { localStorage.setItem("sldr-motion", next); } catch (err) { /* ignore */ }
+  }
+
   function cycleLanguage() {
     if (langNames.length < 2) return;
     var next = langNames[(langNames.indexOf(activeLang) + 1) % langNames.length];
@@ -639,6 +663,12 @@
       case "L":
         e.preventDefault();
         cycleLanguage();
+        break;
+
+      case "m":
+      case "M":
+        e.preventDefault();
+        toggleMotion();
         break;
 
       case "Escape":

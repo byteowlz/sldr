@@ -8,11 +8,11 @@ layout: center
 # In the presenter
 
 ::lang:en::
-**O** overview grid · **S** speaker notes · **D** dark mode · **T** flavor switch · **L** language switch · **E** edit mode
+**O** overview grid · **S** speaker notes · **D** dark mode · **T** flavor switch · **L** language switch · **M** motion toggle · **E** edit mode
 
 This slide carries English *and* German in one file — build with `--lang de` to see.
 
 ::lang:de::
-**O** Übersicht · **S** Notizen · **D** Dunkelmodus · **T** Flavor wechseln · **L** Sprache wechseln · **E** Bearbeiten
+**O** Übersicht · **S** Notizen · **D** Dunkelmodus · **T** Flavor wechseln · **L** Sprache wechseln · **M** Animation umschalten · **E** Bearbeiten
 
 Diese Folie enthält Deutsch *und* Englisch in einer Datei — mit `--lang en` umschalten.

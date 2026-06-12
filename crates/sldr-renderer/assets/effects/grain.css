@@ -8,10 +8,8 @@
   opacity: 0.05;
   mix-blend-mode: overlay;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .sldr-fx {
-    animation: sldr-fx-grain 0.9s steps(6) infinite;
-  }
+.sldr-fx {
+  animation: sldr-fx-grain 0.9s steps(6) infinite;
 }
 @keyframes sldr-fx-grain {
   0%   { background-position: 0 0; }

@@ -30,15 +30,13 @@
   box-shadow: 7.1vw 63.11vh, 22.89vw 90.54vh, 85.96vw 7.09vh, 23.8vw 66.9vh, 21.42vw 13.23vh, 93.55vw 57.1vh, 47.27vw 78.46vh, 80.75vw 19.04vh, 9.69vw 43.11vh, 42.36vw 46.7vh, 72.91vw 67.34vh, 98.42vw 9.84vh, 40.26vw 33.93vh, 86.17vw 24.87vh, 19.02vw 44.86vh, 42.19vw 27.85vh, 24.98vw 92.33vh, 44.31vw 86.13vh, 55.03vw 5.06vh, 99.93vw 83.6vh, 96.9vw 92.64vh, 84.87vw 16.63vh, 48.56vw 21.37vh, 40.1vw 5.86vh, 37.9vw 98.53vh, 26.52vw 78.41vh, 45.5vw 42.3vh, 95.73vw 99.54vh, 55.58vw 71.84vh, 15.48vw 29.67vh;
   opacity: 0.4;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .sldr-fx::before {
-    animation: sldr-fx-drift-far 70s linear infinite,
-               sldr-fx-twinkle-far 8s ease-in-out infinite;
-  }
-  .sldr-fx::after {
-    animation: sldr-fx-drift-near 36s linear infinite,
-               sldr-fx-twinkle-near 4.5s ease-in-out infinite 1.5s;
-  }
+.sldr-fx::before {
+  animation: sldr-fx-drift-far 70s linear infinite,
+             sldr-fx-twinkle-far 8s ease-in-out infinite;
+}
+.sldr-fx::after {
+  animation: sldr-fx-drift-near 36s linear infinite,
+             sldr-fx-twinkle-near 4.5s ease-in-out infinite 1.5s;
 }
 @keyframes sldr-fx-drift-far {
   from { transform: translate3d(0, 0, 0); }

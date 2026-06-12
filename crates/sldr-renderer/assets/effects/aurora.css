@@ -29,13 +29,11 @@
   bottom: -45vh;
   right: -20vw;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .sldr-fx::before {
-    animation: sldr-fx-aurora-a 26s ease-in-out infinite alternate;
-  }
-  .sldr-fx::after {
-    animation: sldr-fx-aurora-b 34s ease-in-out infinite alternate;
-  }
+.sldr-fx::before {
+  animation: sldr-fx-aurora-a 26s ease-in-out infinite alternate;
+}
+.sldr-fx::after {
+  animation: sldr-fx-aurora-b 34s ease-in-out infinite alternate;
 }
 @keyframes sldr-fx-aurora-a {
   from { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }

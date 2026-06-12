@@ -151,6 +151,24 @@ html.dark {
   }
 }
 
+/* Motion kill-switch. Decoration animation freezes when the OS asks for
+ * reduced motion — unless the user explicitly overrides with the M key
+ * (html[data-sldr-motion]). Many desktops report reduce without the
+ * user ever choosing it, so an explicit "motion on" must win. */
+html[data-sldr-motion="off"] .sldr-fx,
+html[data-sldr-motion="off"] .sldr-fx::before,
+html[data-sldr-motion="off"] .sldr-fx::after {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-sldr-motion="on"]) .sldr-fx,
+  html:not([data-sldr-motion="on"]) .sldr-fx::before,
+  html:not([data-sldr-motion="on"]) .sldr-fx::after {
+    animation: none !important;
+  }
+}
+
 /* === Slide deck container === */
 .sldr-deck {
   position: relative;
