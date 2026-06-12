@@ -65,7 +65,18 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
                 secondary: Some("#6366f1".to_string()),       // Indigo
                 background: Some("#ffffff".to_string()),      // White
                 text: Some("#1f2937".to_string()),            // Gray-800
+                text_dim: Some("#6b7280".to_string()),        // Gray-500
                 accent: Some("#f59e0b".to_string()),          // Amber
+                accent_dim: Some("rgba(245, 158, 11, 0.10)".to_string()),
+                // Surfaces/borders must be set explicitly: the base.css
+                // :root fallbacks are dark-theme values, and a light
+                // flavor that omits them gets navy cards with invisible
+                // text (found via the reference-deck visual audit).
+                surface: Some("#f8fafc".to_string()),         // Slate-50
+                surface2: Some("#f1f5f9".to_string()),        // Slate-100
+                border: Some("#e2e8f0".to_string()),          // Slate-200
+                border_bright: Some("#94a3b8".to_string()),   // Slate-400
+                muted: Some("rgba(31, 41, 55, 0.04)".to_string()),
                 code_background: Some("#f3f4f6".to_string()), // Gray-100
                 code_text: Some("#1f2937".to_string()),       // Gray-800
                 ..Default::default()
@@ -82,7 +93,14 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
                 secondary: Some("#818cf8".to_string()),
                 background: Some("#0f172a".to_string()),
                 text: Some("#e2e8f0".to_string()),
+                text_dim: Some("#94a3b8".to_string()),
                 accent: Some("#fbbf24".to_string()),
+                accent_dim: Some("rgba(251, 191, 36, 0.12)".to_string()),
+                surface: Some("#1e293b".to_string()),
+                surface2: Some("#283548".to_string()),
+                border: Some("#334155".to_string()),
+                border_bright: Some("#64748b".to_string()),
+                muted: Some("rgba(226, 232, 240, 0.05)".to_string()),
                 code_background: Some("#1e293b".to_string()),
                 code_text: Some("#e2e8f0".to_string()),
                 ..Default::default()

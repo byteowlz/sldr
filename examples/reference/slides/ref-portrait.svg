@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
   <rect width="400" height="500" fill="#35503e"/>
   <circle cx="200" cy="180" r="80" fill="#9ec79a"/>
   <rect x="110" y="290" width="180" height="150" rx="12" fill="#5b7d62"/>
