@@ -8,6 +8,7 @@
 
 mod commands;
 mod flavors;
+mod reference;
 mod scaffolds;
 
 use clap::{Parser, Subcommand};

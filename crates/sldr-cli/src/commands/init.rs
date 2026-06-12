@@ -133,6 +133,36 @@ pub fn run(_global: bool, force: bool) -> Result<()> {
         );
     }
 
+    // Install the reference deck — the user guide, one slide per layout.
+    // `sldr build reference` works on every fresh installation.
+    let reference_dir = config.slide_dir().join("reference");
+    let mut installed_reference = 0;
+    std::fs::create_dir_all(&reference_dir)?;
+    for file in crate::reference::REFERENCE_SLIDES {
+        let path = reference_dir.join(file.name);
+        if force || !path.exists() {
+            std::fs::write(&path, file.content)?;
+            installed_reference += 1;
+        }
+    }
+    let reference_playlist = config.playlist_dir().join("reference.toml");
+    if force || !reference_playlist.exists() {
+        std::fs::write(&reference_playlist, crate::reference::REFERENCE_PLAYLIST)?;
+        installed_reference += 1;
+    }
+    if installed_reference > 0 {
+        println!(
+            "  {} Installed the reference deck — try: sldr build reference",
+            "+".green()
+        );
+    } else {
+        println!(
+            "  {} Reference deck already exists in {}",
+            "~".yellow(),
+            reference_dir.display()
+        );
+    }
+
     // Create example playlist
     let example_playlist = config.playlist_dir().join("example.toml");
     if !example_playlist.exists() {
