@@ -1,7 +1,8 @@
 <!-- Layout: timeline — heading plus a list rendered as horizontal milestones on a connector line. -->
 <style>
 .sldr-slide[data-layout="timeline"] .sldr-content {
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: clamp(16px, 4vh, 48px);
   gap: clamp(24px, 5vh, 56px);
 }
 .sldr-slide[data-layout="timeline"] :is(ul, ol) {

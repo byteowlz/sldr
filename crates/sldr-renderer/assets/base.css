@@ -229,12 +229,15 @@ html.dark {
  * content follows — the eye lands in the same place across slide types.
  * ========================================================================= */
 .sldr-slide[data-layout="default"] .sldr-content {
-  /* Whole content block centers — title + body together as a unit.
-   * Title→body gap is set by margin-bottom on the title (above) plus
-   * the flex `gap`; both kept tight so heading and body read as one.
-   * Max width 65ch is the editorial reading-line; flavors override
-   * via `spacing.content_max_width`. */
-  justify-content: center;
+  /* Content slides anchor the headline at a consistent optical line near
+   * the top (one fixed Y across consecutive slides), with the body
+   * flowing below. Block-centering moved the title up and down with the
+   * amount of content — the deck read as jumpy. Hero layouts (cover,
+   * section, quote, statement) still center; that contrast is the
+   * rhythm of the deck. Max width 65ch is the editorial reading-line;
+   * flavors override via `spacing.content_max_width`. */
+  justify-content: flex-start;
+  padding-top: clamp(16px, 4vh, 48px);
   gap: clamp(16px, 2.5vh, 28px);
   max-width: var(--sldr-content-max-width, 65ch);
 }
@@ -349,10 +352,9 @@ html.dark {
  * Layout: two-cols — title on top, two columns fill remaining space
  * ========================================================================= */
 .sldr-slide[data-layout="two-cols"] .sldr-content {
-  /* Title + columns flow as one centered block (matches default
-   * layout). Tight gap between title and columns — no stranded
-   * white band like flex-start + align-content: center created. */
-  justify-content: center;
+  /* Headline anchored top (matches default layout), columns below. */
+  justify-content: flex-start;
+  padding-top: clamp(16px, 4vh, 48px);
   gap: clamp(16px, 2.5vh, 28px);
 }
 
@@ -380,7 +382,8 @@ html.dark {
  * Layout: two-cols-header
  * ========================================================================= */
 .sldr-slide[data-layout="two-cols-header"] .sldr-content {
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: clamp(16px, 4vh, 48px);
   gap: clamp(16px, 2.5vh, 28px);
 }
 
@@ -569,7 +572,10 @@ html.dark {
 .sldr-slide[data-layout="image-stack"] .sldr-content {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* Headline anchored top like other content slides; the collage itself
+   * centers in the remaining space (flex: 1 + align-content on it). */
+  justify-content: flex-start;
+  padding-top: clamp(16px, 4vh, 48px);
   align-items: stretch;
   gap: clamp(12px, 2vh, 24px);
 }

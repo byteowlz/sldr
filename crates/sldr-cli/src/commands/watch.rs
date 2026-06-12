@@ -167,10 +167,18 @@ pub fn run(
             );
 
         println!(
-            "\n  {} http://127.0.0.1:{}",
+            "\n  {} http://{}:{}",
             "Serving at".green().bold(),
+            host.cyan(),
             port.to_string().cyan()
         );
+        if host == "0.0.0.0" {
+            // Bound to all interfaces — print the LAN-reachable URLs so a
+            // phone or second machine has something to actually type.
+            for ip in lan_ips() {
+                println!("  {} http://{}:{}", "LAN:".dimmed(), ip.cyan(), port);
+            }
+        }
         println!("  {} Watching for changes... (Ctrl+C to stop)", "i".blue());
 
         // Set up file watcher
@@ -337,4 +345,29 @@ fn spawn_file_watcher(
     }
 
     Ok(watcher)
+}
+
+/// Non-loopback IPv4 addresses of this machine, for printing reachable
+/// URLs when bound to 0.0.0.0. Best-effort: parses `ip -4 addr` /
+/// `ifconfig` output; returns empty when neither tool exists.
+fn lan_ips() -> Vec<String> {
+    let output = std::process::Command::new("ip")
+        .args(["-4", "addr"])
+        .output()
+        .or_else(|_| std::process::Command::new("ifconfig").output());
+    let Ok(output) = output else {
+        return Vec::new();
+    };
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut ips = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("inet ") {
+            let ip = rest.split(['/', ' ']).next().unwrap_or("");
+            if !ip.is_empty() && !ip.starts_with("127.") && !ips.contains(&ip.to_string()) {
+                ips.push(ip.to_string());
+            }
+        }
+    }
+    ips
 }

@@ -187,7 +187,7 @@ impl Slide {
     /// Load a slide from a file path
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let (metadata, content) = parse_frontmatter(&content);
+        let (metadata, content) = parse_frontmatter(&content, &path.display().to_string());
 
         let name = path
             .file_stem()
@@ -224,8 +224,8 @@ impl Slide {
     /// `relative_path` — useful for media resolution if the slide references
     /// images alongside it.
     pub fn from_str(name: impl Into<String>, virtual_path: impl Into<PathBuf>, content: &str) -> Self {
-        let (metadata, body) = parse_frontmatter(content);
         let path = virtual_path.into();
+        let (metadata, body) = parse_frontmatter(content, &path.display().to_string());
         Self {
             relative_path: path.to_string_lossy().to_string(),
             path,
@@ -237,7 +237,7 @@ impl Slide {
 }
 
 /// Parse YAML frontmatter from markdown content
-fn parse_frontmatter(content: &str) -> (SlideMetadata, String) {
+fn parse_frontmatter(content: &str, source: &str) -> (SlideMetadata, String) {
     let content = content.trim();
 
     if !content.starts_with("---") {
@@ -257,7 +257,7 @@ fn parse_frontmatter(content: &str) -> (SlideMetadata, String) {
             Ok(m) => m,
             Err(e) => {
                 eprintln!(
-                    "  ! Invalid slide frontmatter (using defaults — layout, title etc. are LOST): {e}"
+                    "  ! {source}: invalid frontmatter (using defaults — layout, title etc. are LOST): {e}"
                 );
                 SlideMetadata::default()
             }
@@ -355,7 +355,7 @@ tags:
 This is the content.
 ";
 
-        let (metadata, content) = parse_frontmatter(content);
+        let (metadata, content) = parse_frontmatter(content, "test");
         assert_eq!(metadata.title, Some("Test Slide".to_string()));
         assert_eq!(metadata.tags, vec!["test", "example"]);
         assert!(content.contains("# Hello World"));
@@ -364,7 +364,7 @@ This is the content.
     #[test]
     fn test_parse_no_frontmatter() {
         let content = "# Just Markdown\n\nNo frontmatter here.";
-        let (metadata, parsed_content) = parse_frontmatter(content);
+        let (metadata, parsed_content) = parse_frontmatter(content, "test");
         assert!(metadata.title.is_none());
         assert!(parsed_content.contains("# Just Markdown"));
     }
