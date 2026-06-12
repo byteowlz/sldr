@@ -365,6 +365,12 @@ pub struct Decoration {
     /// Intensity 0.0–1.0 (controls opacity / scale of the ornament)
     #[serde(default)]
     pub intensity: Option<f32>,
+
+    /// Animated background effect: "stardust", "aurora", "grain".
+    /// Pure CSS — deterministic, offline, honors prefers-reduced-motion,
+    /// hidden in print. Part of the style layer: switches with the flavor.
+    #[serde(default)]
+    pub effect: Option<String>,
 }
 
 /// Code block styling

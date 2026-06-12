@@ -104,17 +104,21 @@
   var activeFlavor = "";
 
   function initFlavors() {
-    // Find which flavor is currently active (enabled)
+    if (flavorStyles.length === 0) return;
+    // The HTML `disabled` attribute on <style> is markup-inert — it is a
+    // DOM-only property, so at load EVERY flavor block applies and the
+    // last one in the document wins. Enforce single-active here: the
+    // first flavor (the build's resolved active) wins unless the markup
+    // genuinely carries the attribute for a later one.
+    activeFlavor = flavorStyles[0].dataset.flavor;
     for (var i = 0; i < flavorStyles.length; i++) {
-      if (!flavorStyles[i].disabled) {
+      if (!flavorStyles[i].hasAttribute("disabled")) {
         activeFlavor = flavorStyles[i].dataset.flavor;
         break;
       }
     }
-    // If none active but flavors exist, activate the first
-    if (!activeFlavor && flavorStyles.length > 0) {
-      activeFlavor = flavorStyles[0].dataset.flavor;
-      flavorStyles[0].disabled = false;
+    for (var j = 0; j < flavorStyles.length; j++) {
+      flavorStyles[j].disabled = flavorStyles[j].dataset.flavor !== activeFlavor;
     }
   }
 

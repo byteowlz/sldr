@@ -133,6 +133,24 @@ html.dark {
   --sldr-code-text: #cdd6f4;
 }
 
+/* === Decoration-effect layer (flavor decoration.effect) ===
+ * One engine-owned overlay; each flavor's effect CSS styles it (or
+ * leaves it display:none). Sits above slide surfaces, below the
+ * toolbar; never intercepts input; effects are designed dim. */
+.sldr-fx {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@media print {
+  .sldr-fx {
+    display: none !important;
+  }
+}
+
 /* === Slide deck container === */
 .sldr-deck {
   position: relative;

@@ -81,6 +81,7 @@
       "$ref": "#/$defs/Decoration",
       "default": {
         "accent": null,
+        "effect": null,
         "intensity": null
       }
     },
@@ -458,6 +459,14 @@
       "properties": {
         "accent": {
           "description": "Named ornament: \"none\", \"corner-rules\", \"side-rail\", \"dot-grid\",\n\"halftone\", \"swiss-bar\", \"page-numbers\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "effect": {
+          "description": "Animated background effect: \"stardust\", \"aurora\", \"grain\".\nPure CSS — deterministic, offline, honors prefers-reduced-motion,\nhidden in print. Part of the style layer: switches with the flavor.",
           "type": [
             "string",
             "null"

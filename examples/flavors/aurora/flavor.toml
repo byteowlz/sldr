@@ -91,6 +91,7 @@ easing = "cubic-bezier(0.16, 1, 0.3, 1)"
 duration = "420ms"
 
 [decoration]
+effect = "aurora"
 accent = "page-numbers"
 intensity = 0.8
 

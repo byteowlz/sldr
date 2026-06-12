@@ -41,6 +41,16 @@ const BASE_CSS: &str = include_str!("../assets/base.css");
 /// Presenter JS embedded at compile time from assets/presenter.js
 const PRESENTER_JS: &str = include_str!("../assets/presenter.js");
 
+/// Animated background effects (pure CSS, deterministic, baked particle
+/// positions). Emitted inside the owning flavor's <style data-flavor>
+/// block so effects switch with the flavor at runtime, exactly like
+/// every other style-layer property (ADR-0003/0005).
+const EFFECTS: &[(&str, &str)] = &[
+    ("aurora", include_str!("../assets/effects/aurora.css")),
+    ("grain", include_str!("../assets/effects/grain.css")),
+    ("stardust", include_str!("../assets/effects/stardust.css")),
+];
+
 /// Configuration for the HTML renderer
 #[derive(Debug, Clone)]
 pub struct RenderConfig {
@@ -344,6 +354,10 @@ impl HtmlRenderer {
         html.push_str("</head>\n<body>\n");
 
         // Slide deck
+        let any_effect = self
+            .flavors
+            .iter()
+            .any(|f| f.decoration.effect.is_some());
         if self.config.languages.len() > 1 {
             let _ = writeln!(
                 html,
@@ -357,6 +371,13 @@ impl HtmlRenderer {
                 "  <div class=\"sldr-deck\" data-transition=\"{}\">",
                 html_escape_attr(&self.config.transition)
             );
+        }
+
+        // Decoration-effect layer: engine-owned, content-free, inert
+        // (pointer-events: none, aria-hidden). Which effect renders — or
+        // none — is decided purely by the active flavor's CSS.
+        if any_effect {
+            html.push_str("    <div class=\"sldr-fx\" aria-hidden=\"true\"></div>\n");
         }
         html.push('\n');
 
@@ -521,6 +542,26 @@ impl HtmlRenderer {
             // so highlighting lives in the flavor's style layer and swaps
             // with the flavor at runtime (trx-e9bd, ADR-0003).
             html.push_str(&syntax_theme_css(flavor.code.syntax_theme.as_deref()));
+
+            // Animated background effect (decoration.effect) — part of
+            // this flavor's style block so the T toggle swaps it.
+            if let Some(effect) = flavor.decoration.effect.as_deref() {
+                match EFFECTS.iter().find(|(name, _)| *name == effect) {
+                    Some((_, css)) => {
+                        html.push('\n');
+                        html.push_str(css);
+                    }
+                    None => {
+                        let known: Vec<&str> = EFFECTS.iter().map(|(n, _)| *n).collect();
+                        // Warn, never refuse — but never silently.
+                        eprintln!(
+                            "  ! Flavor '{}': unknown decoration.effect '{effect}' (known: {})",
+                            flavor.name,
+                            known.join(", ")
+                        );
+                    }
+                }
+            }
 
             // Per-flavor escape-hatch CSS (loaded from flavor.css)
             if let Some(ref custom) = flavor.custom_css {
