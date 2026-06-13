@@ -68,6 +68,14 @@ _Avoid_: theme, brand, skin
 A named style variable defined by a flavor and consumed by layouts. Tokens are the binding contract that makes any flavor work with any layout; the token vocabulary grows by promoting recurring custom-CSS patterns, never speculatively.
 _Avoid_: CSS variable (the mechanism, not the concept)
 
+**Chrome**:
+The persistent framing repeated across a deck's slides: headline and subheadline zone, footer line, logos, permanent background, and the web-clipping [[source]] line. Chrome is split along the factoring — style chrome (background, logos, footer default) is [[flavor]], content chrome (title, subtitle, source, per-slide footer) is frontmatter — and both feed [[layout]] slots (`{{headline}}`, `{{subheadline}}`, `{{footer}}`, `{{source}}`). Not a master-slide layer.
+_Avoid_: master slide, template (retired), frame
+
+**Source**:
+A web-clipping slide's attribution — `source` text plus optional `source_url` — rendered as a "Source: …" line via the `{{source}}` chrome slot. Self-contained: the link is inert until clicked.
+_Avoid_: citation, reference
+
 **Provenance**:
 The single source of truth a rendered element traces back to: slide markdown (content), template HTML (structure), or flavor TOML (style). Edits flow back only along provenance; shared sources (templates, flavors) never accept silent writes — changing them is a deliberate act taken with their blast radius visible.
 _Avoid_: origin, source mapping (the mechanism, not the concept)

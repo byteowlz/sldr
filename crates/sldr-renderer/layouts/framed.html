@@ -1,0 +1,19 @@
+<!-- Layout: framed — persistent deck chrome (ADR-0008): a fixed headline/
+     subheadline zone at top, the markdown body in the middle, and a footer +
+     web-clipping source line at the bottom. headline/subheadline come from
+     the slide's title/subtitle frontmatter; footer from the slide or flavor;
+     source from source/source_url. Shared chrome styling lives in base.css
+     (.sldr-framed); logos + background come from the flavor. -->
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    {{content}}
+  </div>
+  <footer class="sldr-frame-foot">
+    {{footer}}
+    {{source}}
+  </footer>
+</div>

@@ -91,6 +91,12 @@ pub struct Flavor {
     #[serde(default)]
     pub logos: Vec<LogoPlacement>,
 
+    /// Deck footer line — persistent chrome (e.g. a copyright or
+    /// confidentiality notice) shown via a framed layout's `{{footer}}`
+    /// slot. A slide's own `footer` frontmatter overrides this per slide.
+    #[serde(default)]
+    pub footer: Option<String>,
+
     /// Path to additional assets (logos, images)
     #[serde(default)]
     pub assets_dir: Option<String>,
@@ -570,6 +576,7 @@ impl Default for Flavor {
             code: Code::default(),
             font_imports: Vec::new(),
             logos: Vec::new(),
+            footer: None,
             assets_dir: None,
             custom_css: None,
             source_dir: None,

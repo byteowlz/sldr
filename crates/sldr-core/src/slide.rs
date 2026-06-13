@@ -123,6 +123,27 @@ pub struct SlideMetadata {
     #[serde(default)]
     pub description: Option<String>,
 
+    /// Subheadline — the smaller line under the headline in a framed
+    /// layout's chrome zone (exposed as the `{{subheadline}}` slot).
+    #[serde(default)]
+    pub subtitle: Option<String>,
+
+    /// Source attribution for web-clipping slides — display text shown as
+    /// a "Source: …" line via the `{{source}}` slot. Pair with `source_url`
+    /// to make it a link.
+    #[serde(default)]
+    pub source: Option<String>,
+
+    /// Optional link target for `source`. When set, the source line becomes
+    /// a hyperlink (still self-contained; only resolved if the viewer clicks).
+    #[serde(default)]
+    pub source_url: Option<String>,
+
+    /// Per-slide override for the deck footer line (the `{{footer}}` slot).
+    /// Falls back to the flavor's `footer` when omitted.
+    #[serde(default)]
+    pub footer: Option<String>,
+
     /// Topic or category
     #[serde(default)]
     pub topic: Option<String>,

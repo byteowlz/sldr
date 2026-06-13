@@ -64,7 +64,7 @@ heading_transform = "uppercase"
 eyebrow_transform = "uppercase"
 
 [background]
-type = "gradient"
+background_type = "gradient"
 value = "repeating-linear-gradient(0deg, rgba(234, 242, 255, 0.035) 0, rgba(234, 242, 255, 0.035) 1px, transparent 1px, transparent 64px), repeating-linear-gradient(90deg, rgba(234, 242, 255, 0.035) 0, rgba(234, 242, 255, 0.035) 1px, transparent 1px, transparent 64px), #10395f"
 
 [spacing]

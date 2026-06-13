@@ -46,6 +46,28 @@ pub struct SlideOpts<'a> {
     pub lang: Option<&'a str>,
     pub rendered: MarkdownOutput,
     pub speaker_notes: Option<&'a str>,
+    /// Chrome slots — persistent deck framing fed from frontmatter and the
+    /// flavor, not from the markdown body. Each is pre-escaped/rendered
+    /// HTML; a framed layout places them, a plain layout ignores them, and
+    /// an empty slot collapses to nothing.
+    pub chrome: Chrome,
+}
+
+/// Persistent slide framing: the headline/subheadline zone, footer line,
+/// and web-clipping source attribution. Distinct from body content so a
+/// framed layout can pin them in fixed chrome positions (the PowerPoint
+/// title-placeholder model) — see ADR-0008.
+#[derive(Default)]
+pub struct Chrome {
+    /// `{{headline}}` — from the slide's `title` (plain, pre-escaped).
+    pub headline: Option<String>,
+    /// `{{subheadline}}` — from the slide's `subtitle` (plain, pre-escaped).
+    pub subheadline: Option<String>,
+    /// `{{footer}}` — slide `footer` ?? flavor `footer` (plain, pre-escaped).
+    pub footer: Option<String>,
+    /// `{{source}}` — fully rendered "Source: …" HTML (optionally a link),
+    /// or None when the slide has no source.
+    pub source: Option<String>,
 }
 
 /// A parsed layout definition: the structure that wraps a slide's content.
@@ -74,6 +96,12 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("default", include_str!("../layouts/default.html")),
     ("end", include_str!("../layouts/end.html")),
     ("feature-image", include_str!("../layouts/feature-image.html")),
+    ("framed", include_str!("../layouts/framed.html")),
+    ("framed-cols", include_str!("../layouts/framed-cols.html")),
+    ("framed-cover", include_str!("../layouts/framed-cover.html")),
+    ("framed-full", include_str!("../layouts/framed-full.html")),
+    ("framed-image", include_str!("../layouts/framed-image.html")),
+    ("framed-section", include_str!("../layouts/framed-section.html")),
     ("hero-stat", include_str!("../layouts/hero-stat.html")),
     ("image", include_str!("../layouts/image.html")),
     ("image-grid", include_str!("../layouts/image-grid.html")),
@@ -344,8 +372,15 @@ fn slot_map(
     rendered: MarkdownOutput,
     collage: bool,
     structure: &str,
+    chrome: &Chrome,
 ) -> HashMap<&'static str, String> {
     let mut slots: HashMap<&'static str, String> = HashMap::new();
+    // Chrome slots are fed from frontmatter + flavor, not the markdown body.
+    // Always present (empty collapses); a framed layout places them.
+    slots.insert("headline", chrome.headline.clone().unwrap_or_default());
+    slots.insert("subheadline", chrome.subheadline.clone().unwrap_or_default());
+    slots.insert("footer", chrome.footer.clone().unwrap_or_default());
+    slots.insert("source", chrome.source.clone().unwrap_or_default());
     match rendered {
         MarkdownOutput::Single(content) => {
             let content = if collage {
@@ -454,6 +489,7 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
         lang,
         rendered,
         speaker_notes,
+        chrome,
     } = opts;
 
     let mut html = String::new();
@@ -479,7 +515,7 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
     }
     html.push_str(">\n");
 
-    let slots = slot_map(rendered, def.collage, &def.structure);
+    let slots = slot_map(rendered, def.collage, &def.structure, &chrome);
     html.push_str(&fill_slots(&def.structure, &slots));
 
     // Speaker notes (hidden, read by presenter.js)
@@ -515,6 +551,7 @@ mod tests {
                 lang: None,
                 rendered,
                 speaker_notes: notes,
+                chrome: Chrome::default(),
             },
             def,
         )
@@ -552,6 +589,7 @@ mod tests {
                     right: "<p>Right</p>".to_string(),
                 },
                 speaker_notes: Some("Speaker note here"),
+                chrome: Chrome::default(),
             },
             def,
         );
@@ -691,6 +729,7 @@ mod tests {
                 lang: None,
                 rendered: MarkdownOutput::Single("<h1>Right-aligned</h1>".to_string()),
                 speaker_notes: None,
+                chrome: Chrome::default(),
             },
             def,
         );
@@ -781,6 +820,7 @@ mod tests {
                 lang: None,
                 rendered: MarkdownOutput::Single("<h1>Big</h1>".to_string()),
                 speaker_notes: None,
+                chrome: Chrome::default(),
             },
             def,
         );

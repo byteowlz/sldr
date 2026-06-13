@@ -64,7 +64,7 @@ heading_transform = "uppercase"
 eyebrow_transform = "uppercase"
 
 [background]
-type = "gradient"
+background_type = "gradient"
 value = "radial-gradient(ellipse at 85% 10%, rgba(255, 61, 166, 0.16) 0%, transparent 45%), radial-gradient(ellipse at 10% 90%, rgba(61, 220, 255, 0.12) 0%, transparent 45%), #0a0612"
 
 [spacing]

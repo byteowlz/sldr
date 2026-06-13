@@ -190,6 +190,89 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   display: none;
 }
 
+/* === Deck chrome (framed layouts, ADR-0008) ===
+ * Shared styling for the persistent headline/subheadline/footer/source
+ * framing, so every framed-* layout reuses it and only supplies its body
+ * arrangement. All colors bind to flavor tokens. */
+.sldr-slide:has(.sldr-framed) { padding: 0; }
+.sldr-framed {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: clamp(36px, 5.5vh, 64px) clamp(48px, 6vw, 96px) clamp(24px, 3.5vh, 40px);
+  gap: clamp(12px, 2vh, 22px);
+}
+.sldr-framed .sldr-frame-head { min-height: 0; }
+.sldr-framed .sldr-headline {
+  font-size: clamp(26px, 3.4vw, 44px);
+  font-weight: var(--sldr-heading-weight);
+  letter-spacing: var(--sldr-heading-tracking);
+  line-height: 1.08;
+  color: var(--sldr-text);
+  margin: 0;
+}
+.sldr-framed .sldr-subheadline {
+  font-size: clamp(15px, 1.7vw, 21px);
+  color: var(--sldr-accent);
+  margin: 0.25em 0 0;
+  font-weight: 500;
+}
+.sldr-framed .sldr-frame-body {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(10px, 1.6vh, 20px);
+  font-size: clamp(14px, 1.5vw, 19px);
+}
+.sldr-framed .sldr-frame-body :is(h2, h3) { color: var(--sldr-primary); }
+.sldr-framed .sldr-frame-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2ch;
+  font-family: var(--sldr-code-font);
+  font-size: clamp(10px, 1.05vw, 13px);
+  color: var(--sldr-text-dim, var(--sldr-text));
+  letter-spacing: 0.4px;
+}
+.sldr-framed .sldr-footer { opacity: 0.7; }
+.sldr-framed .sldr-source { opacity: 0.85; text-align: right; }
+.sldr-framed .sldr-source-label {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--sldr-accent);
+}
+.sldr-framed .sldr-source a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Framed body arrangements */
+.sldr-framed .sldr-frame-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(28px, 4vw, 64px);
+  align-content: center;
+  width: 100%;
+}
+.sldr-framed .sldr-frame-imgsplit {
+  display: grid;
+  grid-template-columns: 1fr 42%;
+  gap: clamp(24px, 3vw, 48px);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+.sldr-framed .sldr-frame-imgsplit .sldr-col-image img {
+  width: 100%;
+  max-height: 64vh;
+  object-fit: contain;
+  border-radius: var(--sldr-radius-sm);
+}
+
 /* Atmospheric backgrounds — uniform across all slides so the deck feels
  * coherent (not a visual stutter as you advance). Intensity is controlled
  * via --sldr-atmosphere (0 = off, 1 = full). Flat flavors (paper/print)

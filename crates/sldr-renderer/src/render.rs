@@ -13,7 +13,7 @@ use tracing::info;
 
 use crate::markdown::{render_markdown, MediaConfig};
 use crate::media::{self, ImageMode, MediaEmbed};
-use crate::layout::{wrap_slide, LayoutRegistry, SlideOpts};
+use crate::layout::{wrap_slide, Chrome, LayoutRegistry, SlideOpts};
 
 /// Validate horizontal alignment value, dropping unknown ones.
 fn sanitize_align(v: Option<&str>) -> Option<&'static str> {
@@ -254,6 +254,35 @@ impl HtmlRenderer {
         let align = sanitize_align(slide.metadata.align.as_deref());
         let valign = sanitize_valign(slide.metadata.valign.as_deref());
 
+        // Chrome: persistent deck framing fed from frontmatter + flavor,
+        // not the markdown body. Footer resolves slide override over the
+        // flavor default; the source line becomes a link when source_url
+        // is set (ADR-0008).
+        // Pre-render each chrome element with a standard class so framed
+        // layouts place it bare (`{{headline}}` alone on a line collapses
+        // when empty) and flavors style it by class.
+        let flavor_footer = self.flavors.first().and_then(|f| f.footer.as_deref());
+        let chrome = Chrome {
+            headline: slide.metadata.title.as_deref().map(|t| {
+                format!("<h1 class=\"sldr-headline\">{}</h1>", html_escape_text(t))
+            }),
+            subheadline: slide.metadata.subtitle.as_deref().map(|t| {
+                format!("<p class=\"sldr-subheadline\">{}</p>", html_escape_text(t))
+            }),
+            footer: slide
+                .metadata
+                .footer
+                .as_deref()
+                .or(flavor_footer)
+                .map(|t| format!("<div class=\"sldr-footer\">{}</div>", html_escape_text(t))),
+            source: slide.metadata.source.as_deref().map(|s| {
+                format!(
+                    "<div class=\"sldr-source\">{}</div>",
+                    render_source(s, slide.metadata.source_url.as_deref())
+                )
+            }),
+        };
+
         // Wrap in the slide's layout (fail loud on an unknown layout —
         // the error names the slide and everything that was searched).
         let def = self
@@ -269,6 +298,7 @@ impl HtmlRenderer {
                 lang: tag,
                 rendered,
                 speaker_notes: notes.as_deref(),
+                chrome,
             },
             def,
         );
@@ -489,6 +519,61 @@ impl HtmlRenderer {
         logo_html
     }
 
+    /// Background CSS with image assets embedded for self-containment.
+    /// For `image`/`svg` backgrounds the value is a file in the flavor's
+    /// assets dir; resolve and embed it (data URI or asset-file copy) so
+    /// there is no dangling `url('/…')`. Other background types pass through.
+    fn embed_background(&self, flavor: &Flavor) -> String {
+        let is_image = matches!(
+            flavor.background.background_type.as_deref(),
+            Some("image" | "svg")
+        );
+        let value = flavor.background.value.as_deref();
+        let (Some(value), true) = (value, is_image) else {
+            return flavor.to_background_css();
+        };
+        // Already a URL — leave it (author opted into an external ref).
+        if value.starts_with("http") || value.starts_with("data:") {
+            return flavor.to_background_css();
+        }
+        let Some(assets) = flavor.source_dir.as_ref().map(|d| d.join("assets")) else {
+            return flavor.to_background_css();
+        };
+        let path = assets.join(value.trim_start_matches('/'));
+        if !path.exists() {
+            eprintln!(
+                "  ! Flavor '{}': background image not found: {}",
+                flavor.name,
+                path.display()
+            );
+            return String::new();
+        }
+        let embed = media::process_media_src(
+            &path.to_string_lossy(),
+            assets.parent(),
+            self.config.image_mode,
+            self.config.output_dir.as_ref().map(|d| d.join("assets")).as_deref(),
+        );
+        let src = match embed {
+            MediaEmbed::DataUri(uri) => uri,
+            MediaEmbed::External(url) => url,
+            MediaEmbed::AssetFile { html_src, .. } => html_src,
+            MediaEmbed::NotFound(_) => return String::new(),
+        };
+        let mut css = format!(
+            ".sldr-slide {{ background-image: url('{src}'); background-size: cover; background-position: center; }}\n"
+        );
+        if let Some(op) = flavor.background.opacity {
+            if op < 1.0 {
+                let _ = write!(
+                    css,
+                    ".sldr-slide::before {{ content: ''; position: absolute; inset: 0; background: inherit; opacity: {op}; z-index: -1; }}\n"
+                );
+            }
+        }
+        css
+    }
+
     /// Inject logo overlays into a slide's HTML (before the closing </section>)
     fn inject_logos(&self, slide_html: &str, layout: &str) -> String {
         let logo_html = self.generate_logo_html(layout);
@@ -534,8 +619,11 @@ impl HtmlRenderer {
             // CSS custom properties
             html.push_str(&flavor.to_css_variables());
 
-            // Background CSS
-            let bg_css = flavor.to_background_css();
+            // Background CSS. For image/svg backgrounds, embed the asset
+            // (data URI / asset file) so the output stays self-contained —
+            // to_background_css emits a bare url() that has no server to
+            // resolve against. Color/gradient backgrounds pass through.
+            let bg_css = self.embed_background(flavor);
             if !bg_css.is_empty() {
                 html.push_str(&bg_css);
             }
@@ -632,6 +720,25 @@ fn html_escape_attr(input: &str) -> String {
         .replace('"', "&quot;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+/// Escape text for safe placement in element content (chrome slots carry
+/// plain frontmatter text, never markdown).
+fn html_escape_text(input: &str) -> String {
+    input.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// Render the web-clipping source line: "Source: …", linked when a URL is
+/// given. Self-contained — the link is inert until clicked.
+fn render_source(text: &str, url: Option<&str>) -> String {
+    let label = html_escape_text(text);
+    match url {
+        Some(u) => format!(
+            "<span class=\"sldr-source-label\">Source:</span> <a href=\"{}\">{label}</a>",
+            html_escape_attr(u)
+        ),
+        None => format!("<span class=\"sldr-source-label\">Source:</span> {label}"),
+    }
 }
 
 #[cfg(test)]

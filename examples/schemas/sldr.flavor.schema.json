@@ -109,6 +109,14 @@
         "type": "string"
       }
     },
+    "footer": {
+      "description": "Deck footer line — persistent chrome (e.g. a copyright or\nconfidentiality notice) shown via a framed layout's `{{footer}}`\nslot. A slide's own `footer` frontmatter overrides this per slide.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
     "logos": {
       "description": "Logo placements - positioned logo overlays on slides",
       "type": "array",
