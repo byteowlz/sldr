@@ -1,0 +1,42 @@
+/* sldr effect: bokeh — large, soft, out-of-focus orbs of light drifting
+ * slowly, like a photograph shot wide open. Premium and photographic —
+ * the opposite texture to stardust's sharp points. Two parallax layers of
+ * hand-placed orbs (deterministic) in the flavor's accent and primary,
+ * blurred for the shot-wide-open quality. */
+.sldr-fx {
+  display: block;
+  overflow: hidden;
+}
+.sldr-fx::before,
+.sldr-fx::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background-repeat: no-repeat;
+  filter: blur(8px);
+}
+/* Near layer: bigger, brighter orbs, drifting up-right. */
+.sldr-fx::before {
+  background-image:
+    radial-gradient(22vw 22vw at 20% 28%, var(--sldr-accent), transparent 64%),
+    radial-gradient(15vw 15vw at 72% 60%, var(--sldr-accent), transparent 64%),
+    radial-gradient(28vw 28vw at 46% 88%, var(--sldr-primary), transparent 66%);
+  opacity: 0.22;
+  animation: sldr-fx-bokeh-a 46s ease-in-out infinite alternate;
+}
+/* Far layer: fewer, fainter orbs, drifting down-left for parallax. */
+.sldr-fx::after {
+  background-image:
+    radial-gradient(18vw 18vw at 85% 18%, var(--sldr-secondary, var(--sldr-accent)), transparent 64%),
+    radial-gradient(24vw 24vw at 12% 72%, var(--sldr-primary), transparent 66%);
+  opacity: 0.15;
+  animation: sldr-fx-bokeh-b 64s ease-in-out infinite alternate;
+}
+@keyframes sldr-fx-bokeh-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(6vw, -5vh, 0) scale(1.18); }
+}
+@keyframes sldr-fx-bokeh-b {
+  from { transform: translate3d(0, 0, 0) scale(1.1); }
+  to   { transform: translate3d(-5vw, 4vh, 0) scale(0.92); }
+}

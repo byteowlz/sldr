@@ -91,6 +91,7 @@ easing = "linear"
 duration = "120ms"
 
 [decoration]
+effect = "grid-pan"
 accent = "page-numbers"
 intensity = 0
 

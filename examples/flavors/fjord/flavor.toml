@@ -87,6 +87,7 @@ easing = "cubic-bezier(0.4, 0, 0.2, 1)"
 duration = "300ms"
 
 [decoration]
+effect = "spotlight"
 accent = "page-numbers"
 intensity = 0.1
 

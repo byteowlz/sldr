@@ -47,7 +47,10 @@ const PRESENTER_JS: &str = include_str!("../assets/presenter.js");
 /// every other style-layer property (ADR-0003/0005).
 const EFFECTS: &[(&str, &str)] = &[
     ("aurora", include_str!("../assets/effects/aurora.css")),
+    ("bokeh", include_str!("../assets/effects/bokeh.css")),
     ("grain", include_str!("../assets/effects/grain.css")),
+    ("grid-pan", include_str!("../assets/effects/grid-pan.css")),
+    ("spotlight", include_str!("../assets/effects/spotlight.css")),
     ("stardust", include_str!("../assets/effects/stardust.css")),
 ];
 
