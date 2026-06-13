@@ -151,22 +151,14 @@ html.dark {
   }
 }
 
-/* Motion kill-switch. Decoration animation freezes when the OS asks for
- * reduced motion — unless the user explicitly overrides with the M key
- * (html[data-sldr-motion]). Many desktops report reduce without the
- * user ever choosing it, so an explicit "motion on" must win. */
+/* Decoration motion kill-switch. The reduced-motion case is handled by the
+ * global accessibility reset below (which the M-key opt-in lifts). This
+ * rule covers the other direction: a user explicitly turning effects OFF
+ * with M even when the system does NOT request reduced motion. */
 html[data-sldr-motion="off"] .sldr-fx,
 html[data-sldr-motion="off"] .sldr-fx::before,
 html[data-sldr-motion="off"] .sldr-fx::after {
   animation: none !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html:not([data-sldr-motion="on"]) .sldr-fx,
-  html:not([data-sldr-motion="on"]) .sldr-fx::before,
-  html:not([data-sldr-motion="on"]) .sldr-fx::after {
-    animation: none !important;
-  }
 }
 
 /* === Slide deck container === */
@@ -1125,9 +1117,15 @@ tr:hover td {
  * still fires, and we keep iteration counts at 1 so any infinite animations
  * resolve. Slide transitions effectively cut to the next slide. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  /* Accessibility reset: neutralize animation/transition for reduced-motion
+   * users — UNLESS they explicitly opt back in with the M key
+   * (html[data-sldr-motion="on"]). Without the :not() guard this `*` rule
+   * wins over every effect via !important, and no per-effect override can
+   * bring motion back — pressing M lifts the decoration kill-switch but
+   * this rule would still freeze everything. */
+  html:not([data-sldr-motion="on"]) *,
+  html:not([data-sldr-motion="on"]) *::before,
+  html:not([data-sldr-motion="on"]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

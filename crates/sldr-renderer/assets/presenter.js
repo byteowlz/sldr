@@ -80,6 +80,58 @@
     updateProgress();
   }
 
+  // --- Effect diagnostics (?fxdebug) -------------------------------------
+  // Self-reporting overlay: tells us whether ANY css animation runs on this
+  // machine (control bar) and whether the decoration effect is ticking.
+  if (location.search.indexOf("fxdebug") !== -1) {
+    var box = document.createElement("div");
+    box.style.cssText =
+      "position:fixed;top:12px;left:12px;z-index:99999;background:#000;color:#0f0;" +
+      "font:12px/1.5 monospace;padding:12px 14px;border:1px solid #0f0;max-width:48ch;" +
+      "pointer-events:none";
+    var readout = document.createElement("div");
+    readout.style.whiteSpace = "pre";
+    var ctrl = document.createElement("div");
+    ctrl.style.cssText =
+      "width:40px;height:12px;margin-top:8px;background:#0f0;" +
+      "animation:sldr-diag-slide 1s linear infinite";
+    var kf = document.createElement("style");
+    kf.textContent =
+      "@keyframes sldr-diag-slide{from{transform:translateX(0)}to{transform:translateX(200px)}}";
+    document.head.appendChild(kf);
+    box.appendChild(readout);
+    box.appendChild(ctrl);
+    document.body.appendChild(box);
+    var fxEl = document.querySelector(".sldr-fx");
+
+    function sample() {
+      var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // Reliable tick detection: getBoundingClientRect reflects the actual
+      // animated render position; getComputedStyle does not (it can return
+      // the base value mid-animation).
+      var ctrlX1 = ctrl.getBoundingClientRect().left;
+      var fxT1 = fxEl ? getComputedStyle(fxEl, "::before").transform : "-";
+      setTimeout(function () {
+        var ctrlX2 = ctrl.getBoundingClientRect().left;
+        var fxT2 = fxEl ? getComputedStyle(fxEl, "::before").transform : "-";
+        var ps = fxEl ? getComputedStyle(fxEl, "::before") : null;
+        readout.textContent =
+          "FX DIAGNOSTIC\n" +
+          "prefers-reduced-motion: " + reduced + "\n" +
+          "data-sldr-motion: " + (document.documentElement.getAttribute("data-sldr-motion") || "(unset)") + "\n" +
+          "active flavor: " + (activeFlavor || "?") + "\n" +
+          ".sldr-fx present/display: " + (!!fxEl) + " / " + (fxEl ? getComputedStyle(fxEl).display : "-") + "\n" +
+          "::before anim-name: " + (ps ? ps.animationName : "-") + "\n" +
+          "::before play-state: " + (ps ? ps.animationPlayState : "-") + "\n" +
+          "CONTROL BAR MOVING: " + (Math.abs(ctrlX1 - ctrlX2) > 0.5 ? "YES" : "NO  <- ALL anim disabled") + "\n" +
+          "EFFECT TRANSFORM CHANGING: " + (fxT1 !== fxT2 ? "YES" : "NO") + "\n" +
+          "(does the green bar below slide right?)";
+      }, 350);
+    }
+    sample();
+    setInterval(sample, 1500);
+  }
+
   // Motion toggle (M): forces decoration animation on/off regardless of
   // the OS prefers-reduced-motion setting. Persisted per browser.
   try {
@@ -102,6 +154,34 @@
     }
     el.setAttribute("data-sldr-motion", next);
     try { localStorage.setItem("sldr-motion", next); } catch (err) { /* ignore */ }
+    if (hintEl) { hintEl.remove(); hintEl = null; }
+  }
+
+  // Discoverability: if the system requests reduced motion AND this deck has
+  // a decoration effect, the effect is frozen by the accessibility reset.
+  // Most people never knowingly enabled reduced motion — surface the M-key
+  // opt-in once instead of leaving them staring at a static background.
+  var hintEl = null;
+  if (
+    document.querySelector(".sldr-fx") &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches &&
+    document.documentElement.getAttribute("data-sldr-motion") !== "on" &&
+    document.documentElement.getAttribute("data-sldr-motion") !== "off"
+  ) {
+    hintEl = document.createElement("div");
+    hintEl.textContent = "Your system has reduced motion on — press M for animated background";
+    hintEl.style.cssText =
+      "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;" +
+      "background:var(--sldr-surface,#222);color:var(--sldr-text,#eee);" +
+      "border:1px solid var(--sldr-border-bright,#555);border-radius:999px;" +
+      "padding:8px 18px;font:13px/1.4 var(--sldr-code-font,monospace);" +
+      "box-shadow:var(--sldr-shadow-md,0 4px 12px rgba(0,0,0,.3));opacity:0.94;" +
+      "pointer-events:none";
+    var showHint = function () {
+      if (hintEl) document.body.appendChild(hintEl);
+    };
+    if (document.body) { showHint(); } else { window.addEventListener("DOMContentLoaded", showHint); }
+    setTimeout(function () { if (hintEl) { hintEl.remove(); hintEl = null; } }, 8000);
   }
 
   function cycleLanguage() {
