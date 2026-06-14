@@ -351,7 +351,16 @@ impl HtmlRenderer {
                 if !seen_imports.insert(url.as_str()) {
                     continue;
                 }
-                match crate::fonts::embed_font_css(url) {
+                // Local stylesheet shipped by the flavor (no http) → embed
+                // its local font files; otherwise fetch from the network.
+                let embedded = if url.starts_with("http") {
+                    crate::fonts::embed_font_css(url)
+                } else if let Some(dir) = flavor.source_dir.as_deref() {
+                    crate::fonts::embed_local_font_css(dir, url)
+                } else {
+                    None
+                };
+                match embedded {
                     Some(css) => {
                         html.push_str("  <style data-font-embed>\n");
                         html.push_str(&css);
