@@ -195,14 +195,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
  * framing, so every framed-* layout reuses it and only supplies its body
  * arrangement. All colors bind to flavor tokens. */
 .sldr-slide:has(.sldr-framed) { padding: 0; }
-.sldr-framed {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: clamp(36px, 5.5vh, 64px) clamp(48px, 6vw, 96px) clamp(24px, 3.5vh, 40px);
-  gap: clamp(12px, 2vh, 22px);
-}
+.sldr-framed { position: absolute; inset: 0; }
 /* Readability scrim: content layouts dim the flavor background toward its
  * base color so text stays legible over a busy photo/texture. Strength is
  * tunable per flavor via --sldr-frame-scrim (0 = no dim). Cover/section
@@ -216,48 +209,74 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   z-index: 0;
   pointer-events: none;
 }
-.sldr-framed > * { position: relative; z-index: 1; }
-.sldr-framed .sldr-frame-head { min-height: 0; }
+.sldr-framed > * { z-index: 1; }
+/* Chrome placed at the source deck's exact coordinates (ADR-0008). Sizes
+ * are vw-relative so they track the 16:9 design; positions are % of slide.
+ * 22pt headline / 20pt subheadline / 12pt footer on a 13.33in-wide slide. */
+.sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: 6.3%; width: 91.1%; }
 .sldr-framed .sldr-headline {
-  font-size: clamp(26px, 3.4vw, 44px);
-  font-weight: var(--sldr-heading-weight);
+  font-size: 2.29vw;
+  font-weight: 700;
   letter-spacing: var(--sldr-heading-tracking);
-  line-height: 1.08;
+  line-height: 1.12;
   color: var(--sldr-text);
   margin: 0;
 }
 .sldr-framed .sldr-subheadline {
-  font-size: clamp(15px, 1.7vw, 21px);
+  font-size: 2.08vw;
+  font-weight: 400;
+  line-height: 1.15;
   color: var(--sldr-accent);
-  margin: 0.25em 0 0;
-  font-weight: 500;
+  margin: 0.3vw 0 0;
 }
 .sldr-framed .sldr-frame-body {
-  min-height: 0;
+  position: absolute;
+  left: 4.4%;
+  top: 22.2%;
+  width: 91.1%;
+  height: 68.4%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: clamp(10px, 1.6vh, 20px);
-  font-size: clamp(14px, 1.5vw, 19px);
+  justify-content: flex-start;
+  gap: 1.6vw;
+  font-size: 1.6vw;
+  line-height: 1.4;
 }
-.sldr-framed .sldr-frame-body :is(h2, h3) { color: var(--sldr-primary); }
-.sldr-framed .sldr-frame-foot {
+.sldr-framed .sldr-frame-body :is(h2, h3) {
+  color: var(--sldr-primary);
+  font-size: 1.8vw;
+  margin: 0;
+}
+.sldr-framed .sldr-frame-body p { margin: 0; }
+.sldr-framed .sldr-frame-body ul { margin: 0; padding-left: 1.2em; }
+/* Images in a framed body never overflow their box/column. Grid cells get
+ * min-width:0 so a wide image can't force the column past its 1fr share. */
+.sldr-framed .sldr-frame-body img {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+.sldr-framed .sldr-frame-cols > *,
+.sldr-framed .sldr-frame-imgsplit > * { min-width: 0; }
+.sldr-framed .sldr-frame-cols .sldr-col {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 2ch;
-  font-family: var(--sldr-code-font);
-  font-size: clamp(10px, 1.05vw, 13px);
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.sldr-framed .sldr-frame-foot {
+  position: absolute;
+  left: 7.4%;
+  top: 92.5%;
+  width: 70%;
+  font-family: var(--sldr-body-font);
+  font-size: 1.25vw;
   color: var(--sldr-text-dim, var(--sldr-text));
-  letter-spacing: 0.4px;
+  opacity: 0.7;
 }
-.sldr-framed .sldr-footer { opacity: 0.7; }
-.sldr-framed .sldr-source { opacity: 0.85; text-align: right; }
-.sldr-framed .sldr-source-label {
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--sldr-accent);
-}
+.sldr-framed .sldr-source-label { color: var(--sldr-accent); }
 .sldr-framed .sldr-source a {
   color: inherit;
   text-decoration: underline;
@@ -268,14 +287,15 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-framed .sldr-frame-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(28px, 4vw, 64px);
-  align-content: center;
+  gap: 3vw;
+  align-content: start;
   width: 100%;
+  height: 100%;
 }
 .sldr-framed .sldr-frame-imgsplit {
   display: grid;
   grid-template-columns: 1fr 42%;
-  gap: clamp(24px, 3vw, 48px);
+  gap: 2.4vw;
   align-items: center;
   width: 100%;
   height: 100%;
