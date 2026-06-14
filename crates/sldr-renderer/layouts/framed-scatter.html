@@ -1,0 +1,77 @@
+<!-- Layout: framed-scatter — deck chrome with a content block on the left
+     and a semi-chaotic, overlapping collage of images on the right. The
+     left (::left::) takes an article snippet, screenshot, or text; the
+     right (::right::) takes any number of markdown images, scattered with
+     varied size, position, slight rotation and overlap. Reusable for
+     "here is one thing, and a wall of related examples". -->
+<style>
+.sldr-slide[data-layout="framed-scatter"] .sldr-scatter {
+  display: grid;
+  grid-template-columns: 42% 1fr;
+  gap: 2vw;
+  width: 100%;
+  height: 100%;
+}
+/* Without this, the article image's intrinsic width forces the left
+ * column wide and collapses the 1fr scatter zone. */
+.sldr-slide[data-layout="framed-scatter"] .sldr-scatter > * { min-width: 0; min-height: 0; }
+.sldr-slide[data-layout="framed-scatter"] .sldr-scatter-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  font-size: 1.4vw;
+  line-height: 1.4;
+}
+.sldr-slide[data-layout="framed-scatter"] .sldr-scatter-left img {
+  width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.5);
+}
+.sldr-slide[data-layout="framed-scatter"] .sldr-scatter-right {
+  position: relative;
+  min-width: 0;
+}
+.sldr-slide[data-layout="framed-scatter"] .sldr-scatter-right p { margin: 0; }
+.sldr-slide[data-layout="framed-scatter"] .sldr-scatter-right img {
+  position: absolute;
+  display: block;
+  border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.55);
+}
+/* Scatter pattern — twelve hand-placed slots (cycles past twelve) covering
+ * the right zone with overlap, varied size, and a little rotation. */
+.sldr-scatter-right img:nth-of-type(12n+1)  { top: 3%;  left: 1%;  width: 27%; transform: rotate(-4deg); z-index: 3; }
+.sldr-scatter-right img:nth-of-type(12n+2)  { top: 0%;  left: 33%; width: 23%; transform: rotate(3deg);  z-index: 6; }
+.sldr-scatter-right img:nth-of-type(12n+3)  { top: 7%;  left: 60%; width: 29%; transform: rotate(-2deg); z-index: 2; }
+.sldr-scatter-right img:nth-of-type(12n+4)  { top: 31%; left: 0%;  width: 25%; transform: rotate(3deg);  z-index: 4; }
+.sldr-scatter-right img:nth-of-type(12n+5)  { top: 25%; left: 27%; width: 31%; transform: rotate(-5deg); z-index: 7; }
+.sldr-scatter-right img:nth-of-type(12n+6)  { top: 34%; left: 63%; width: 25%; transform: rotate(4deg);  z-index: 3; }
+.sldr-scatter-right img:nth-of-type(12n+7)  { top: 58%; left: 3%;  width: 27%; transform: rotate(-3deg); z-index: 5; }
+.sldr-scatter-right img:nth-of-type(12n+8)  { top: 60%; left: 33%; width: 29%; transform: rotate(5deg);  z-index: 4; }
+.sldr-scatter-right img:nth-of-type(12n+9)  { top: 55%; left: 65%; width: 23%; transform: rotate(-4deg); z-index: 2; }
+.sldr-scatter-right img:nth-of-type(12n+10) { top: 41%; left: 43%; width: 21%; transform: rotate(2deg);  z-index: 9; }
+.sldr-scatter-right img:nth-of-type(12n+11) { top: 15%; left: 14%; width: 21%; transform: rotate(6deg);  z-index: 8; }
+.sldr-scatter-right img:nth-of-type(12n)    { top: 72%; left: 48%; width: 23%; transform: rotate(-6deg); z-index: 6; }
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    <div class="sldr-scatter">
+      <div class="sldr-scatter-left">
+        {{left}}
+      </div>
+      <div class="sldr-scatter-right">
+        {{right}}
+      </div>
+    </div>
+  </div>
+  <footer class="sldr-frame-foot">
+    {{footer}}
+    {{source}}
+  </footer>
+</div>

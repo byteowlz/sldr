@@ -266,15 +266,33 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   justify-content: center;
   min-height: 0;
 }
-.sldr-framed .sldr-frame-foot {
+.sldr-framed .sldr-frame-foot { display: contents; }
+/* Footer (copyright) pinned bottom-left; source attribution sits one line
+ * above it, left-aligned to the headline (4.4%) — matching the source deck
+ * (ADR-0008). They are independent so a slide can carry both. */
+.sldr-framed .sldr-footer {
   position: absolute;
   left: 7.4%;
   top: 92.5%;
-  width: 70%;
+  width: 80%;
   font-family: var(--sldr-body-font);
   font-size: 1.25vw;
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.7;
+}
+.sldr-framed .sldr-source {
+  position: absolute;
+  left: 4.4%;
+  top: 88.2%;
+  width: 86%;
+  font-family: var(--sldr-body-font);
+  font-size: 1.1vw;
+  line-height: 1.3;
+  color: var(--sldr-text-dim, var(--sldr-text));
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sldr-framed .sldr-source-label { color: var(--sldr-accent); }
 .sldr-framed .sldr-source a {
