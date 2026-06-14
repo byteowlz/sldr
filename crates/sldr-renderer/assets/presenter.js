@@ -538,6 +538,20 @@
     slide.setAttribute("aria-hidden", "true");
   }
 
+  // Persistent deck-level logos: show those whose data-logo-layouts list
+  // includes the active layout (or "all"). Idempotent — a logo already on
+  // for the previous slide simply stays on, so there is no flicker.
+  var deckLogos = Array.prototype.slice.call(
+    document.querySelectorAll(".sldr-logos .sldr-logo")
+  );
+  function updateLogos(layout) {
+    for (var i = 0; i < deckLogos.length; i++) {
+      var list = (deckLogos[i].getAttribute("data-logo-layouts") || "").split(/\s+/);
+      var on = list.indexOf("all") !== -1 || list.indexOf(layout) !== -1;
+      deckLogos[i].classList.toggle("sldr-logo-on", on);
+    }
+  }
+
   function showSlide(index, dir, prevIndex) {
     // Clean up any in-flight animations first to prevent stuck states.
     cleanupAllAnimations();
@@ -557,6 +571,10 @@
     removeTransitionClasses(enterSlide);
     enterSlide.classList.add("active");
     enterSlide.removeAttribute("aria-hidden");
+
+    // Show only the logos that apply to this slide's layout. Logos that
+    // carry across consecutive slides stay on (no toggle, no flicker).
+    updateLogos(enterSlide.getAttribute("data-layout") || "");
 
     if (dir !== "none") {
       var enterClass = getTransitionClass(dir, "enter");

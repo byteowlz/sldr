@@ -437,13 +437,16 @@ impl HtmlRenderer {
         }
         html.push('\n');
 
-        // All slides (with logo injection)
+        // All slides (logos are a persistent deck-level overlay, not part
+        // of any slide, so they don't transition/flicker on slide change).
         for slide in &self.slides {
-            let slide_html = self.inject_logos(&slide.html, &slide.layout);
             html.push_str("    ");
-            html.push_str(&slide_html);
+            html.push_str(&slide.html);
             html.push('\n');
         }
+
+        // Persistent logo overlay (toggled per active layout by the presenter)
+        html.push_str(&self.generate_deck_logos());
 
         html.push_str("  </div>\n\n");
 
@@ -486,62 +489,6 @@ impl HtmlRenderer {
     /// Resolves logo files from the flavor's assets directory, embeds them
     /// (as WebP/SVG data URIs or external refs based on image_mode), and
     /// returns positioned `<img>` tags.
-    fn generate_logo_html(&self, layout: &str) -> String {
-        let Some(flavor) = self.flavors.first() else {
-            return String::new();
-        };
-
-        if flavor.logos.is_empty() {
-            return String::new();
-        }
-
-        let assets_dir = flavor
-            .source_dir
-            .as_ref()
-            .map(|d| d.join("assets"));
-
-        let mut logo_html = String::new();
-
-        for logo in &flavor.logos {
-            if !logo.applies_to_layout(layout) {
-                continue;
-            }
-
-            // Resolve the logo file from the flavor's assets directory
-            let logo_src = if let Some(ref assets) = assets_dir {
-                let logo_path = assets.join(&logo.file);
-                if logo_path.exists() {
-                    let embed = media::process_media_src(
-                        &logo_path.to_string_lossy(),
-                        assets.parent(),
-                        self.config.image_mode,
-                        self.config.output_dir.as_ref().map(|d| d.join("assets")).as_deref(),
-                    );
-                    match embed {
-                        MediaEmbed::DataUri(uri) => uri,
-                        MediaEmbed::External(url) => url,
-                        MediaEmbed::AssetFile { html_src, .. } => html_src,
-                        MediaEmbed::NotFound(_) => continue,
-                    }
-                } else {
-                    tracing::warn!("Logo file not found: {}", logo_path.display());
-                    continue;
-                }
-            } else {
-                // No assets dir, try the file path directly
-                logo.file.clone()
-            };
-
-            let style = logo.to_css_position();
-            let _ = writeln!(
-                logo_html,
-                "    <img class=\"sldr-logo\" src=\"{logo_src}\" alt=\"\" style=\"{style}\">"
-            );
-        }
-
-        logo_html
-    }
-
     /// Background CSS with image assets embedded for self-containment.
     /// For `image`/`svg` backgrounds the value is a file in the flavor's
     /// assets dir; resolve and embed it (data URI or asset-file copy) so
@@ -597,23 +544,52 @@ impl HtmlRenderer {
         css
     }
 
-    /// Inject logo overlays into a slide's HTML (before the closing </section>)
-    fn inject_logos(&self, slide_html: &str, layout: &str) -> String {
-        let logo_html = self.generate_logo_html(layout);
-        if logo_html.is_empty() {
-            return slide_html.to_string();
+    /// Deck-level logo overlay: every flavor logo rendered once, persistent
+    /// across slide transitions (so logos don't fade/flicker with each
+    /// slide). Each carries `data-logo-layouts` so the presenter shows it
+    /// only on matching layouts. Sits in `.sldr-logos`, a fixed overlay
+    /// above the transitioning slides.
+    fn generate_deck_logos(&self) -> String {
+        let Some(flavor) = self.flavors.first() else {
+            return String::new();
+        };
+        if flavor.logos.is_empty() {
+            return String::new();
         }
+        let assets_dir = flavor.source_dir.as_ref().map(|d| d.join("assets"));
 
-        // Insert logo HTML before </section>
-        if let Some(pos) = slide_html.rfind("</section>") {
-            let mut result = String::with_capacity(slide_html.len() + logo_html.len());
-            result.push_str(&slide_html[..pos]);
-            result.push_str(&logo_html);
-            result.push_str(&slide_html[pos..]);
-            result
-        } else {
-            slide_html.to_string()
+        let mut out = String::from("  <div class=\"sldr-logos\" aria-hidden=\"true\">\n");
+        for logo in &flavor.logos {
+            let logo_src = if let Some(ref assets) = assets_dir {
+                let logo_path = assets.join(&logo.file);
+                if !logo_path.exists() {
+                    tracing::warn!("Logo file not found: {}", logo_path.display());
+                    continue;
+                }
+                match media::process_media_src(
+                    &logo_path.to_string_lossy(),
+                    assets.parent(),
+                    self.config.image_mode,
+                    self.config.output_dir.as_ref().map(|d| d.join("assets")).as_deref(),
+                ) {
+                    MediaEmbed::DataUri(uri) => uri,
+                    MediaEmbed::External(url) => url,
+                    MediaEmbed::AssetFile { html_src, .. } => html_src,
+                    MediaEmbed::NotFound(_) => continue,
+                }
+            } else {
+                logo.file.clone()
+            };
+            let _ = writeln!(
+                out,
+                "    <img class=\"sldr-logo\" src=\"{}\" alt=\"\" data-logo-layouts=\"{}\" style=\"{}\">",
+                logo_src,
+                html_escape_attr(&logo.layouts.join(" ")),
+                logo.to_css_position()
+            );
         }
+        out.push_str("  </div>\n");
+        out
     }
 
     /// Write flavor <style> blocks into the head

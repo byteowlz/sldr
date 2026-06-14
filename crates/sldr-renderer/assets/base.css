@@ -190,6 +190,19 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   display: none;
 }
 
+/* === Persistent logo overlay ===
+ * Logos live once at the deck level (not inside slides), so they don't
+ * fade/translate with slide transitions. The presenter shows each logo
+ * only on slides whose layout matches its data-logo-layouts. */
+.sldr-logos {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+}
+.sldr-logos .sldr-logo { display: none; }
+.sldr-logos .sldr-logo.sldr-logo-on { display: block; }
+
 /* === Deck chrome (framed layouts, ADR-0008) ===
  * Shared styling for the persistent headline/subheadline/footer/source
  * framing, so every framed-* layout reuses it and only supplies its body
