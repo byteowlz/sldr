@@ -336,24 +336,38 @@ impl HtmlRenderer {
         );
         html.push_str("  <meta name=\"generator\" content=\"sldr\">\n");
 
-        // Google Fonts - default font pairing (flavor can override via CSS vars)
-        html.push_str("  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n");
-        html.push_str("  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n");
-        html.push_str("  <link href=\"https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Fira+Code:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap\" rel=\"stylesheet\">\n");
-
-        // Per-flavor font imports — every URL declared by any flavor in
-        // the deck, deduplicated. Loaded once; the active flavor's
-        // font-family declarations pick which families actually render.
+        // Fonts: embed each flavor-declared web font as inline @font-face
+        // (base64 woff2) so the deck is self-contained and renders without
+        // a network round-trip — no fallback-then-swap flash, works offline
+        // (ADR-0006). Build-time fetch is cached; a font that can't be
+        // fetched degrades to a plain <link> (online-only) instead of
+        // failing the build. There is no hardcoded default font set — a
+        // flavor that wants a web font declares it in font_imports; one
+        // that uses system fonts (no imports) pulls nothing.
         let mut seen_imports: std::collections::HashSet<&str> =
             std::collections::HashSet::new();
         for flavor in &self.flavors {
             for url in &flavor.font_imports {
-                if seen_imports.insert(url.as_str()) {
-                    let _ = writeln!(
-                        html,
-                        "  <link href=\"{}\" rel=\"stylesheet\">",
-                        html_escape_attr(url)
-                    );
+                if !seen_imports.insert(url.as_str()) {
+                    continue;
+                }
+                match crate::fonts::embed_font_css(url) {
+                    Some(css) => {
+                        html.push_str("  <style data-font-embed>\n");
+                        html.push_str(&css);
+                        html.push_str("\n  </style>\n");
+                    }
+                    None => {
+                        eprintln!(
+                            "  ! Could not embed font (using a network <link>; \
+                             deck will need internet): {url}"
+                        );
+                        let _ = writeln!(
+                            html,
+                            "  <link href=\"{}\" rel=\"stylesheet\">",
+                            html_escape_attr(url)
+                        );
+                    }
                 }
             }
         }

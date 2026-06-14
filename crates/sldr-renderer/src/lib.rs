@@ -26,6 +26,7 @@ pub mod media;
 mod markdown;
 pub mod pptx;
 mod render;
+pub mod fonts;
 pub mod sample;
 mod layout;
 
