@@ -3,7 +3,6 @@
 //! Builds the presentation, serves it on a local port, watches for file
 //! changes, and triggers browser reload via Server-Sent Events (SSE).
 
-use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -59,8 +58,14 @@ pub fn run(
     let flavor_arg = flavor
         .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
+    let flavor_names: Vec<String> = flavor_arg
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect();
     let mut flavors = Vec::new();
-    for name in flavor_arg.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+    for name in &flavor_names {
         flavors.push(super::build::load_flavor(&config, name)?);
     }
     println!(
@@ -193,28 +198,28 @@ pub fn run(
         }
         println!("  {} Watching for changes... (Ctrl+C to stop)", "i".blue());
 
-        // Set up file watcher
-        let slide_dir = config.slide_dir();
-        let playlist_dir = config.playlist_dir();
-        let flavor_dir = config.flavor_dir();
+        // Set up file watcher. Watch every dir that feeds a rebuild:
+        // slides, playlists, and *all* flavor + layout search dirs (library
+        // and configured-extra) — not just the one configured flavor dir, so
+        // edits to library flavors and to layouts live-reload too (#1).
+        let mut watch_dirs = vec![config.slide_dir(), config.playlist_dir()];
+        watch_dirs.extend(config.flavor_dirs());
+        watch_dirs.extend(config.layout_dirs());
 
         let html_for_watcher = Arc::clone(&html_state);
         let reload_tx_for_watcher = Arc::clone(&reload_tx);
 
-        // Clone what the watcher callback needs
+        // Clone what the watcher callback needs. Carry flavor *names*, not the
+        // resolved flavors, so each rebuild re-reads the flavor from disk and
+        // flavor-file edits actually take effect.
         let watch_config = config.clone();
         let watch_playlist_name = playlist_name.to_string();
-        let watch_flavors = flavors.clone();
+        let watch_flavor_names = flavor_names.clone();
         let watch_render_config = render_config.clone();
 
         let (watch_tx, mut watch_rx) = tokio::sync::mpsc::channel::<()>(1);
 
-        let _watcher = spawn_file_watcher(
-            &slide_dir,
-            &playlist_dir,
-            &flavor_dir,
-            watch_tx,
-        )?;
+        let _watcher = spawn_file_watcher(&watch_dirs, watch_tx)?;
 
         // Spawn the rebuild task
         tokio::spawn(async move {
@@ -228,7 +233,7 @@ pub fn run(
                     &watch_config,
                     &watch_playlist_name,
                     &watch_render_config,
-                    &watch_flavors,
+                    &watch_flavor_names,
                 ) {
                     Ok(new_html) => {
                         let new_html = inject_live_reload(&new_html);
@@ -307,8 +312,15 @@ fn rebuild_presentation(
     config: &Config,
     playlist_name: &str,
     render_config: &RenderConfig,
-    flavors: &[Flavor],
+    flavor_names: &[String],
 ) -> Result<String> {
+    // Re-resolve flavors from disk on every rebuild so flavor-file edits
+    // (colors, background, logos, fonts) take effect, not just slide edits.
+    let mut flavors = Vec::new();
+    for name in flavor_names {
+        flavors.push(super::build::load_flavor(config, name)?);
+    }
+
     let playlist = sldr_core::presentation::Playlist::load(
         &config
             .playlist_dir()
@@ -329,13 +341,11 @@ fn rebuild_presentation(
         }
     }
 
-    build_html(render_config, flavors, &resolved)
+    build_html(render_config, &flavors, &resolved)
 }
 
 fn spawn_file_watcher(
-    slide_dir: &Path,
-    playlist_dir: &Path,
-    flavor_dir: &Path,
+    dirs: &[std::path::PathBuf],
     tx: tokio::sync::mpsc::Sender<()>,
 ) -> Result<RecommendedWatcher> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -346,14 +356,13 @@ fn spawn_file_watcher(
         }
     })?;
 
-    if slide_dir.exists() {
-        watcher.watch(slide_dir, RecursiveMode::Recursive)?;
-    }
-    if playlist_dir.exists() {
-        watcher.watch(playlist_dir, RecursiveMode::Recursive)?;
-    }
-    if flavor_dir.exists() {
-        watcher.watch(flavor_dir, RecursiveMode::Recursive)?;
+    // De-dup: library and configured-extra dirs can coincide; watching the
+    // same path twice errors on some platforms.
+    let mut seen = std::collections::HashSet::new();
+    for dir in dirs {
+        if dir.exists() && seen.insert(dir.clone()) {
+            watcher.watch(dir, RecursiveMode::Recursive)?;
+        }
     }
 
     Ok(watcher)
