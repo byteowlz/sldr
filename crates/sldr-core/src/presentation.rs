@@ -33,7 +33,7 @@ pub struct Playlist {
 
     /// Default language for slides with in-file language blocks
     /// (`::lang:xx::`). A suggestion, not identity — the build's --lang
-    /// takes precedence (ADR-0007).
+    /// takes precedence.
     #[serde(default)]
     pub default_lang: Option<String>,
 

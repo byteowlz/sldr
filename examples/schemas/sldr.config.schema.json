@@ -70,7 +70,7 @@
           "default": "~/.config/sldr/layouts"
         },
         "library": {
-          "description": "Library root: the single self-sufficient tree carrying slides,\nlayouts, flavors, playlists, scaffolds, and media (ADR-0007).\nAsset resolution searches the library first, then the extra dirs\nbelow, then the built-ins embedded in the binary.",
+          "description": "Library root: the single self-sufficient tree carrying slides,\nlayouts, flavors, playlists, scaffolds, and media.\nAsset resolution searches the library first, then the extra dirs\nbelow, then the built-ins embedded in the binary.",
           "type": "string",
           "default": "~/sldr"
         },

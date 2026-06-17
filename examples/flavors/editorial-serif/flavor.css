@@ -15,10 +15,10 @@
  * Page number — small monospace, bottom-right corner.
  *
  * Reads the 1-indexed zero-padded page label from data-page (emitted
- * by the renderer in template.rs). We can't use CSS counters here
+ * by the renderer). We can't use CSS counters here
  * because the presenter sets display:none on inactive slides, and
  * counter-increment only fires on rendered elements — every slide
- * would show '01'. See trx-jbpj.16.
+ * would show '01'.
  *
  * Scoped via :not([data-layout="cover"]) so we don't fight the
  * cover's own ::after accent glow defined in base.css.

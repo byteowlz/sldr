@@ -36,7 +36,7 @@
 
   var allSlides = Array.from(deck.querySelectorAll(".sldr-slide"));
 
-  // Language axis (ADR-0007): multi-language decks duplicate each slide
+  // Language axis: multi-language decks duplicate each slide
   // per embedded language, tagged with data-lang. Only the active
   // language's variants take part in navigation; "L" cycles languages.
   var langNames = (deck.dataset.langs || "")

@@ -30,7 +30,7 @@ pub struct Config {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CoreConfig {
     /// Library root: the single self-sufficient tree carrying slides,
-    /// layouts, flavors, playlists, scaffolds, and media (ADR-0007).
+    /// layouts, flavors, playlists, scaffolds, and media.
     /// Asset resolution searches the library first, then the extra dirs
     /// below, then the built-ins embedded in the binary.
     #[serde(default = "default_library")]

@@ -22,9 +22,6 @@ schema:
 - `prefers-reduced-motion` accessibility defaults
 - 4pt spacing grid alignment
 
-See `trx-wpn1`, `trx-30pb`, `trx-mstg`, `trx-wvez` for the
-implementation tickets.
-
 ### beautiful-html-templates
 **Repo:** https://github.com/zarazhangrui/beautiful-html-templates
 **License:** MIT
@@ -44,9 +41,6 @@ Concepts that map directly onto sldr's flavor model:
   chosen template without breaking its design system
 - A reusable `<deck-stage>` web component for runtime concerns
   (auto-scaling, keyboard nav, print, speaker notes, mobile tap zones)
-
-These ideas are tracked in `trx-wpn1` (design system epic) and
-`trx-jbpj.3` (sldr skill emitter).
 
 ## Core dependencies
 

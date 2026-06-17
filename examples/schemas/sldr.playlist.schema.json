@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "default_lang": {
-      "description": "Default language for slides with in-file language blocks\n(`::lang:xx::`). A suggestion, not identity — the build's --lang\ntakes precedence (ADR-0007).",
+      "description": "Default language for slides with in-file language blocks\n(`::lang:xx::`). A suggestion, not identity — the build's --lang\ntakes precedence.",
       "type": [
         "string",
         "null"

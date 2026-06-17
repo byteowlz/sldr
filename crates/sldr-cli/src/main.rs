@@ -57,7 +57,7 @@ enum Commands {
 
         /// Inline all media as data URIs into one universal HTML file
         /// (default output is a presentation directory with media siblings
-        /// in assets/ — the browser-native form, ADR-0006)
+        /// in assets/ — the browser-native form)
         #[arg(long)]
         single_file: bool,
     },
@@ -265,7 +265,7 @@ enum Commands {
     },
 
     /// Pack a playlist with its slides, flavors, layouts, and media into
-    /// a portable .sldr bundle (a plain zip; ADR-0006)
+    /// a portable .sldr bundle (a plain zip)
     Bundle {
         /// Name of the playlist to bundle
         playlist: String,

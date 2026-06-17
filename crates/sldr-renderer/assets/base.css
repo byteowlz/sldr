@@ -203,7 +203,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-logos .sldr-logo { display: none; }
 .sldr-logos .sldr-logo.sldr-logo-on { display: block; }
 
-/* === Deck chrome (framed layouts, ADR-0008) ===
+/* === Deck chrome (framed layouts) ===
  * Shared styling for the persistent headline/subheadline/footer/source
  * framing, so every framed-* layout reuses it and only supplies its body
  * arrangement. All colors bind to flavor tokens. */
@@ -223,7 +223,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   pointer-events: none;
 }
 .sldr-framed > * { z-index: 1; }
-/* Chrome placed at the source deck's exact coordinates (ADR-0008). Sizes
+/* Chrome placed at the source deck's exact coordinates. Sizes
  * are vw-relative so they track the 16:9 design; positions are % of slide.
  * 22pt headline / 20pt subheadline / 12pt footer on a 13.33in-wide slide. */
 .sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: 6.3%; width: 91.1%; }
@@ -281,8 +281,8 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 }
 .sldr-framed .sldr-frame-foot { display: contents; }
 /* Footer (copyright) pinned bottom-left; source attribution sits one line
- * above it, left-aligned to the headline (4.4%) — matching the source deck
- * (ADR-0008). They are independent so a slide can carry both. */
+ * above it, left-aligned to the headline (4.4%) — matching the source deck.
+ * They are independent so a slide can carry both. */
 .sldr-framed .sldr-footer {
   position: absolute;
   left: 7.4%;
