@@ -1,0 +1,31 @@
+<!-- Layout: framed-gallery — deck chrome (framed) with an image-grid body.
+     Each markdown image on its own line becomes a grid cell (collage
+     transform); alt text is dropped here for a clean wall of images. -->
+<!-- sldr:transform collage -->
+<style>
+.sldr-slide[data-layout="framed-gallery"] .sldr-frame-body { justify-content: flex-start; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: clamp(6px, 0.8vw, 12px);
+  align-content: start;
+}
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage-item { margin: 0; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage-item img {
+  width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; max-height: none;
+}
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage-item figcaption { display: none; }
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    {{content}}
+  </div>
+  <footer class="sldr-frame-foot">
+    {{footer}}
+    {{source}}
+  </footer>
+</div>

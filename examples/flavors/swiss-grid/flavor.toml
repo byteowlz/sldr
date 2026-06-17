@@ -1,0 +1,99 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "swiss-grid"
+display_name = "Swiss Grid"
+description = "International Typographic Style on a 4pt grid: white paper, near-black ink, a single saturated red accent. Sans-serif throughout, small-caps-style eyebrows, no curves."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+]
+
+[curation]
+mood = ["clean", "rational", "objective", "modernist"]
+tone = ["restrained", "graphic", "neutral", "precise"]
+occasion = ["academic talk", "design school lecture", "museum / gallery deck", "research synthesis", "institutional report"]
+formality = "medium-high"
+density = "medium"
+scheme = "light"
+best_for = "Anything that should read as Swiss / International Typographic Style: design-school lectures, museum and gallery decks, academic talks, institutional research. The deck disappears so the argument can stand."
+avoid_for = "Contexts that need warmth, decoration, or expressive typography — swiss-grid is intentionally austere and grid-locked."
+
+[colors]
+primary = "#111111"
+secondary = "#444444"
+background = "#ffffff"
+text = "#111111"
+text_dim = "#666666"
+accent = "#e10600"
+accent_dim = "rgba(225, 6, 0, 0.10)"
+surface = "#f4f4f4"
+surface2 = "#e9e9e9"
+border = "rgba(17, 17, 17, 0.14)"
+border_bright = "rgba(17, 17, 17, 0.28)"
+muted = "rgba(17, 17, 17, 0.04)"
+code_background = "#f4f4f4"
+code_text = "#111111"
+
+[dark_colors]
+primary = "#fafafa"
+secondary = "#bdbdbd"
+background = "#111111"
+text = "#fafafa"
+text_dim = "#9a9a9a"
+accent = "#ff3b32"
+accent_dim = "rgba(255, 59, 50, 0.16)"
+surface = "#1c1c1c"
+surface2 = "#262626"
+border = "rgba(250, 250, 250, 0.12)"
+border_bright = "rgba(250, 250, 250, 0.24)"
+muted = "rgba(250, 250, 250, 0.04)"
+code_background = "#1c1c1c"
+code_text = "#fafafa"
+
+[typography]
+heading_font = "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+body_font = "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+code_font = "'JetBrains Mono', 'Fira Code', ui-monospace, monospace"
+heading_weight = "600"
+body_weight = "400"
+heading_tracking = "-0.015em"
+body_tracking = "0"
+heading_leading = "1.08"
+body_leading = "1.5"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+
+[spacing]
+slide_padding_y = "clamp(48px, 7vh, 88px)"
+slide_padding_x = "clamp(56px, 7vw, 112px)"
+content_max_width = "76ch"
+density = "comfortable"
+stack_gap = "clamp(16px, 2.4vh, 28px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "none"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "240ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.05
+
+[code]
+syntax_theme = "InspiredGitHub"
+frame_style = "minimal"
+line_numbers = false

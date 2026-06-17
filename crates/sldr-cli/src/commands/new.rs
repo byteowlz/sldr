@@ -5,7 +5,7 @@ use colored::Colorize;
 use sldr_core::config::Config;
 use std::io::Write;
 
-pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result<()> {
+pub fn run(name: &str, scaffold: Option<String>, dir: Option<&String>) -> Result<()> {
     let config = Config::load()?;
 
     let slide_dir = config.slide_dir();
@@ -40,11 +40,11 @@ pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result
         std::fs::create_dir_all(parent)?;
     }
 
-    // Get template content
-    let content = if let Some(template_name) = template {
-        load_template(&config, &template_name)?
+    // Get scaffold content
+    let content = if let Some(scaffold_name) = scaffold {
+        load_scaffold(&config, &scaffold_name)?
     } else {
-        default_slide_template(name)
+        default_slide_scaffold(name)
     };
 
     // Write the file
@@ -68,7 +68,7 @@ pub fn run(name: &str, template: Option<String>, dir: Option<&String>) -> Result
     Ok(())
 }
 
-fn default_slide_template(name: &str) -> String {
+fn default_slide_scaffold(name: &str) -> String {
     let title = name.trim_end_matches(".md").replace(['_', '-'], " ");
 
     format!(
@@ -86,27 +86,39 @@ layout: default
     )
 }
 
-fn load_template(config: &Config, template_name: &str) -> Result<String> {
-    let template_dir = config.template_dir();
-
-    // Try with and without .md extension
-    let candidates = [
-        template_dir.join(format!("{template_name}.md")),
-        template_dir.join(template_name),
-    ];
-
-    for path in &candidates {
-        if path.exists() {
-            return Ok(std::fs::read_to_string(path)?);
+fn load_scaffold(config: &Config, scaffold_name: &str) -> Result<String> {
+    // Resolution order: library/scaffolds -> configured extra dir ->
+    // built-ins bundled in the binary. Unresolved fails loudly (ADR-0007).
+    let dirs = config.scaffold_dirs();
+    for dir in &dirs {
+        for path in [
+            dir.join(format!("{scaffold_name}.md")),
+            dir.join(scaffold_name),
+        ] {
+            if path.exists() {
+                return Ok(std::fs::read_to_string(path)?);
+            }
         }
     }
 
-    // Template not found, use default with a warning
-    println!(
-        "  {} Template '{}' not found, using default",
-        "!".yellow(),
-        template_name
-    );
+    let bundled_name = format!("{}.md", scaffold_name.trim_end_matches(".md"));
+    if let Some(s) = crate::scaffolds::SCAFFOLDS
+        .iter()
+        .find(|s| s.name == bundled_name)
+    {
+        return Ok(s.content.to_string());
+    }
 
-    Ok(default_slide_template(template_name))
+    anyhow::bail!(
+        "Scaffold '{scaffold_name}' not found (searched: {}, built-ins). Available built-ins: {}",
+        dirs.iter()
+            .map(|d| d.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        crate::scaffolds::SCAFFOLDS
+            .iter()
+            .map(|s| s.name.trim_end_matches(".md"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }

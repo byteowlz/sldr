@@ -1,0 +1,23 @@
+/* sldr effect: grid-pan — a faint technical grid slowly panning on the
+ * diagonal. Dev-tool / blueprint modern. Lines tint from the flavor's
+ * bright border token so it reads as drafting structure, not decoration.
+ * Pans exactly one cell per loop, so the motion is seamless and infinite. */
+.sldr-fx {
+  display: block;
+  overflow: hidden;
+}
+.sldr-fx::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  background-image:
+    linear-gradient(to right, var(--sldr-border-bright) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--sldr-border-bright) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.10;
+  animation: sldr-fx-grid 26s linear infinite;
+}
+@keyframes sldr-fx-grid {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(64px, 64px, 0); }
+}

@@ -28,6 +28,13 @@
       "description": "Input for creating a single slide",
       "type": "object",
       "properties": {
+        "align": {
+          "description": "Horizontal alignment override: \"left\" | \"center\" | \"right\".\nOptional — when omitted, the layout's default applies.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "content": {
           "description": "The markdown content of the slide (without frontmatter)",
           "type": "string"
@@ -68,6 +75,13 @@
         "title": {
           "description": "Slide title (shown in frontmatter and as H1 if content doesn't start with heading)",
           "type": "string"
+        },
+        "valign": {
+          "description": "Vertical alignment override: \"top\" | \"center\" | \"bottom\".\nOptional — when omitted, the layout's default applies.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

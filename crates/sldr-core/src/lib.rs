@@ -6,6 +6,7 @@
 pub mod config;
 pub mod error;
 pub mod fuzzy;
+pub mod lang;
 pub mod slide;
 pub mod presentation;
 pub mod flavor;
@@ -13,4 +14,4 @@ pub mod flavor;
 pub use config::Config;
 pub use error::{Error, Result};
 pub use flavor::Flavor;
-pub use presentation::{RenderOpts, Skeleton, SlidevConfig};
+pub use presentation::{RenderOpts, Playlist, SlidevConfig};

@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sldr playlist schema",
+  "description": "Configuration schema for sldr presentation playlists (playlist.toml)",
+  "type": "object",
+  "properties": {
+    "default_lang": {
+      "description": "Default language for slides with in-file language blocks\n(`::lang:xx::`). A suggestion, not identity — the build's --lang\ntakes precedence (ADR-0007).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "description": {
+      "description": "Optional description",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "flavor": {
+      "description": "Default flavor to use",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "name": {
+      "description": "Name of the playlist/presentation",
+      "type": "string"
+    },
+    "slides": {
+      "description": "List of slide references (names or paths)",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "slidev_config": {
+      "description": "Rendering configuration",
+      "$ref": "#/$defs/RenderOpts",
+      "default": {
+        "aspect_ratio": null,
+        "canvas_width": null,
+        "dark_mode": null,
+        "drawings": null,
+        "record": null,
+        "theme": null,
+        "title": null,
+        "transition": null
+      }
+    },
+    "title": {
+      "description": "Optional title for the presentation",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "$defs": {
+    "RenderOpts": {
+      "description": "Presentation rendering configuration\n\nSerialized as `slidev_config` for backwards compatibility with existing\nplaylist.toml files. Controls transition style, aspect ratio, and other\nrendering options for the self-contained HTML output.",
+      "type": "object",
+      "properties": {
+        "aspect_ratio": {
+          "description": "Aspect ratio hint for PDF/PPTX export viewport (e.g., \"16/9\", \"4/3\").\nThe HTML output is fully responsive and fills the browser viewport.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "canvas_width": {
+          "description": "Canvas width hint in pixels for export (informational)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "dark_mode": {
+          "description": "Start in dark mode",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "drawings": {
+          "description": "Enable/disable drawing feature (reserved for future use)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "record": {
+          "description": "Enable slide recording (reserved for future use)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "theme": {
+          "description": "Theme name (reserved for future use)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "title": {
+          "description": "Title override for the presentation",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "transition": {
+          "description": "Transition effect between slides: \"fade\", \"slide-left\", \"slide-right\", \"none\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    }
+  }
+}

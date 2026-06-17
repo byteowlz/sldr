@@ -1,0 +1,101 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+# Adapted from beautiful-html-templates/coral (MIT). See CREDITS.md.
+
+name = "coral"
+display_name = "Coral"
+description = "Cream and coral on near-black, set in oversized Bebas Neue. Warm-graphic and editorial — fashion magazine voice."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap",
+]
+
+[curation]
+mood = ["bold", "warm", "modern", "confident"]
+tone = ["graphic", "punchy", "magazine"]
+occasion = ["fashion / beauty pitch", "fitness brand", "F&B brand deck", "lifestyle launch", "creative agency"]
+formality = "medium"
+density = "medium"
+scheme = "mixed"
+best_for = "Anything that should feel warm-graphic and editorial: fashion, beauty, fitness, F&B, lifestyle brands, agency credentials. Also strong for a creator portfolio, a manifesto, or a tech/research deck that wants warmth and a single bold accent instead of corporate cool."
+avoid_for = "Contexts that should feel quiet or institutional — the coral accent and oversized Bebas Neue commit hard to a confident magazine voice."
+
+[colors]
+primary = "#1A1A1A"
+secondary = "#6B6B6B"
+background = "#F5F0E8"
+text = "#1A1A1A"
+text_dim = "#6B6B6B"
+accent = "#E85D5D"
+accent_dim = "rgba(232, 93, 93, 0.14)"
+surface = "#E8E0D4"
+surface2 = "#1A1A1A"
+border = "rgba(26, 26, 26, 0.18)"
+border_bright = "#1A1A1A"
+muted = "rgba(26, 26, 26, 0.04)"
+code_background = "#1A1A1A"
+code_text = "#F5F0E8"
+
+[dark_colors]
+primary = "#F5F0E8"
+secondary = "#B0B0B0"
+background = "#1A1A1A"
+text = "#F5F0E8"
+text_dim = "rgba(245, 240, 232, 0.6)"
+accent = "#E85D5D"
+accent_dim = "rgba(232, 93, 93, 0.18)"
+surface = "#262626"
+surface2 = "#F5F0E8"
+border = "rgba(245, 240, 232, 0.16)"
+border_bright = "#F5F0E8"
+muted = "rgba(245, 240, 232, 0.04)"
+code_background = "#0F0F0F"
+code_text = "#F5F0E8"
+
+[typography]
+heading_font = "'Bebas Neue', 'Oswald', Impact, sans-serif"
+body_font = "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+code_font = "'JetBrains Mono', 'Fira Code', ui-monospace, monospace"
+heading_weight = "400"
+body_weight = "400"
+heading_tracking = "0.02em"
+body_tracking = "0"
+heading_leading = "0.92"
+body_leading = "1.55"
+heading_transform = "uppercase"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+
+[spacing]
+slide_padding_y = "clamp(48px, 7vh, 96px)"
+slide_padding_x = "clamp(56px, 8vw, 128px)"
+content_max_width = "72ch"
+density = "comfortable"
+stack_gap = "clamp(20px, 3vh, 36px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "2px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "none"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.2, 0, 0, 1)"
+duration = "280ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.1
+
+[code]
+syntax_theme = "base16-ocean.dark"
+frame_style = "card"
+line_numbers = false

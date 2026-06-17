@@ -7,7 +7,9 @@
 )]
 
 mod commands;
-mod templates;
+mod flavors;
+mod reference;
+mod scaffolds;
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -27,14 +29,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Build a presentation from a skeleton
+    /// Build a presentation from a playlist
     Build {
-        /// Name of the skeleton to build
-        skeleton: String,
+        /// Name of the playlist to build
+        playlist: String,
 
-        /// Flavor to apply (overrides skeleton default)
+        /// Flavor to apply (overrides playlist default)
         #[arg(short, long)]
         flavor: Option<String>,
+
+        /// Language to build (slides with ::lang:xx:: blocks; overrides
+        /// the playlist's default_lang)
+        #[arg(short, long)]
+        lang: Option<String>,
 
         /// Export to PDF after building
         #[arg(long)]
@@ -48,14 +55,16 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
 
-        /// How to handle images: "embed" (base64 in HTML) or "external" (WebP files in assets/)
-        #[arg(long, default_value = "embed", value_parser = ["embed", "external"])]
-        images: String,
+        /// Inline all media as data URIs into one universal HTML file
+        /// (default output is a presentation directory with media siblings
+        /// in assets/ — the browser-native form, ADR-0006)
+        #[arg(long)]
+        single_file: bool,
     },
 
-    /// Add slides to a presentation skeleton
+    /// Add slides to a presentation playlist
     Add {
-        /// Name of the presentation/skeleton to modify
+        /// Name of the presentation/playlist to modify
         presentation: String,
 
         /// Slides to add (comma-separated)
@@ -66,10 +75,10 @@ enum Commands {
         position: Option<usize>,
     },
 
-    /// Remove slides from a presentation skeleton
+    /// Remove slides from a presentation playlist
     #[command(name = "rm")]
     Remove {
-        /// Name of the presentation/skeleton to modify
+        /// Name of the presentation/playlist to modify
         presentation: String,
 
         /// Slides to remove (comma-separated, or use --interactive)
@@ -96,14 +105,14 @@ enum Commands {
 
     /// Export a presentation to PDF
     Export {
-        /// Name of the skeleton to export
-        skeleton: String,
+        /// Name of the playlist to export
+        playlist: String,
 
         /// Flavor to apply
         #[arg(short, long)]
         flavor: Option<String>,
 
-        /// Output file path (default: <output_dir>/<skeleton>.pdf)
+        /// Output file path (default: <output_dir>/<playlist>.pdf)
         #[arg(short, long)]
         output: Option<String>,
 
@@ -114,8 +123,8 @@ enum Commands {
 
     /// Watch a presentation for changes and live-reload in browser
     Watch {
-        /// Name of the skeleton to watch
-        skeleton: String,
+        /// Name of the playlist to watch
+        playlist: String,
 
         /// Flavor to apply
         #[arg(short, long)]
@@ -124,6 +133,10 @@ enum Commands {
         /// Port for the dev server (default: from config or 3030)
         #[arg(short, long)]
         port: Option<u16>,
+
+        /// Address to bind (use 0.0.0.0 to expose on the network)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
     },
 
     /// Preview a single slide quickly in the browser
@@ -137,7 +150,7 @@ enum Commands {
     },
 
     /// Interactive visual flavor builder (opens in browser)
-    #[command(name = "flavor")]
+    #[command(name = "flavor", visible_aliases = ["flavor-build", "flavour"])]
     FlavorBuilder {
         /// Existing flavor to load as starting point
         #[arg(short, long)]
@@ -146,12 +159,58 @@ enum Commands {
         /// Port for the builder server
         #[arg(short, long, default_value = "3031")]
         port: u16,
+
+        /// Address to bind (use 0.0.0.0 to expose on the network)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+    },
+
+    /// Run a long-lived HTTP daemon that exposes sldr to external agents.
+    ///
+    /// External tools (web-to-slide pipelines, MCP servers, custom scripts)
+    /// drive sldr over HTTP instead of forking the CLI per call. Boundary:
+    /// sldr handles slide/playlist/asset CRUD + rendering. It does NOT fetch
+    /// URLs, OCR, or summarize content — those are agent jobs.
+    ///
+    /// Endpoints are listed at GET / (the root URL).
+    Serve {
+        /// Port to listen on
+        #[arg(short, long, default_value = "3032")]
+        port: u16,
+
+        /// Open the API landing page in the browser on start
+        #[arg(long)]
+        open: bool,
+
+        /// Address to bind (use 0.0.0.0 to expose on the network)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+    },
+
+    /// Render the bundled sample deck against a flavor and open it.
+    ///
+    /// The sample deck is a canonical set of placeholder slides exercising
+    /// every major layout — useful for evaluating a flavor visually without
+    /// authoring real content. Same artifact also powers the flavor builder
+    /// gallery and the agent slide catalog (GET /api/sample on `sldr serve`).
+    Sample {
+        /// Flavor to render the sample with
+        #[arg(short, long, default_value = "default")]
+        flavor: String,
+
+        /// Write to a specific path instead of a temp file
+        #[arg(short, long)]
+        output: Option<std::path::PathBuf>,
+
+        /// Don't open the browser, just print the output path
+        #[arg(long)]
+        no_open: bool,
     },
 
     /// List available slides, presentations, or flavors
     #[command(name = "ls")]
     List {
-        /// What to list: slides, presentations, skeletons, flavors
+        /// What to list: slides, presentations, playlists, flavors, scaffolds, layouts
         #[arg(default_value = "slides")]
         what: String,
 
@@ -160,6 +219,25 @@ enum Commands {
         long: bool,
 
         /// Output as JSON (for machine parsing)
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Print the raw source of a layout or flavor (what the name resolves to)
+    ///
+    /// `ls` lists names; `show` prints the actual source — the authored
+    /// layout `.html` or flavor `.toml` — honoring the same resolution order
+    /// as a build (user library/config dirs override built-ins). Source to
+    /// stdout (pipeable), origin to stderr. For learning the format, copying
+    /// a starting point, or seeing what a name really resolves to.
+    Show {
+        /// What to show: layout or flavor
+        what: String,
+
+        /// Name of the layout or flavor (fuzzy-matched)
+        name: String,
+
+        /// Output as JSON ({kind, name, origin, source})
         #[arg(long)]
         json: bool,
     },
@@ -186,14 +264,33 @@ enum Commands {
         json: bool,
     },
 
+    /// Pack a playlist with its slides, flavors, layouts, and media into
+    /// a portable .sldr bundle (a plain zip; ADR-0006)
+    Bundle {
+        /// Name of the playlist to bundle
+        playlist: String,
+
+        /// Flavor embed set (comma list; overrides playlist default)
+        #[arg(short, long)]
+        flavor: Option<String>,
+
+        /// Language embed set (comma list)
+        #[arg(short, long)]
+        lang: Option<String>,
+
+        /// Output file (defaults to <playlist>.sldr)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
     /// Create a new slide
     New {
         /// Name for the new slide
         name: String,
 
-        /// Template to use
+        /// Scaffold to use
         #[arg(short, long)]
-        template: Option<String>,
+        scaffold: Option<String>,
 
         /// Subdirectory within slides folder
         #[arg(short, long)]
@@ -219,7 +316,7 @@ enum Commands {
         #[arg(long)]
         global: bool,
 
-        /// Overwrite existing templates and config with bundled versions
+        /// Overwrite existing scaffolds and config with bundled versions
         #[arg(long)]
         force: bool,
     },
@@ -230,23 +327,23 @@ enum Commands {
         command: SlidesCommands,
     },
 
-    /// Skeleton management commands
-    Skeleton {
+    /// Playlist management commands
+    Playlist {
         #[command(subcommand)]
-        command: SkeletonCommands,
+        command: PlaylistCommands,
     },
 }
 
 #[derive(Subcommand)]
 enum SlidesCommands {
-    /// Create empty slides for all missing slides referenced in a skeleton
+    /// Create empty slides for all missing slides referenced in a playlist
     Derive {
-        /// Name of the skeleton to derive slides from
-        skeleton: String,
+        /// Name of the playlist to derive slides from
+        playlist: String,
 
-        /// Template to use for new slides
+        /// Scaffold to use for new slides
         #[arg(short, long)]
-        template: Option<String>,
+        scaffold: Option<String>,
 
         /// Dry run - show what would be created without creating files
         #[arg(long)]
@@ -274,18 +371,18 @@ enum SlidesCommands {
 }
 
 #[derive(Subcommand)]
-enum SkeletonCommands {
-    /// Create a skeleton from JSON input or from a slide directory
+enum PlaylistCommands {
+    /// Create a playlist from JSON input or from a slide directory
     Create {
         /// Read JSON from file instead of stdin
         #[arg(short, long, conflicts_with = "from_dir")]
         file: Option<String>,
 
-        /// Auto-generate skeleton from all slides in a directory
+        /// Auto-generate playlist from all slides in a directory
         #[arg(long)]
         from_dir: Option<String>,
 
-        /// Name for the skeleton (required with --from-dir)
+        /// Name for the playlist (required with --from-dir)
         #[arg(short, long)]
         name: Option<String>,
 
@@ -301,15 +398,15 @@ enum SkeletonCommands {
         #[arg(long)]
         json: bool,
 
-        /// Overwrite existing skeleton
+        /// Overwrite existing playlist
         #[arg(long)]
         force: bool,
     },
 
-    /// Validate a skeleton - check all referenced slides exist
+    /// Validate a playlist - check all referenced slides exist
     Validate {
-        /// Name of the skeleton to validate
-        skeleton: String,
+        /// Name of the playlist to validate
+        playlist: String,
 
         /// Output as JSON (for machine parsing)
         #[arg(long)]
@@ -331,13 +428,21 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Build {
-            skeleton,
+            playlist,
             flavor,
+            lang,
             pdf,
             pptx,
             output,
-            images,
-        } => commands::build::run(&skeleton, flavor, pdf, pptx, output, &images),
+            single_file,
+        } => commands::build::run(&playlist, flavor, lang, pdf, pptx, output, single_file),
+
+        Commands::Bundle {
+            playlist,
+            flavor,
+            lang,
+            output,
+        } => commands::bundle::create(&playlist, flavor, lang, output),
 
         Commands::Add {
             presentation,
@@ -358,23 +463,32 @@ fn main() -> anyhow::Result<()> {
         } => commands::open::run(&presentation, port, rebuild),
 
         Commands::Export {
-            skeleton,
+            playlist,
             flavor,
             output,
             format,
-        } => commands::export::run(&skeleton, flavor, output, &format),
+        } => commands::export::run(&playlist, flavor, output, &format),
 
         Commands::Watch {
-            skeleton,
+            playlist,
             flavor,
             port,
-        } => commands::watch::run(&skeleton, flavor, port),
+            host,
+        } => commands::watch::run(&playlist, flavor, port, &host),
 
         Commands::Preview { slide, port } => commands::preview::run(&slide, port),
 
-        Commands::FlavorBuilder { name, port } => commands::flavor_builder::run(name, port),
+        Commands::FlavorBuilder { name, port, host } => commands::flavor_builder::run(name, port, &host),
+        Commands::Serve { port, open, host } => commands::serve::run(port, open, &host),
+        Commands::Sample {
+            flavor,
+            output,
+            no_open,
+        } => commands::sample::run(&flavor, output, no_open),
 
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
+
+        Commands::Show { what, name, json } => commands::show::run(&what, &name, json),
 
         Commands::Search {
             query,
@@ -386,9 +500,9 @@ fn main() -> anyhow::Result<()> {
 
         Commands::New {
             name,
-            template,
+            scaffold,
             dir,
-        } => commands::new::run(&name, template, dir.as_ref()),
+        } => commands::new::run(&name, scaffold, dir.as_ref()),
 
         Commands::Config { key, value, edit } => commands::config::run(key, value, edit),
 
@@ -396,10 +510,10 @@ fn main() -> anyhow::Result<()> {
 
         Commands::Slides { command } => match command {
             SlidesCommands::Derive {
-                skeleton,
-                template,
+                playlist,
+                scaffold,
                 dry_run,
-            } => commands::slides::derive(&skeleton, template.as_deref(), dry_run),
+            } => commands::slides::derive(&playlist, scaffold.as_deref(), dry_run),
 
             SlidesCommands::Create {
                 file,
@@ -409,8 +523,8 @@ fn main() -> anyhow::Result<()> {
             } => commands::slides::create(file.as_deref(), dry_run, json, force),
         },
 
-        Commands::Skeleton { command } => match command {
-            SkeletonCommands::Create {
+        Commands::Playlist { command } => match command {
+            PlaylistCommands::Create {
                 file,
                 from_dir,
                 name,
@@ -420,14 +534,14 @@ fn main() -> anyhow::Result<()> {
                 force,
             } => {
                 if let Some(dir) = from_dir {
-                    commands::skeleton::create_from_dir(&dir, name.as_deref(), dry_run, json, force)
+                    commands::playlist::create_from_dir(&dir, name.as_deref(), dry_run, json, force)
                 } else {
-                    commands::skeleton::create(file.as_deref(), dry_run, json, force, save_slides)
+                    commands::playlist::create(file.as_deref(), dry_run, json, force, save_slides)
                 }
             }
 
-            SkeletonCommands::Validate { skeleton, json } => {
-                commands::skeleton::validate(&skeleton, json)
+            PlaylistCommands::Validate { playlist, json } => {
+                commands::playlist::validate(&playlist, json)
             }
         },
     }

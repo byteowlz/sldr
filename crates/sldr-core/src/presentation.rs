@@ -5,14 +5,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-/// A presentation skeleton - defines which slides to include
+/// A presentation playlist - defines which slides to include
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
-    title = "sldr skeleton schema",
-    description = "Configuration schema for sldr presentation skeletons (skeleton.toml)"
+    title = "sldr playlist schema",
+    description = "Configuration schema for sldr presentation playlists (playlist.toml)"
 )]
-pub struct Skeleton {
-    /// Name of the skeleton/presentation
+pub struct Playlist {
+    /// Name of the playlist/presentation
     pub name: String,
 
     /// Optional title for the presentation
@@ -31,6 +31,12 @@ pub struct Skeleton {
     #[serde(default)]
     pub flavor: Option<String>,
 
+    /// Default language for slides with in-file language blocks
+    /// (`::lang:xx::`). A suggestion, not identity — the build's --lang
+    /// takes precedence (ADR-0007).
+    #[serde(default)]
+    pub default_lang: Option<String>,
+
     /// Rendering configuration
     #[serde(default)]
     pub slidev_config: RenderOpts,
@@ -39,7 +45,7 @@ pub struct Skeleton {
 /// Presentation rendering configuration
 ///
 /// Serialized as `slidev_config` for backwards compatibility with existing
-/// skeleton.toml files. Controls transition style, aspect ratio, and other
+/// playlist.toml files. Controls transition style, aspect ratio, and other
 /// rendering options for the self-contained HTML output.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct RenderOpts {
@@ -80,15 +86,15 @@ pub struct RenderOpts {
 /// Backwards-compatible type alias
 pub type SlidevConfig = RenderOpts;
 
-impl Skeleton {
-    /// Load a skeleton from a TOML file
+impl Playlist {
+    /// Load a playlist from a TOML file
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let skeleton: Skeleton = toml::from_str(&content)?;
-        Ok(skeleton)
+        let playlist: Playlist = toml::from_str(&content)?;
+        Ok(playlist)
     }
 
-    /// Save skeleton to a TOML file
+    /// Save playlist to a TOML file
     pub fn save(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -98,22 +104,22 @@ impl Skeleton {
         Ok(())
     }
 
-    /// Create a skeleton from JSON input
+    /// Create a playlist from JSON input
     pub fn from_json(json: &str) -> Result<Self> {
-        let skeleton: Skeleton = serde_json::from_str(json)?;
-        Ok(skeleton)
+        let playlist: Playlist = serde_json::from_str(json)?;
+        Ok(playlist)
     }
 }
 
-/// Input structure for creating a skeleton via JSON
-/// Used by agents/LLMs to create a presentation skeleton
+/// Input structure for creating a playlist via JSON
+/// Used by agents/LLMs to create a presentation playlist
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(
-    title = "sldr skeleton input schema",
-    description = "JSON schema for creating presentation skeletons via sldr CLI"
+    title = "sldr playlist input schema",
+    description = "JSON schema for creating presentation playlists via sldr CLI"
 )]
-pub struct SkeletonInput {
-    /// Name of the skeleton (used as filename)
+pub struct PlaylistInput {
+    /// Name of the playlist (used as filename)
     pub name: String,
 
     /// Title for the presentation
@@ -135,14 +141,15 @@ pub struct SkeletonInput {
     pub slidev_config: Option<RenderOpts>,
 }
 
-impl From<SkeletonInput> for Skeleton {
-    fn from(input: SkeletonInput) -> Self {
-        Skeleton {
+impl From<PlaylistInput> for Playlist {
+    fn from(input: PlaylistInput) -> Self {
+        Playlist {
             name: input.name,
             title: Some(input.title),
             description: input.description,
             slides: input.slides,
             flavor: input.flavor,
+            default_lang: None,
             slidev_config: input.slidev_config.unwrap_or_default(),
         }
     }

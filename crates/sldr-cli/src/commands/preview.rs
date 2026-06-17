@@ -57,6 +57,12 @@ pub fn run(slide: &str, _port: Option<String>) -> Result<()> {
                 })
                 .collect();
 
+            if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+                anyhow::bail!(
+                    "Ambiguous slide reference '{slide}'. Candidates: {}",
+                    options.join(", ")
+                );
+            }
             let selection = Select::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Multiple slides match '{slide}'. Select one:"))
                 .items(&options)
@@ -87,7 +93,10 @@ pub fn run(slide: &str, _port: Option<String>) -> Result<()> {
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavor(Flavor::default());
-    renderer.add_slide(&found_slide);
+    for dir in config.layout_dirs() {
+        renderer.load_layouts(&dir)?;
+    }
+    renderer.add_slide(&found_slide)?;
 
     let output_path = temp_dir.join("index.html");
     renderer.render_to_file(&output_path)?;

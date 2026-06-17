@@ -1,0 +1,51 @@
+<!-- Layout: feature-image — the image is the slide; a narrow caption rail keeps the words (::content:: / ::image:: markers). -->
+<style>
+.sldr-slide[data-layout="feature-image"] {
+  padding: 0;
+}
+.sldr-slide[data-layout="feature-image"] .sldr-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 30%) 1fr;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+.sldr-slide[data-layout="feature-image"] .sldr-col-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: clamp(10px, 1.6vh, 20px);
+  padding: clamp(32px, 5vh, 60px) clamp(28px, 3.5vw, 52px);
+  border-right: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
+}
+.sldr-slide[data-layout="feature-image"] .sldr-col-content h1,
+.sldr-slide[data-layout="feature-image"] .sldr-col-content h2 {
+  font-size: clamp(22px, 2.6vw, 36px);
+}
+.sldr-slide[data-layout="feature-image"] .sldr-col-content p {
+  font-size: clamp(13px, 1.5vw, 17px);
+  color: var(--sldr-text-dim, var(--sldr-text));
+}
+.sldr-slide[data-layout="feature-image"] .sldr-col-image {
+  min-height: 0;
+}
+.sldr-slide[data-layout="feature-image"] .sldr-col-image > p {
+  height: 100%;
+  margin: 0;
+}
+.sldr-slide[data-layout="feature-image"] .sldr-col-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+</style>
+<div class="sldr-content">
+  <div class="sldr-columns">
+    <div class="sldr-col-content">
+      {{content}}
+    </div>
+    <div class="sldr-col-image">
+      {{image}}
+    </div>
+  </div>
+</div>

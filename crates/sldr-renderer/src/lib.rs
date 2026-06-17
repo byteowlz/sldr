@@ -1,6 +1,6 @@
 //! sldr-renderer - Compile markdown slides into self-contained HTML
 //!
-//! This crate takes parsed slides, templates, and flavors from sldr-core
+//! This crate takes parsed slides, layouts, and flavors from sldr-core
 //! and compiles them into a single HTML file with all CSS and JS inlined.
 //!
 //! # Flavor embedding
@@ -26,7 +26,11 @@ pub mod media;
 mod markdown;
 pub mod pptx;
 mod render;
-mod template;
+pub mod fonts;
+pub mod sample;
+mod layout;
 
+pub use layout::{builtin_layout_names, builtin_layout_source};
 pub use media::ImageMode;
 pub use render::{HtmlRenderer, RenderConfig};
+pub use sample::{render_sample, SampleSlide, SAMPLE_SLIDES};

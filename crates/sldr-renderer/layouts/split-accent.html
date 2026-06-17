@@ -1,0 +1,27 @@
+<!-- Layout: split-accent — content on the left, a diagonal accent panel sweeping the right edge. -->
+<style>
+.sldr-slide[data-layout="split-accent"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 58%, var(--sldr-accent) 58%);
+  opacity: 0.92;
+  pointer-events: none;
+  z-index: 0;
+}
+.sldr-slide[data-layout="split-accent"] .sldr-content {
+  justify-content: center;
+  max-width: 52%;
+  gap: clamp(12px, 2vh, 24px);
+  z-index: 1;
+}
+.sldr-slide[data-layout="split-accent"] h1 {
+  font-size: clamp(36px, 5vw, 64px);
+}
+.sldr-slide[data-layout="split-accent"] p {
+  max-width: 44ch;
+}
+</style>
+<div class="sldr-content">
+  {{content}}
+</div>

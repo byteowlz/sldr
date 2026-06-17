@@ -4,7 +4,7 @@ use anyhow::Result;
 use colored::Colorize;
 use sldr_core::config::Config;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::presentation::Skeleton;
+use sldr_core::presentation::Playlist;
 use sldr_core::slide::SlideCollection;
 
 pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<()> {
@@ -31,25 +31,26 @@ pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<
     let available_slides = SlideCollection::load_from_dir(&config.slide_dir())?;
     let matcher = SldrMatcher::new(config.matching.clone());
 
-    // Find the skeleton file
-    let skeleton_dir = config.skeleton_dir();
-    let skeleton_path = skeleton_dir.join(format!("{presentation}.toml"));
+    // Find the playlist file
+    let playlist_dir = config.playlist_dir();
+    let playlist_path = playlist_dir.join(format!("{presentation}.toml"));
 
-    let mut skeleton = if skeleton_path.exists() {
-        Skeleton::load(&skeleton_path)?
+    let mut playlist = if playlist_path.exists() {
+        Playlist::load(&playlist_path)?
     } else {
-        // Create a new skeleton
+        // Create a new playlist
         println!(
-            "  {} Creating new skeleton '{}'",
+            "  {} Creating new playlist '{}'",
             "i".blue(),
             presentation.cyan()
         );
-        Skeleton {
+        Playlist {
             name: presentation.to_string(),
             title: None,
             description: None,
             slides: Vec::new(),
             flavor: None,
+            default_lang: None,
             slidev_config: sldr_core::presentation::SlidevConfig::default(),
         }
     };
@@ -61,18 +62,18 @@ pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<
             ResolveResult::Found(result) => {
                 let slide_ref = result.value.clone();
 
-                // Check if already in skeleton
-                if skeleton.slides.contains(&slide_ref) {
+                // Check if already in playlist
+                if playlist.slides.contains(&slide_ref) {
                     println!("  {} '{}' already in presentation", "~".yellow(), slide_ref);
                     continue;
                 }
 
                 // Add at position or append
                 if let Some(pos) = position {
-                    let insert_at = pos.min(skeleton.slides.len());
-                    skeleton.slides.insert(insert_at + added, slide_ref.clone());
+                    let insert_at = pos.min(playlist.slides.len());
+                    playlist.slides.insert(insert_at + added, slide_ref.clone());
                 } else {
-                    skeleton.slides.push(slide_ref.clone());
+                    playlist.slides.push(slide_ref.clone());
                 }
 
                 println!("  {} {}", "+".green(), slide_ref);
@@ -97,9 +98,9 @@ pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<
     }
 
     if added > 0 {
-        // Ensure skeleton directory exists
-        std::fs::create_dir_all(&skeleton_dir)?;
-        skeleton.save(&skeleton_path)?;
+        // Ensure playlist directory exists
+        std::fs::create_dir_all(&playlist_dir)?;
+        playlist.save(&playlist_path)?;
 
         println!(
             "\n{} Added {} slide(s) to '{}'",

@@ -29,8 +29,8 @@ pub fn run(key: Option<String>, value: Option<String>, edit: bool) -> Result<()>
 
             println!("{}", "[config]".cyan());
             println!(
-                "  template_dir = {}",
-                format!("\"{}\"", config.config.template_dir).yellow()
+                "  scaffold_dir = {}",
+                format!("\"{}\"", config.config.scaffold_dir).yellow()
             );
             println!(
                 "  flavor_dir = {}",
@@ -59,8 +59,8 @@ pub fn run(key: Option<String>, value: Option<String>, edit: bool) -> Result<()>
                 format!("\"{}\"", config.presentations.output_dir).yellow()
             );
             println!(
-                "  skeleton_dir = {}",
-                format!("\"{}\"", config.presentations.skeleton_dir).yellow()
+                "  playlist_dir = {}",
+                format!("\"{}\"", config.presentations.playlist_dir).yellow()
             );
 
             println!("\n{}", "[matching]".cyan());
@@ -100,7 +100,7 @@ pub fn run(key: Option<String>, value: Option<String>, edit: bool) -> Result<()>
 
 fn get_config_value(config: &Config, key: &str) -> Option<String> {
     match key {
-        "template_dir" | "config.template_dir" => Some(config.config.template_dir.clone()),
+        "scaffold_dir" | "config.scaffold_dir" => Some(config.config.scaffold_dir.clone()),
         "flavor_dir" | "config.flavor_dir" => Some(config.config.flavor_dir.clone()),
         "default_flavor" | "config.default_flavor" => Some(config.config.default_flavor.clone()),
         "dev_port" | "config.dev_port" | "slidev_port" | "config.slidev_port" => {
@@ -109,8 +109,8 @@ fn get_config_value(config: &Config, key: &str) -> Option<String> {
         "agent" | "config.agent" => Some(config.config.agent.clone()),
         "slide_dir" | "presentations.slide_dir" => Some(config.presentations.slide_dir.clone()),
         "output_dir" | "presentations.output_dir" => Some(config.presentations.output_dir.clone()),
-        "skeleton_dir" | "presentations.skeleton_dir" => {
-            Some(config.presentations.skeleton_dir.clone())
+        "playlist_dir" | "presentations.playlist_dir" => {
+            Some(config.presentations.playlist_dir.clone())
         }
         "threshold" | "matching.threshold" => Some(config.matching.threshold.to_string()),
         "max_suggestions" | "matching.max_suggestions" => {

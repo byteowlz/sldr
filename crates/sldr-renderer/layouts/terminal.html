@@ -1,0 +1,45 @@
+<!-- Layout: terminal — a code-first slide framed as a terminal window with titlebar. -->
+<style>
+.sldr-slide[data-layout="terminal"] .sldr-content {
+  justify-content: flex-start;
+  padding-top: clamp(16px, 4vh, 48px);
+  gap: clamp(14px, 2vh, 24px);
+  max-width: min(92%, 110ch);
+}
+.sldr-slide[data-layout="terminal"] .sldr-terminal {
+  background: var(--sldr-code-background);
+  border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border-bright);
+  border-radius: var(--sldr-radius);
+  box-shadow: var(--sldr-shadow-lg);
+  overflow: hidden;
+}
+.sldr-slide[data-layout="terminal"] .sldr-terminal::before {
+  content: '● ● ●';
+  display: block;
+  padding: clamp(8px, 1.2vh, 12px) clamp(12px, 1.5vw, 18px);
+  font-size: clamp(9px, 1vw, 12px);
+  letter-spacing: 4px;
+  color: var(--sldr-text-dim, var(--sldr-text));
+  opacity: 0.6;
+  border-bottom: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
+}
+.sldr-slide[data-layout="terminal"] .sldr-terminal pre.sldr-code {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: clamp(14px, 1.6vw, 20px);
+  line-height: 1.6;
+}
+.sldr-slide[data-layout="terminal"] .sldr-terminal > :not(pre) {
+  padding: clamp(10px, 1.4vh, 16px) clamp(14px, 1.8vw, 22px);
+  font-family: var(--sldr-code-font);
+  font-size: clamp(13px, 1.4vw, 17px);
+}
+</style>
+<div class="sldr-content">
+  {{heading}}
+  <div class="sldr-terminal">
+    {{content}}
+  </div>
+</div>

@@ -1,0 +1,11 @@
+<!-- Layout: intro — introduction slide, content block vertically centered -->
+<style>
+.sldr-slide[data-layout="intro"] .sldr-content {
+  justify-content: center;
+  gap: clamp(12px, 2vh, 24px);
+  max-width: var(--sldr-content-max-width, 65ch);
+}
+</style>
+<div class="sldr-content">
+  {{content}}
+</div>

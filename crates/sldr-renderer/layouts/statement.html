@@ -1,0 +1,29 @@
+<!-- Layout: statement — a typographic poster: one oversized declaration, nothing else competing. -->
+<style>
+.sldr-slide[data-layout="statement"] .sldr-content {
+  justify-content: center;
+  gap: clamp(14px, 2.5vh, 30px);
+}
+.sldr-slide[data-layout="statement"] h1 {
+  font-size: clamp(48px, 8.5vw, 128px);
+  line-height: 1.02;
+  letter-spacing: calc(var(--sldr-heading-tracking) * 1.5);
+  max-width: 16ch;
+  color: var(--sldr-text);
+}
+.sldr-slide[data-layout="statement"] h1 strong,
+.sldr-slide[data-layout="statement"] h1 em {
+  color: var(--sldr-accent);
+  font-style: normal;
+}
+.sldr-slide[data-layout="statement"] p {
+  font-family: var(--sldr-code-font);
+  font-size: clamp(12px, 1.4vw, 16px);
+  letter-spacing: 2px;
+  text-transform: var(--sldr-eyebrow-transform);
+  color: var(--sldr-text-dim, var(--sldr-text));
+}
+</style>
+<div class="sldr-content">
+  {{content}}
+</div>

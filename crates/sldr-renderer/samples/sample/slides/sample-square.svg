@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#cda99e"/>
+      <stop offset="55%" stop-color="#a96f6f"/>
+      <stop offset="100%" stop-color="#5b3030"/>
+    </linearGradient>
+    <radialGradient id="shalo" cx="0.5" cy="0.5" r="0.55">
+      <stop offset="0%" stop-color="rgba(255,235,235,0.45)"/>
+      <stop offset="60%" stop-color="rgba(255,235,235,0)"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#sg)"/>
+  <circle cx="280" cy="280" r="180" fill="rgba(255,255,255,0.06)"/>
+  <circle cx="540" cy="540" r="120" fill="rgba(0,0,0,0.10)"/>
+  <rect width="800" height="800" fill="url(#shalo)"/>
+  <g stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none">
+    <path d="M0 580 Q 200 540 400 560 T 800 560"/>
+    <path d="M0 620 Q 200 580 400 620 T 800 600"/>
+    <path d="M0 660 Q 200 640 400 680 T 800 660"/>
+  </g>
+  <text x="400" y="740" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="rgba(255,255,255,0.55)" letter-spacing="6">SQUARE</text>
+</svg>

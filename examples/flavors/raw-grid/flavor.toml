@@ -1,0 +1,101 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+# Adapted from beautiful-html-templates/raw-grid (MIT). See CREDITS.md.
+
+name = "raw-grid"
+display_name = "Raw Grid"
+description = "Neo-brutalist deck with thick black borders, offset shadows, and a pink/sage/ink palette. Direct, modern, no-nonsense."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap",
+]
+
+[curation]
+mood = ["raw", "punchy", "energetic", "confident"]
+tone = ["direct", "modern", "no-nonsense", "graphic"]
+occasion = ["startup pitch", "accelerator demo day", "founder pitch", "indie product launch", "brand deck", "creator portfolio"]
+formality = "medium-low"
+density = "high"
+scheme = "light"
+best_for = "Anything that should feel direct and graphic-confident: founder pitches, accelerator demos, brand decks, indie launches, creator portfolios. Strong for stat slides, comparison tables, and process flows. Equally good for tech, research, or finance when the speaker wants the deck to feel scrappy-confident rather than buttoned-up."
+avoid_for = "Contexts that need to feel soft, warm, or intentionally quiet — the brutalist borders and offset shadows commit to a graphic voice."
+
+[colors]
+primary = "#0a0a0a"
+secondary = "#333333"
+background = "#ffffff"
+text = "#0a0a0a"
+text_dim = "#666666"
+accent = "#f2d4cf"
+accent_dim = "rgba(242, 212, 207, 0.45)"
+surface = "#f5f5f5"
+surface2 = "#e5edd6"
+border = "#0a0a0a"
+border_bright = "#0a0a0a"
+muted = "rgba(10, 10, 10, 0.04)"
+code_background = "#0a0a0a"
+code_text = "#ffffff"
+
+[dark_colors]
+primary = "#ffffff"
+secondary = "#cccccc"
+background = "#0a0a0a"
+text = "#ffffff"
+text_dim = "#999999"
+accent = "#f2d4cf"
+accent_dim = "rgba(242, 212, 207, 0.18)"
+surface = "#1a1a1a"
+surface2 = "#26261f"
+border = "#ffffff"
+border_bright = "#ffffff"
+muted = "rgba(255, 255, 255, 0.05)"
+code_background = "#1a1a1a"
+code_text = "#ffffff"
+
+[typography]
+heading_font = "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+body_font = "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+code_font = "'JetBrains Mono', ui-monospace, monospace"
+heading_weight = "800"
+body_weight = "400"
+heading_tracking = "-0.02em"
+body_tracking = "0"
+heading_leading = "1.0"
+body_leading = "1.5"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+
+[spacing]
+slide_padding_y = "clamp(40px, 6vh, 72px)"
+slide_padding_x = "clamp(48px, 6vw, 96px)"
+content_max_width = "84ch"
+density = "compact"
+stack_gap = "clamp(16px, 2.4vh, 28px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "3px"
+border_style = "solid"
+
+[shadow]
+sm = "4px 4px 0 #0a0a0a"
+md = "6px 6px 0 #0a0a0a"
+lg = "8px 8px 0 #0a0a0a"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.2, 0, 0, 1)"
+duration = "200ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.0
+
+[code]
+syntax_theme = "base16-ocean.dark"
+frame_style = "card"
+line_numbers = false

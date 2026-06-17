@@ -34,7 +34,31 @@
   var deck = document.querySelector(".sldr-deck");
   if (!deck) return;
 
-  var slides = Array.from(deck.querySelectorAll(".sldr-slide"));
+  var allSlides = Array.from(deck.querySelectorAll(".sldr-slide"));
+
+  // Language axis (ADR-0007): multi-language decks duplicate each slide
+  // per embedded language, tagged with data-lang. Only the active
+  // language's variants take part in navigation; "L" cycles languages.
+  var langNames = (deck.dataset.langs || "")
+    .split(",")
+    .map(function (l) { return l.trim(); })
+    .filter(function (l) { return l.length > 0; });
+  var activeLang = null;
+  if (langNames.length > 1) {
+    try {
+      var savedLang = localStorage.getItem("sldr-lang");
+      if (savedLang && langNames.indexOf(savedLang) !== -1) activeLang = savedLang;
+    } catch (err) { /* file:// or private mode */ }
+    if (!activeLang) activeLang = langNames[0];
+  }
+
+  function slidesForLang(lang) {
+    return allSlides.filter(function (s) {
+      return !s.dataset.lang || s.dataset.lang === lang;
+    });
+  }
+
+  var slides = langNames.length > 1 ? slidesForLang(activeLang) : allSlides;
   var progress = document.querySelector(".sldr-progress");
   var pageNum = document.querySelector(".sldr-page-num");
   var overlay = null; // overview grid, created lazily
@@ -42,6 +66,129 @@
 
   var total = slides.length;
   if (total === 0) return;
+
+  function setLanguage(lang) {
+    if (langNames.indexOf(lang) === -1 || lang === activeLang) return;
+    activeLang = lang;
+    try { localStorage.setItem("sldr-lang", lang); } catch (err) { /* ignore */ }
+    // Hide everything, recompute the active set, stay on the same position.
+    for (var i = 0; i < allSlides.length; i++) forceHide(allSlides[i]);
+    slides = slidesForLang(activeLang);
+    total = slides.length;
+    if (current >= total) current = total - 1;
+    showSlide(current, 0, current);
+    updateProgress();
+  }
+
+  // --- Effect diagnostics (?fxdebug) -------------------------------------
+  // Self-reporting overlay: tells us whether ANY css animation runs on this
+  // machine (control bar) and whether the decoration effect is ticking.
+  if (location.search.indexOf("fxdebug") !== -1) {
+    var box = document.createElement("div");
+    box.style.cssText =
+      "position:fixed;top:12px;left:12px;z-index:99999;background:#000;color:#0f0;" +
+      "font:12px/1.5 monospace;padding:12px 14px;border:1px solid #0f0;max-width:48ch;" +
+      "pointer-events:none";
+    var readout = document.createElement("div");
+    readout.style.whiteSpace = "pre";
+    var ctrl = document.createElement("div");
+    ctrl.style.cssText =
+      "width:40px;height:12px;margin-top:8px;background:#0f0;" +
+      "animation:sldr-diag-slide 1s linear infinite";
+    var kf = document.createElement("style");
+    kf.textContent =
+      "@keyframes sldr-diag-slide{from{transform:translateX(0)}to{transform:translateX(200px)}}";
+    document.head.appendChild(kf);
+    box.appendChild(readout);
+    box.appendChild(ctrl);
+    document.body.appendChild(box);
+    var fxEl = document.querySelector(".sldr-fx");
+
+    function sample() {
+      var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // Reliable tick detection: getBoundingClientRect reflects the actual
+      // animated render position; getComputedStyle does not (it can return
+      // the base value mid-animation).
+      var ctrlX1 = ctrl.getBoundingClientRect().left;
+      var fxT1 = fxEl ? getComputedStyle(fxEl, "::before").transform : "-";
+      setTimeout(function () {
+        var ctrlX2 = ctrl.getBoundingClientRect().left;
+        var fxT2 = fxEl ? getComputedStyle(fxEl, "::before").transform : "-";
+        var ps = fxEl ? getComputedStyle(fxEl, "::before") : null;
+        readout.textContent =
+          "FX DIAGNOSTIC\n" +
+          "prefers-reduced-motion: " + reduced + "\n" +
+          "data-sldr-motion: " + (document.documentElement.getAttribute("data-sldr-motion") || "(unset)") + "\n" +
+          "active flavor: " + (activeFlavor || "?") + "\n" +
+          ".sldr-fx present/display: " + (!!fxEl) + " / " + (fxEl ? getComputedStyle(fxEl).display : "-") + "\n" +
+          "::before anim-name: " + (ps ? ps.animationName : "-") + "\n" +
+          "::before play-state: " + (ps ? ps.animationPlayState : "-") + "\n" +
+          "CONTROL BAR MOVING: " + (Math.abs(ctrlX1 - ctrlX2) > 0.5 ? "YES" : "NO  <- ALL anim disabled") + "\n" +
+          "EFFECT TRANSFORM CHANGING: " + (fxT1 !== fxT2 ? "YES" : "NO") + "\n" +
+          "(does the green bar below slide right?)";
+      }, 350);
+    }
+    sample();
+    setInterval(sample, 1500);
+  }
+
+  // Motion toggle (M): forces decoration animation on/off regardless of
+  // the OS prefers-reduced-motion setting. Persisted per browser.
+  try {
+    var savedMotion = localStorage.getItem("sldr-motion");
+    if (savedMotion === "on" || savedMotion === "off") {
+      document.documentElement.setAttribute("data-sldr-motion", savedMotion);
+    }
+  } catch (err) { /* file:// or private mode */ }
+
+  function toggleMotion() {
+    var el = document.documentElement;
+    var next;
+    if (el.getAttribute("data-sldr-motion") === "on") {
+      next = "off";
+    } else if (el.getAttribute("data-sldr-motion") === "off") {
+      next = "on";
+    } else {
+      // No explicit choice yet: flip away from whatever the OS does.
+      next = matchMedia("(prefers-reduced-motion: reduce)").matches ? "on" : "off";
+    }
+    el.setAttribute("data-sldr-motion", next);
+    try { localStorage.setItem("sldr-motion", next); } catch (err) { /* ignore */ }
+    if (hintEl) { hintEl.remove(); hintEl = null; }
+  }
+
+  // Discoverability: if the system requests reduced motion AND this deck has
+  // a decoration effect, the effect is frozen by the accessibility reset.
+  // Most people never knowingly enabled reduced motion — surface the M-key
+  // opt-in once instead of leaving them staring at a static background.
+  var hintEl = null;
+  if (
+    document.querySelector(".sldr-fx") &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches &&
+    document.documentElement.getAttribute("data-sldr-motion") !== "on" &&
+    document.documentElement.getAttribute("data-sldr-motion") !== "off"
+  ) {
+    hintEl = document.createElement("div");
+    hintEl.textContent = "Your system has reduced motion on — press M for animated background";
+    hintEl.style.cssText =
+      "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;" +
+      "background:var(--sldr-surface,#222);color:var(--sldr-text,#eee);" +
+      "border:1px solid var(--sldr-border-bright,#555);border-radius:999px;" +
+      "padding:8px 18px;font:13px/1.4 var(--sldr-code-font,monospace);" +
+      "box-shadow:var(--sldr-shadow-md,0 4px 12px rgba(0,0,0,.3));opacity:0.94;" +
+      "pointer-events:none";
+    var showHint = function () {
+      if (hintEl) document.body.appendChild(hintEl);
+    };
+    if (document.body) { showHint(); } else { window.addEventListener("DOMContentLoaded", showHint); }
+    setTimeout(function () { if (hintEl) { hintEl.remove(); hintEl = null; } }, 8000);
+  }
+
+  function cycleLanguage() {
+    if (langNames.length < 2) return;
+    var next = langNames[(langNames.indexOf(activeLang) + 1) % langNames.length];
+    setLanguage(next);
+  }
 
   // ---------------------------------------------------------------------------
   // State
@@ -61,17 +208,21 @@
   var activeFlavor = "";
 
   function initFlavors() {
-    // Find which flavor is currently active (enabled)
+    if (flavorStyles.length === 0) return;
+    // The HTML `disabled` attribute on <style> is markup-inert — it is a
+    // DOM-only property, so at load EVERY flavor block applies and the
+    // last one in the document wins. Enforce single-active here: the
+    // first flavor (the build's resolved active) wins unless the markup
+    // genuinely carries the attribute for a later one.
+    activeFlavor = flavorStyles[0].dataset.flavor;
     for (var i = 0; i < flavorStyles.length; i++) {
-      if (!flavorStyles[i].disabled) {
+      if (!flavorStyles[i].hasAttribute("disabled")) {
         activeFlavor = flavorStyles[i].dataset.flavor;
         break;
       }
     }
-    // If none active but flavors exist, activate the first
-    if (!activeFlavor && flavorStyles.length > 0) {
-      activeFlavor = flavorStyles[0].dataset.flavor;
-      flavorStyles[0].disabled = false;
+    for (var j = 0; j < flavorStyles.length; j++) {
+      flavorStyles[j].disabled = flavorStyles[j].dataset.flavor !== activeFlavor;
     }
   }
 
@@ -336,15 +487,28 @@
   // ---------------------------------------------------------------------------
   // Slide display
   // ---------------------------------------------------------------------------
-  // Track active animation cleanup functions
+  //
+  // Animation cleanup uses setTimeout (not animationend) because rapid
+  // navigation interrupts CSS animations, and `animationend` doesn't fire
+  // on interrupted animations. The timeout is the source of truth; cleanups
+  // are idempotent and safe to run multiple times.
+
+  var TRANSITION_MS = 400; // matches base.css animation duration
   var pendingCleanups = [];
+  var pendingTimers = [];
 
   function cleanupAllAnimations() {
-    // Force-finish any pending animations before starting new ones
+    // Force-finish any pending animations before starting new ones.
+    // This catches the case where rapid navigation outpaces the
+    // transition duration: each new showSlide call resets all state.
     for (var i = 0; i < pendingCleanups.length; i++) {
       pendingCleanups[i]();
     }
     pendingCleanups = [];
+    for (var j = 0; j < pendingTimers.length; j++) {
+      clearTimeout(pendingTimers[j]);
+    }
+    pendingTimers = [];
   }
 
   function removeTransitionClasses(el) {
@@ -356,64 +520,86 @@
     );
   }
 
+  function scheduleCleanup(fn) {
+    pendingCleanups.push(fn);
+    var timer = setTimeout(function () {
+      fn();
+      var ci = pendingCleanups.indexOf(fn);
+      if (ci !== -1) pendingCleanups.splice(ci, 1);
+      var ti = pendingTimers.indexOf(timer);
+      if (ti !== -1) pendingTimers.splice(ti, 1);
+    }, TRANSITION_MS + 50);
+    pendingTimers.push(timer);
+  }
+
+  function forceHide(slide) {
+    removeTransitionClasses(slide);
+    slide.classList.remove("active");
+    slide.setAttribute("aria-hidden", "true");
+  }
+
+  // Persistent deck-level logos: show those whose data-logo-layouts list
+  // includes the active layout (or "all"). Idempotent — a logo already on
+  // for the previous slide simply stays on, so there is no flicker.
+  var deckLogos = Array.prototype.slice.call(
+    document.querySelectorAll(".sldr-logos .sldr-logo")
+  );
+  function updateLogos(layout) {
+    for (var i = 0; i < deckLogos.length; i++) {
+      var list = (deckLogos[i].getAttribute("data-logo-layouts") || "").split(/\s+/);
+      var on = list.indexOf("all") !== -1 || list.indexOf(layout) !== -1;
+      deckLogos[i].classList.toggle("sldr-logo-on", on);
+    }
+  }
+
   function showSlide(index, dir, prevIndex) {
-    // Clean up any in-flight animations first to prevent stuck states
+    // Clean up any in-flight animations first to prevent stuck states.
     cleanupAllAnimations();
 
-    // Hide all slides except the one we are entering
+    // Hide every slide except the one entering (and the prev slide if
+    // it's being animated out). cleanupAllAnimations above guarantees
+    // that any previously-mid-animation slides are now in clean state,
+    // so this loop won't re-trigger animations.
     for (var i = 0; i < total; i++) {
       if (i === index) continue;
-      // Don't hide the previous slide yet if we are animating it out
-      if (dir !== "none" && i === prevIndex) continue;
-      removeTransitionClasses(slides[i]);
-      slides[i].classList.remove("active");
-      slides[i].setAttribute("aria-hidden", "true");
+      if (dir !== "none" && i === prevIndex && prevIndex !== index) continue;
+      forceHide(slides[i]);
     }
 
-    // Show the entering slide
+    // Enter
     var enterSlide = slides[index];
     removeTransitionClasses(enterSlide);
     enterSlide.classList.add("active");
     enterSlide.removeAttribute("aria-hidden");
 
+    // Show only the logos that apply to this slide's layout. Logos that
+    // carry across consecutive slides stay on (no toggle, no flicker).
+    updateLogos(enterSlide.getAttribute("data-layout") || "");
+
     if (dir !== "none") {
       var enterClass = getTransitionClass(dir, "enter");
       enterSlide.classList.add(enterClass);
-
-      var enterCleanup = function () {
+      scheduleCleanup(function () {
         removeTransitionClasses(enterSlide);
-      };
-      pendingCleanups.push(enterCleanup);
-
-      enterSlide.addEventListener("animationend", function () {
-        enterCleanup();
-        var idx = pendingCleanups.indexOf(enterCleanup);
-        if (idx !== -1) pendingCleanups.splice(idx, 1);
-      }, { once: true });
+      });
     }
 
     applyClickSteps(enterSlide, 0);
 
-    // Animate the exiting slide (if any)
+    // Exit (cross-fade with enter)
     if (dir !== "none" && prevIndex !== undefined && prevIndex !== index) {
       var exitSlide = slides[prevIndex];
       removeTransitionClasses(exitSlide);
-      var exitClass = getTransitionClass(dir, "exit");
+      // exitSlide must remain visible (active, no aria-hidden) for the
+      // duration of the exit animation. The timeout below restores its
+      // hidden state after the animation duration.
       exitSlide.classList.add("active");
+      exitSlide.removeAttribute("aria-hidden");
+      var exitClass = getTransitionClass(dir, "exit");
       exitSlide.classList.add(exitClass);
-
-      var exitCleanup = function () {
-        removeTransitionClasses(exitSlide);
-        exitSlide.classList.remove("active");
-        exitSlide.setAttribute("aria-hidden", "true");
-      };
-      pendingCleanups.push(exitCleanup);
-
-      exitSlide.addEventListener("animationend", function () {
-        exitCleanup();
-        var idx = pendingCleanups.indexOf(exitCleanup);
-        if (idx !== -1) pendingCleanups.splice(idx, 1);
-      }, { once: true });
+      scheduleCleanup(function () {
+        forceHide(exitSlide);
+      });
     }
   }
 
@@ -569,6 +755,18 @@
       case "T":
         e.preventDefault();
         if (flavorNames.length > 1) toggleFlavorPanel();
+        break;
+
+      case "l":
+      case "L":
+        e.preventDefault();
+        cycleLanguage();
+        break;
+
+      case "m":
+      case "M":
+        e.preventDefault();
+        toggleMotion();
         break;
 
       case "Escape":

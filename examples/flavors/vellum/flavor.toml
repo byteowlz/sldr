@@ -1,0 +1,101 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+# Adapted from beautiful-html-templates/vellum (MIT). See CREDITS.md.
+
+name = "vellum"
+display_name = "Vellum"
+description = "Deep periwinkle navy with warm-yellow italic Cormorant Garamond and a single dusty teal accent. Quiet, scholarly, intellectual."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap",
+]
+
+[curation]
+mood = ["scholarly", "literary", "considered", "quiet", "intellectual"]
+tone = ["literary", "considered", "patient", "intelligent"]
+occasion = ["research findings", "white paper", "academic deck", "advisory deliverable", "literary pitch", "founder reflection"]
+formality = "high"
+density = "low"
+scheme = "dark"
+best_for = "Anything that should feel scholarly, literary, and quietly intelligent: research synthesis, white papers, academic and policy briefs, advisory deliverables, longform editorial, founder reflections. Equally strong for any deck that wants a calm, considered atmosphere instead of energetic visuals."
+avoid_for = "Contexts that need visual heat or pop — the navy + warm-yellow italic-Cormorant aesthetic is intentionally low-tempo."
+
+[colors]
+primary = "#E8D85C"
+secondary = "rgba(232, 216, 92, 0.62)"
+background = "#2a3870"
+text = "#E8D85C"
+text_dim = "rgba(232, 216, 92, 0.62)"
+accent = "#3a7878"
+accent_dim = "rgba(58, 120, 120, 0.18)"
+surface = "#343f80"
+surface2 = "#3e4a90"
+border = "rgba(232, 216, 92, 0.20)"
+border_bright = "rgba(232, 216, 92, 0.40)"
+muted = "rgba(232, 216, 92, 0.06)"
+code_background = "#1f2a55"
+code_text = "#E8D85C"
+
+[dark_colors]
+primary = "#E8D85C"
+secondary = "rgba(232, 216, 92, 0.62)"
+background = "#1f2a55"
+text = "#E8D85C"
+text_dim = "rgba(232, 216, 92, 0.55)"
+accent = "#3a7878"
+accent_dim = "rgba(58, 120, 120, 0.20)"
+surface = "#26315e"
+surface2 = "#2c386a"
+border = "rgba(232, 216, 92, 0.18)"
+border_bright = "rgba(232, 216, 92, 0.36)"
+muted = "rgba(232, 216, 92, 0.06)"
+code_background = "#16204a"
+code_text = "#E8D85C"
+
+[typography]
+heading_font = "'Cormorant Garamond', 'Noto Serif SC', Georgia, serif"
+body_font = "'DM Sans', 'Noto Sans SC', system-ui, sans-serif"
+code_font = "'Courier Prime', 'Courier New', monospace"
+heading_weight = "500"
+body_weight = "400"
+heading_tracking = "-0.01em"
+body_tracking = "0.01em"
+heading_leading = "1.05"
+body_leading = "1.65"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+
+[spacing]
+slide_padding_y = "clamp(56px, 9vh, 112px)"
+slide_padding_x = "clamp(64px, 8vw, 144px)"
+content_max_width = "64ch"
+density = "spacious"
+stack_gap = "clamp(20px, 3vh, 40px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "2px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "0 1px 0 rgba(232, 216, 92, 0.16)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.77, 0, 0.175, 1)"
+duration = "480ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.4
+
+[code]
+syntax_theme = "base16-ocean.dark"
+frame_style = "minimal"
+line_numbers = false

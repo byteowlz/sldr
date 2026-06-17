@@ -2,6 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-06-17
+
+### Added
+- `sldr show layout|flavor <name>` — print the raw source a name resolves to (the authored layout `.html` / flavor `.toml`), honoring the build's resolution order (user library/config dirs override built-ins). Source to stdout (pipeable), origin to stderr, `--json` for both. Fuzzy-matched and fail-loud with the available set. Makes both extension axes legible on a user machine: flavors already lived on disk after `init`, but layouts were binary-only — `show` reads them and reports which copy actually wins (trx-9wqc).
+- `builtin_layout_source` / `builtin_layout_names` (sldr-renderer) and `builtin_flavor_files` / `builtin_flavor_slugs` (sldr-cli) accessors backing `show`.
+
+### Fixed
+- `sldr watch` now live-reloads flavor and layout edits, not just slides. It watches every dir that feeds a rebuild — all flavor and layout search dirs (library and configured-extra, de-duped) — and re-resolves flavors from disk on each rebuild, so token/background/logo edits take effect instead of rebuilding from the flavor resolved once at startup (trx-ksse).
+
+## [0.4.0] - 2026-05-04
+
+### Added
+- Bundled sample deck (`crates/sldr-renderer/samples/sample/`) with 10 placeholder slides covering every major layout — compiled into the binary via `include_str!` (trx-jbpj.1)
+- `sldr sample [--flavor X]` CLI command — renders the bundled sample deck against any flavor, opens in browser. Works offline with no slide files (trx-jbpj.1)
+- `HtmlRenderer::render_sample(flavor, &[])` public helper in `sldr-renderer` (trx-jbpj.1)
+- `Slide::from_str(name, virtual_path, content)` for in-memory slide construction (trx-jbpj.1)
+- `sldr serve [--port N]` HTTP daemon for external agents (trx-jbpj.2). Endpoints:
+  - `GET /api/health` — version + liveness
+  - `GET /api/sample` — bundled markdown sources (agent slide catalog)
+  - `GET /sample.html?flavor=X` — sample deck rendered against any flavor
+  - `GET /api/flavors`, `GET /api/flavors/{name}` — flavor list + full schema as JSON
+  - `GET /api/slides`, `GET /api/slides/{name}` — slide library introspection
+  - `POST /api/slides` — create slides from `SlideInputBatch` JSON spec
+  - `POST /api/assets` — base64 image upload, returns stable filename
+  - `POST /api/build/{skeleton}` — trigger a build, returns output path
+- Rich flavor token schema in `crates/sldr-core/src/flavor.rs` — extended from ~10 knobs to ~30 (trx-jbpj.11):
+  - `ColorScheme`: surface, surface2, border, border_bright, text_dim, accent_dim, muted
+  - `Typography`: heading_weight, body_weight, heading_tracking, body_tracking, heading_leading, body_leading, heading_transform, eyebrow_transform
+  - New sections: `Spacing`, `Shape`, `Shadow`, `Motion`, `Decoration`, `Code`
+- Per-flavor `flavor.css` escape hatch — loaded automatically alongside `flavor.toml`, inlined after generated tokens. Reserved for visual ideas tokens cannot express (decorative SVGs, magazine layouts, frame ornaments). (trx-jbpj.11)
+- `editorial-serif` seed flavor with editorial flourishes via `flavor.css` (trx-jbpj.12):
+  - Warm cream paper (#f5f1e8), GT Sectra serif, Solarized-light syntax theme
+  - Hairline accent rule above content titles (32×2px), thicker rule above section dividers (48×3px)
+  - Mono page numbers (decimal-leading-zero) in bottom-right corner, skipped on cover
+  - Italic dim subtitles for cover/section, mono small-caps quote attribution
+  - Bullet markers in accent color
+- `MarkdownOutput::ContentImage` variant + parsing for `::content::` / `::image::` markers used by image-left/image-right layouts (trx-jbpj.13)
+- Honor `[code].syntax_theme` from flavor.toml in renderer — light flavors get light code blocks (trx-jbpj.7)
+- `--sldr-atmosphere` token (driven by `decoration.intensity`) — opacity multiplier for the deck-wide background glow. Flat flavors set 0; gradient/dark flavors keep the default
+
+### Changed
+- All layouts now use `justify-content: center` for content blocks — title + body flow as one centered composition (visual-explainer / Stripe Press editorial pattern). Title→body gap kept tight (8-20px margin-bottom + 16-28px flex gap). (trx-jbpj.15)
+- Cover and section both left-aligned at the same column (was: cover centered, section left). Editorial coherence across hero slides.
+- Two-cols layout: title and columns now flow as one centered block with tight 18px gap (was: `align-content: center` pushed cards far below the title).
+- Atmospheric backgrounds unified across all slides — was rotating 3 different radial gradients per slide via `:nth-child(3n)`. Now one consistent gradient, opacity-controlled.
+- Code-block frame consumes `--sldr-radius`, `--sldr-border-width`, `--sldr-border-style`, `--sldr-shadow-md` (was hardcoded 12px radius + chunky shadow).
+- Default presenter nav (`.sldr-nav`) hidden in editorial-serif — replaced by editorial corner page counter.
+
+### Fixed
+- Presenter slides ghost/stuck on rapid keypress — `animationend` event doesn't fire when CSS animations are interrupted. Replaced with `setTimeout`-based cleanup that always fires. (trx-jbpj.14)
+- `image-left` / `image-right` layouts emitted `::content::` and `::image::` markers as raw text — now parsed into proper column structure. (trx-jbpj.13)
+- Cover slide `::after` accent glow no longer overridden by editorial page-number rule (scoped via `:not([data-layout="cover"])`).
+- Two-cols `.sldr-columns` width regression — explicit `width: 100%` restored after removing `flex: 1`.
+
 ## [0.2.0] - 2026-02-17
 
 ### Added

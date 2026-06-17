@@ -41,3 +41,8 @@ coverage/
 frontend/
 input/
 .pi/
+.pi/todos/
+
+# Local dev artifacts
+.preview/
+.oqto/

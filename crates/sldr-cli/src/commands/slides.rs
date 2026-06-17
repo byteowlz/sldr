@@ -6,23 +6,23 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use serde::Serialize;
 use sldr_core::config::Config;
 use sldr_core::fuzzy::{ResolveResult, SldrMatcher};
-use sldr_core::presentation::Skeleton;
+use sldr_core::presentation::Playlist;
 use sldr_core::slide::{SlideCollection, SlideInputBatch};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-/// Derive empty slides from a skeleton - creates stub files for any missing slides
-pub fn derive(skeleton_name: &str, template: Option<&str>, dry_run: bool) -> Result<()> {
+/// Derive empty slides from a playlist - creates stub files for any missing slides
+pub fn derive(playlist_name: &str, scaffold: Option<&str>, dry_run: bool) -> Result<()> {
     let config = Config::load()?;
 
     println!(
-        "{} slides from skeleton '{}'",
+        "{} slides from playlist '{}'",
         "Deriving".green().bold(),
-        skeleton_name.cyan()
+        playlist_name.cyan()
     );
 
-    // Load the skeleton
-    let skeleton = load_skeleton(&config, skeleton_name)?;
+    // Load the playlist
+    let playlist = load_playlist(&config, playlist_name)?;
 
     // Load existing slides
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
@@ -33,7 +33,7 @@ pub fn derive(skeleton_name: &str, template: Option<&str>, dry_run: bool) -> Res
     let mut missing_slides: Vec<&str> = Vec::new();
     let mut found_slides: Vec<(&str, String)> = Vec::new();
 
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         match matcher.resolve(slide_ref, &existing_names) {
             ResolveResult::Found(result) => {
                 found_slides.push((slide_ref.as_str(), result.value));
@@ -50,10 +50,10 @@ pub fn derive(skeleton_name: &str, template: Option<&str>, dry_run: bool) -> Res
 
     // Report status
     println!(
-        "\n{} Skeleton '{}' references {} slides:",
+        "\n{} Playlist '{}' references {} slides:",
         "i".blue(),
-        skeleton.name,
-        skeleton.slides.len()
+        playlist.name,
+        playlist.slides.len()
     );
 
     if !found_slides.is_empty() {
@@ -104,7 +104,7 @@ pub fn derive(skeleton_name: &str, template: Option<&str>, dry_run: bool) -> Res
     for name in &missing_slides {
         let path = compute_slide_path(&config, name);
 
-        match create_slide(&config, name, &path, template) {
+        match create_slide(&config, name, &path, scaffold) {
             Ok(()) => {
                 println!(
                     "  {} Created {}",
@@ -134,48 +134,54 @@ pub fn derive(skeleton_name: &str, template: Option<&str>, dry_run: bool) -> Res
     Ok(())
 }
 
-/// Load a skeleton by name with fuzzy matching
-fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
-    let skeleton_dir = config.skeleton_dir();
+/// Load a playlist by name with fuzzy matching
+fn load_playlist(config: &Config, name: &str) -> Result<Playlist> {
+    let playlist_dir = config.playlist_dir();
     let matcher = SldrMatcher::new(config.matching.clone());
 
-    // Find all skeleton files
-    let mut skeleton_files: Vec<String> = Vec::new();
-    if skeleton_dir.exists() {
-        for entry in std::fs::read_dir(&skeleton_dir)? {
+    // Find all playlist files
+    let mut playlist_files: Vec<String> = Vec::new();
+    if playlist_dir.exists() {
+        for entry in std::fs::read_dir(&playlist_dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "toml") {
                 if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
-                    skeleton_files.push(name.to_string());
+                    playlist_files.push(name.to_string());
                 }
             }
         }
     }
 
-    if skeleton_files.is_empty() {
+    if playlist_files.is_empty() {
         anyhow::bail!(
-            "No skeletons found in {}\nCreate one first.",
-            skeleton_dir.display()
+            "No playlists found in {}\nCreate one first.",
+            playlist_dir.display()
         );
     }
 
-    // Resolve the skeleton name
-    let skeleton_name = match matcher.resolve(name, &skeleton_files) {
+    // Resolve the playlist name
+    let playlist_name = match matcher.resolve(name, &playlist_files) {
         ResolveResult::Found(result) => result.value,
         ResolveResult::NotFound => {
-            println!("{} Skeleton '{}' not found.", "!".red(), name);
-            println!("Available skeletons:");
-            for s in &skeleton_files {
+            println!("{} Playlist '{}' not found.", "!".red(), name);
+            println!("Available playlists:");
+            for s in &playlist_files {
                 println!("  - {}", s.cyan());
             }
-            anyhow::bail!("Skeleton not found");
+            anyhow::bail!("Playlist not found");
         }
         ResolveResult::Multiple(matches) => {
-            // Interactive selection
+            // Interactive selection (terminal only — fail loud otherwise)
             let options: Vec<&str> = matches.iter().map(|m| m.value.as_str()).collect();
+            if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+                anyhow::bail!(
+                    "Ambiguous playlist reference '{name}'. Candidates: {}",
+                    options.join(", ")
+                );
+            }
             let selection = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt(format!("Multiple skeletons match '{name}'. Select one:"))
+                .with_prompt(format!("Multiple playlists match '{name}'. Select one:"))
                 .items(&options)
                 .default(0)
                 .interact()?;
@@ -183,8 +189,8 @@ fn load_skeleton(config: &Config, name: &str) -> Result<Skeleton> {
         }
     };
 
-    let skeleton_path = skeleton_dir.join(format!("{skeleton_name}.toml"));
-    Skeleton::load(&skeleton_path).context(format!("Failed to load skeleton: {skeleton_name}"))
+    let playlist_path = playlist_dir.join(format!("{playlist_name}.toml"));
+    Playlist::load(&playlist_path).context(format!("Failed to load playlist: {playlist_name}"))
 }
 
 /// Compute the path for a new slide based on the reference name
@@ -208,17 +214,17 @@ fn compute_slide_path(config: &Config, name: &str) -> PathBuf {
 }
 
 /// Create a new slide file
-fn create_slide(config: &Config, name: &str, path: &PathBuf, template: Option<&str>) -> Result<()> {
+fn create_slide(config: &Config, name: &str, path: &PathBuf, scaffold: Option<&str>) -> Result<()> {
     // Create parent directories if needed
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    // Get content from template or use default
-    let content = if let Some(template_name) = template {
-        load_template(config, template_name, name)?
+    // Get content from scaffold or use default
+    let content = if let Some(scaffold_name) = scaffold {
+        load_scaffold(config, scaffold_name, name)?
     } else {
-        default_slide_template(name)
+        default_slide_scaffold(name)
     };
 
     // Write the file
@@ -228,8 +234,8 @@ fn create_slide(config: &Config, name: &str, path: &PathBuf, template: Option<&s
     Ok(())
 }
 
-/// Generate default slide template content
-fn default_slide_template(name: &str) -> String {
+/// Generate default slide scaffold content
+fn default_slide_scaffold(name: &str) -> String {
     // Extract just the filename without path and extension
     let base_name = std::path::Path::new(name)
         .file_stem()
@@ -253,39 +259,54 @@ layout: default
     )
 }
 
-/// Load a template file and apply the slide name
-fn load_template(config: &Config, template_name: &str, slide_name: &str) -> Result<String> {
-    let template_dir = config.template_dir();
+/// Load a scaffold file and apply the slide name.
+/// Resolution: library/scaffolds -> configured extra dir -> built-ins;
+/// unresolved fails loudly (ADR-0007).
+fn load_scaffold(config: &Config, scaffold_name: &str, slide_name: &str) -> Result<String> {
+    let substitute = |content: &str| {
+        let base_name = std::path::Path::new(slide_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(slide_name);
+        let title = base_name.replace(['_', '-'], " ");
+        content
+            .replace("{{title}}", &title)
+            .replace("{{name}}", slide_name)
+    };
 
-    // Try with and without .md extension
-    let candidates = [
-        template_dir.join(format!("{template_name}.md")),
-        template_dir.join(template_name),
-    ];
-
-    for path in &candidates {
-        if path.exists() {
-            let content = std::fs::read_to_string(path)?;
-            // Replace placeholder with slide name
-            let base_name = std::path::Path::new(slide_name)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or(slide_name);
-            let title = base_name.replace(['_', '-'], " ");
-            return Ok(content
-                .replace("{{title}}", &title)
-                .replace("{{name}}", slide_name));
+    let dirs = config.scaffold_dirs();
+    for dir in &dirs {
+        for path in [
+            dir.join(format!("{scaffold_name}.md")),
+            dir.join(scaffold_name),
+        ] {
+            if path.exists() {
+                let content = std::fs::read_to_string(path)?;
+                return Ok(substitute(&content));
+            }
         }
     }
 
-    // Template not found, use default with a warning
-    println!(
-        "  {} Template '{}' not found, using default",
-        "!".yellow(),
-        template_name
-    );
+    let bundled_name = format!("{}.md", scaffold_name.trim_end_matches(".md"));
+    if let Some(s) = crate::scaffolds::SCAFFOLDS
+        .iter()
+        .find(|s| s.name == bundled_name)
+    {
+        return Ok(substitute(s.content));
+    }
 
-    Ok(default_slide_template(slide_name))
+    anyhow::bail!(
+        "Scaffold '{scaffold_name}' not found (searched: {}, built-ins). Available built-ins: {}",
+        dirs.iter()
+            .map(|d| d.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        crate::scaffolds::SCAFFOLDS
+            .iter()
+            .map(|s| s.name.trim_end_matches(".md"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 /// Output structure for created slides (JSON output mode)

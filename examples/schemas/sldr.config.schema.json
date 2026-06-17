@@ -11,7 +11,9 @@
         "default_flavor": "default",
         "dev_port": "3030",
         "flavor_dir": "~/.config/sldr/flavors",
-        "template_dir": "~/.config/sldr/templates"
+        "layout_dir": "~/.config/sldr/layouts",
+        "library": "~/sldr",
+        "scaffold_dir": "~/.config/sldr/scaffolds"
       }
     },
     "matching": {
@@ -32,7 +34,7 @@
       "$ref": "#/$defs/PresentationsConfig",
       "default": {
         "output_dir": "~/sldr/presentations",
-        "skeleton_dir": "~/sldr/skeletons",
+        "playlist_dir": "~/sldr/playlists",
         "slide_dir": "~/sldr/slides"
       }
     }
@@ -62,10 +64,20 @@
           "type": "string",
           "default": "~/.config/sldr/flavors"
         },
-        "template_dir": {
-          "description": "Directory containing slide templates",
+        "layout_dir": {
+          "description": "Directory containing user layouts (override/extend built-ins by name)",
           "type": "string",
-          "default": "~/.config/sldr/templates"
+          "default": "~/.config/sldr/layouts"
+        },
+        "library": {
+          "description": "Library root: the single self-sufficient tree carrying slides,\nlayouts, flavors, playlists, scaffolds, and media (ADR-0007).\nAsset resolution searches the library first, then the extra dirs\nbelow, then the built-ins embedded in the binary.",
+          "type": "string",
+          "default": "~/sldr"
+        },
+        "scaffold_dir": {
+          "description": "Extra directory containing slide scaffolds (searched after the\nlibrary's scaffolds/)",
+          "type": "string",
+          "default": "~/.config/sldr/scaffolds"
         }
       }
     },
@@ -111,10 +123,10 @@
           "type": "string",
           "default": "~/sldr/presentations"
         },
-        "skeleton_dir": {
-          "description": "Directory containing presentation skeletons",
+        "playlist_dir": {
+          "description": "Directory containing presentation playlists",
           "type": "string",
-          "default": "~/sldr/skeletons"
+          "default": "~/sldr/playlists"
         },
         "slide_dir": {
           "description": "Directory containing individual slide files",

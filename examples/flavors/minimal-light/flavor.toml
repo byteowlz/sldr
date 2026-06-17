@@ -1,0 +1,96 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "minimal-light"
+display_name = "Minimal Light"
+description = "Helvetica-adjacent sans on near-white paper. Generous whitespace, low contrast, the subtle 4px radius that makes a deck feel software-quality without shouting."
+
+[curation]
+mood = ["clean", "calm", "considered", "modern"]
+tone = ["restrained", "polished", "neutral", "soft"]
+occasion = ["product update", "internal review", "research synthesis", "all-hands", "advisory pitch"]
+formality = "medium"
+density = "medium"
+scheme = "light"
+best_for = "Anything that should feel polished without being loud: product updates, internal reviews, research synthesis, all-hands. The default-looking deck that quietly outclasses corporate templates because everything is on a 4pt grid and nothing is fighting for attention."
+avoid_for = "Decks that need a strong point of view or visual heat — minimal-light is intentionally background, not foreground."
+
+[colors]
+primary = "#0f1419"
+secondary = "#56616b"
+background = "#fbfbfa"
+text = "#0f1419"
+text_dim = "#6e757b"
+accent = "#3d6cf0"
+accent_dim = "rgba(61, 108, 240, 0.10)"
+surface = "#f3f3f1"
+surface2 = "#eaeae6"
+border = "rgba(15, 20, 25, 0.10)"
+border_bright = "rgba(15, 20, 25, 0.20)"
+muted = "rgba(15, 20, 25, 0.04)"
+code_background = "#f3f3f1"
+code_text = "#0f1419"
+
+[dark_colors]
+primary = "#fbfbfa"
+secondary = "#b8bdc2"
+background = "#0f1419"
+text = "#fbfbfa"
+text_dim = "#9a9fa4"
+accent = "#7a9bff"
+accent_dim = "rgba(122, 155, 255, 0.14)"
+surface = "#1a2028"
+surface2 = "#242b35"
+border = "rgba(251, 251, 250, 0.08)"
+border_bright = "rgba(251, 251, 250, 0.18)"
+muted = "rgba(251, 251, 250, 0.04)"
+code_background = "#1a2028"
+code_text = "#fbfbfa"
+
+[typography]
+heading_font = "'DM Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+body_font = "'DM Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+code_font = "'Fira Code', 'JetBrains Mono', ui-monospace, monospace"
+heading_weight = "600"
+body_weight = "400"
+heading_tracking = "-0.018em"
+body_tracking = "0"
+heading_leading = "1.12"
+body_leading = "1.55"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+optical_sizing = "auto"
+
+[spacing]
+slide_padding_y = "clamp(56px, 9vh, 104px)"
+slide_padding_x = "clamp(64px, 9vw, 144px)"
+content_max_width = "72ch"
+density = "comfortable"
+stack_gap = "clamp(20px, 2.8vh, 36px)"
+
+[shape]
+radius = "4px"
+radius_sm = "3px"
+radius_lg = "8px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "0 1px 2px rgba(15, 20, 25, 0.04)"
+md = "0 2px 8px rgba(15, 20, 25, 0.06)"
+lg = "0 8px 24px rgba(15, 20, 25, 0.08)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "320ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.05
+
+[code]
+syntax_theme = "InspiredGitHub"
+frame_style = "card"
+line_numbers = false

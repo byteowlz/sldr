@@ -29,9 +29,21 @@ pub struct Config {
 /// Core application settings
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CoreConfig {
-    /// Directory containing slide templates
-    #[serde(default = "default_template_dir")]
-    pub template_dir: String,
+    /// Library root: the single self-sufficient tree carrying slides,
+    /// layouts, flavors, playlists, scaffolds, and media (ADR-0007).
+    /// Asset resolution searches the library first, then the extra dirs
+    /// below, then the built-ins embedded in the binary.
+    #[serde(default = "default_library")]
+    pub library: String,
+
+    /// Extra directory containing slide scaffolds (searched after the
+    /// library's scaffolds/)
+    #[serde(default = "default_scaffold_dir")]
+    pub scaffold_dir: String,
+
+    /// Directory containing user layouts (override/extend built-ins by name)
+    #[serde(default = "default_layout_dir")]
+    pub layout_dir: String,
 
     /// Directory containing flavors (themes/styles)
     #[serde(default = "default_flavor_dir")]
@@ -61,9 +73,9 @@ pub struct PresentationsConfig {
     #[serde(default = "default_output_dir")]
     pub output_dir: String,
 
-    /// Directory containing presentation skeletons
-    #[serde(default = "default_skeleton_dir")]
-    pub skeleton_dir: String,
+    /// Directory containing presentation playlists
+    #[serde(default = "default_playlist_dir")]
+    pub playlist_dir: String,
 }
 
 /// Fuzzy matching configuration
@@ -83,8 +95,16 @@ pub struct MatchingConfig {
 }
 
 // Default value functions
-fn default_template_dir() -> String {
-    "~/.config/sldr/templates".to_string()
+fn default_library() -> String {
+    "~/sldr".to_string()
+}
+
+fn default_scaffold_dir() -> String {
+    "~/.config/sldr/scaffolds".to_string()
+}
+
+fn default_layout_dir() -> String {
+    "~/.config/sldr/layouts".to_string()
 }
 
 fn default_flavor_dir() -> String {
@@ -111,8 +131,8 @@ fn default_output_dir() -> String {
     "~/sldr/presentations".to_string()
 }
 
-fn default_skeleton_dir() -> String {
-    "~/sldr/skeletons".to_string()
+fn default_playlist_dir() -> String {
+    "~/sldr/playlists".to_string()
 }
 
 fn default_resolution_order() -> Vec<String> {
@@ -136,7 +156,9 @@ fn default_max_suggestions() -> usize {
 impl Default for CoreConfig {
     fn default() -> Self {
         Self {
-            template_dir: default_template_dir(),
+            library: default_library(),
+            scaffold_dir: default_scaffold_dir(),
+            layout_dir: default_layout_dir(),
             flavor_dir: default_flavor_dir(),
             default_flavor: default_flavor(),
             dev_port: default_dev_port(),
@@ -150,7 +172,7 @@ impl Default for PresentationsConfig {
         Self {
             slide_dir: default_slide_dir(),
             output_dir: default_output_dir(),
-            skeleton_dir: default_skeleton_dir(),
+            playlist_dir: default_playlist_dir(),
         }
     }
 }
@@ -273,14 +295,43 @@ impl Config {
         Self::expand_path(&self.presentations.output_dir)
     }
 
-    /// Get the expanded skeleton directory path
-    pub fn skeleton_dir(&self) -> PathBuf {
-        Self::expand_path(&self.presentations.skeleton_dir)
+    /// Get the expanded playlist directory path
+    pub fn playlist_dir(&self) -> PathBuf {
+        Self::expand_path(&self.presentations.playlist_dir)
     }
 
-    /// Get the expanded template directory path
-    pub fn template_dir(&self) -> PathBuf {
-        Self::expand_path(&self.config.template_dir)
+    /// Get the expanded scaffold directory path
+    pub fn scaffold_dir(&self) -> PathBuf {
+        Self::expand_path(&self.config.scaffold_dir)
+    }
+
+    /// Get the expanded user layout directory path
+    pub fn layout_dir(&self) -> PathBuf {
+        Self::expand_path(&self.config.layout_dir)
+    }
+
+    /// Get the expanded library root (ADR-0007)
+    pub fn library(&self) -> PathBuf {
+        Self::expand_path(&self.config.library)
+    }
+
+    /// Flavor search dirs, highest priority first:
+    /// library/flavors, then the configured extra flavor_dir.
+    pub fn flavor_dirs(&self) -> Vec<PathBuf> {
+        vec![self.library().join("flavors"), self.flavor_dir()]
+    }
+
+    /// Layout dirs in *load* order (later loads override earlier ones, so
+    /// the library wins over the configured extra dir, which wins over
+    /// built-ins).
+    pub fn layout_dirs(&self) -> Vec<PathBuf> {
+        vec![self.layout_dir(), self.library().join("layouts")]
+    }
+
+    /// Scaffold search dirs, highest priority first:
+    /// library/scaffolds, then the configured extra scaffold_dir.
+    pub fn scaffold_dirs(&self) -> Vec<PathBuf> {
+        vec![self.library().join("scaffolds"), self.scaffold_dir()]
     }
 
     /// Get the expanded flavor directory path

@@ -3,7 +3,6 @@
 //! Builds the presentation, serves it on a local port, watches for file
 //! changes, and triggers browser reload via Server-Sent Events (SSE).
 
-use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -39,27 +38,46 @@ const LIVE_RELOAD_SCRIPT: &str = r"
 ";
 
 pub fn run(
-    skeleton_name: &str,
+    playlist_name: &str,
     flavor: Option<String>,
     port: Option<u16>,
+    host: &str,
 ) -> Result<()> {
     let config = Config::load()?;
 
     println!(
         "{} presentation '{}' with live reload",
         "Watching".green().bold(),
-        skeleton_name.cyan()
+        playlist_name.cyan()
     );
 
-    // Load skeleton
-    let skeleton = super::build::load_skeleton(&config, skeleton_name)?;
+    // Load playlist
+    let playlist = super::build::load_playlist(&config, playlist_name)?;
 
-    // Determine flavor
-    let flavor_name = flavor
-        .or(skeleton.flavor.clone())
+    // Flavor axis: comma list = embed set, first active (same as build).
+    let flavor_arg = flavor
+        .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
-    let flavor = super::build::load_flavor(&config, &flavor_name)?;
-    println!("  {} {}", "Flavor:".dimmed(), flavor.name.yellow());
+    let flavor_names: Vec<String> = flavor_arg
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect();
+    let mut flavors = Vec::new();
+    for name in &flavor_names {
+        flavors.push(super::build::load_flavor(&config, name)?);
+    }
+    println!(
+        "  {} {}",
+        "Flavor:".dimmed(),
+        flavors
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+            .yellow()
+    );
 
     // Determine port
     let port = port.unwrap_or_else(|| {
@@ -75,28 +93,28 @@ pub fn run(
     let matcher = sldr_core::fuzzy::SldrMatcher::new(config.matching.clone());
 
     let mut resolved_slides = Vec::new();
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         if let Some(slide) = super::build::resolve_with_interactive(&matcher, slide_ref, &slides)? {
             resolved_slides.push(slide);
         }
     }
 
     if resolved_slides.is_empty() {
-        anyhow::bail!("No slides resolved. Add slides to your skeleton first.");
+        anyhow::bail!("No slides resolved. Add slides to your playlist first.");
     }
 
-    let title = skeleton
+    let title = playlist
         .title
         .clone()
-        .unwrap_or_else(|| skeleton.name.clone());
+        .unwrap_or_else(|| playlist.name.clone());
 
-    let transition = skeleton
+    let transition = playlist
         .slidev_config
         .transition
         .clone()
         .unwrap_or_else(|| "fade".to_string());
 
-    let aspect_ratio = skeleton
+    let aspect_ratio = playlist
         .slidev_config
         .aspect_ratio
         .clone()
@@ -110,7 +128,7 @@ pub fn run(
         ..Default::default()
     };
 
-    let html = build_html(&render_config, &flavor, &resolved_slides)?;
+    let html = build_html(&render_config, &flavors, &resolved_slides)?;
     let html = inject_live_reload(&html);
 
     // Shared state for the server
@@ -123,7 +141,7 @@ pub fn run(
 
     rt.block_on(async {
         // Check if port is available
-        let addr = format!("127.0.0.1:{port}");
+        let addr = format!("{host}:{port}");
         let listener = tokio::net::TcpListener::bind(&addr)
             .await
             .with_context(|| format!("Port {port} is already in use"))?;
@@ -166,34 +184,42 @@ pub fn run(
             );
 
         println!(
-            "\n  {} http://127.0.0.1:{}",
+            "\n  {} http://{}:{}",
             "Serving at".green().bold(),
+            host.cyan(),
             port.to_string().cyan()
         );
+        if host == "0.0.0.0" {
+            // Bound to all interfaces — print the LAN-reachable URLs so a
+            // phone or second machine has something to actually type.
+            for ip in lan_ips() {
+                println!("  {} http://{}:{}", "LAN:".dimmed(), ip.cyan(), port);
+            }
+        }
         println!("  {} Watching for changes... (Ctrl+C to stop)", "i".blue());
 
-        // Set up file watcher
-        let slide_dir = config.slide_dir();
-        let skeleton_dir = config.skeleton_dir();
-        let flavor_dir = config.flavor_dir();
+        // Set up file watcher. Watch every dir that feeds a rebuild:
+        // slides, playlists, and *all* flavor + layout search dirs (library
+        // and configured-extra) — not just the one configured flavor dir, so
+        // edits to library flavors and to layouts live-reload too (#1).
+        let mut watch_dirs = vec![config.slide_dir(), config.playlist_dir()];
+        watch_dirs.extend(config.flavor_dirs());
+        watch_dirs.extend(config.layout_dirs());
 
         let html_for_watcher = Arc::clone(&html_state);
         let reload_tx_for_watcher = Arc::clone(&reload_tx);
 
-        // Clone what the watcher callback needs
+        // Clone what the watcher callback needs. Carry flavor *names*, not the
+        // resolved flavors, so each rebuild re-reads the flavor from disk and
+        // flavor-file edits actually take effect.
         let watch_config = config.clone();
-        let watch_skeleton_name = skeleton_name.to_string();
-        let watch_flavor = flavor.clone();
+        let watch_playlist_name = playlist_name.to_string();
+        let watch_flavor_names = flavor_names.clone();
         let watch_render_config = render_config.clone();
 
         let (watch_tx, mut watch_rx) = tokio::sync::mpsc::channel::<()>(1);
 
-        let _watcher = spawn_file_watcher(
-            &slide_dir,
-            &skeleton_dir,
-            &flavor_dir,
-            watch_tx,
-        )?;
+        let _watcher = spawn_file_watcher(&watch_dirs, watch_tx)?;
 
         // Spawn the rebuild task
         tokio::spawn(async move {
@@ -205,9 +231,9 @@ pub fn run(
                 // Rebuild
                 match rebuild_presentation(
                     &watch_config,
-                    &watch_skeleton_name,
+                    &watch_playlist_name,
                     &watch_render_config,
-                    &watch_flavor,
+                    &watch_flavor_names,
                 ) {
                     Ok(new_html) => {
                         let new_html = inject_live_reload(&new_html);
@@ -256,11 +282,15 @@ pub fn run(
 
 fn build_html(
     config: &RenderConfig,
-    flavor: &Flavor,
+    flavors: &[Flavor],
     slides: &[sldr_core::slide::Slide],
 ) -> Result<String> {
-    let mut renderer = HtmlRenderer::new(config.clone()).add_flavor(flavor.clone());
-    renderer.add_slides(slides);
+    let mut renderer = HtmlRenderer::new(config.clone()).add_flavors(flavors.to_vec());
+    // Reload user layouts on every rebuild so layout edits live-reload too.
+    for dir in sldr_core::config::Config::load()?.layout_dirs() {
+        renderer.load_layouts(&dir)?;
+    }
+    renderer.add_slides(slides)?;
     renderer.render()
 }
 
@@ -280,21 +310,28 @@ fn inject_live_reload(html: &str) -> String {
 
 fn rebuild_presentation(
     config: &Config,
-    skeleton_name: &str,
+    playlist_name: &str,
     render_config: &RenderConfig,
-    flavor: &Flavor,
+    flavor_names: &[String],
 ) -> Result<String> {
-    let skeleton = sldr_core::presentation::Skeleton::load(
+    // Re-resolve flavors from disk on every rebuild so flavor-file edits
+    // (colors, background, logos, fonts) take effect, not just slide edits.
+    let mut flavors = Vec::new();
+    for name in flavor_names {
+        flavors.push(super::build::load_flavor(config, name)?);
+    }
+
+    let playlist = sldr_core::presentation::Playlist::load(
         &config
-            .skeleton_dir()
-            .join(format!("{skeleton_name}.toml")),
+            .playlist_dir()
+            .join(format!("{playlist_name}.toml")),
     )?;
 
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
     let matcher = sldr_core::fuzzy::SldrMatcher::new(config.matching.clone());
 
     let mut resolved = Vec::new();
-    for slide_ref in &skeleton.slides {
+    for slide_ref in &playlist.slides {
         if let sldr_core::fuzzy::ResolveResult::Found(result) =
             matcher.resolve(slide_ref, &slides.names())
         {
@@ -304,13 +341,11 @@ fn rebuild_presentation(
         }
     }
 
-    build_html(render_config, flavor, &resolved)
+    build_html(render_config, &flavors, &resolved)
 }
 
 fn spawn_file_watcher(
-    slide_dir: &Path,
-    skeleton_dir: &Path,
-    flavor_dir: &Path,
+    dirs: &[std::path::PathBuf],
     tx: tokio::sync::mpsc::Sender<()>,
 ) -> Result<RecommendedWatcher> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -321,15 +356,39 @@ fn spawn_file_watcher(
         }
     })?;
 
-    if slide_dir.exists() {
-        watcher.watch(slide_dir, RecursiveMode::Recursive)?;
-    }
-    if skeleton_dir.exists() {
-        watcher.watch(skeleton_dir, RecursiveMode::Recursive)?;
-    }
-    if flavor_dir.exists() {
-        watcher.watch(flavor_dir, RecursiveMode::Recursive)?;
+    // De-dup: library and configured-extra dirs can coincide; watching the
+    // same path twice errors on some platforms.
+    let mut seen = std::collections::HashSet::new();
+    for dir in dirs {
+        if dir.exists() && seen.insert(dir.clone()) {
+            watcher.watch(dir, RecursiveMode::Recursive)?;
+        }
     }
 
     Ok(watcher)
+}
+
+/// Non-loopback IPv4 addresses of this machine, for printing reachable
+/// URLs when bound to 0.0.0.0. Best-effort: parses `ip -4 addr` /
+/// `ifconfig` output; returns empty when neither tool exists.
+fn lan_ips() -> Vec<String> {
+    let output = std::process::Command::new("ip")
+        .args(["-4", "addr"])
+        .output()
+        .or_else(|_| std::process::Command::new("ifconfig").output());
+    let Ok(output) = output else {
+        return Vec::new();
+    };
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut ips = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("inet ") {
+            let ip = rest.split(['/', ' ']).next().unwrap_or("");
+            if !ip.is_empty() && !ip.starts_with("127.") && !ips.contains(&ip.to_string()) {
+                ips.push(ip.to_string());
+            }
+        }
+    }
+    ips
 }

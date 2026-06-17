@@ -1,0 +1,94 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "acid-lab"
+display_name = "Acid Lab"
+description = "Chartreuse on graphite, Archivo Black slabs, zero apology. The deck equivalent of a warehouse rave flyer."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap",
+]
+
+[curation]
+mood = ["loud", "raw", "energetic", "irreverent"]
+tone = ["punchy", "rebellious", "playful-aggressive"]
+occasion = ["hackathon", "internal hype deck", "music/culture event", "startup all-hands"]
+formality = "low"
+density = "medium"
+scheme = "dark"
+best_for = "Hackathons, hype decks, culture and music events — anywhere volume is a feature."
+avoid_for = "Clients, boards, anyone you need to reassure rather than energize."
+
+[colors]
+primary = "#d8f23a"
+secondary = "#b9b9b9"
+background = "#1c1c1c"
+text = "#f2f2f2"
+text_dim = "#9a9a9a"
+accent = "#d8f23a"
+accent_dim = "rgba(216, 242, 58, 0.12)"
+surface = "#262626"
+surface2 = "#303030"
+border = "#3c3c3c"
+border_bright = "#d8f23a"
+muted = "rgba(242, 242, 242, 0.05)"
+code_background = "#141414"
+code_text = "#e8e8e8"
+
+[dark_colors]
+primary = "#d8f23a"
+secondary = "#b9b9b9"
+background = "#121212"
+text = "#f6f6f6"
+text_dim = "#a0a0a0"
+accent = "#d8f23a"
+accent_dim = "rgba(216, 242, 58, 0.14)"
+surface = "#1d1d1d"
+surface2 = "#272727"
+border = "#343434"
+border_bright = "#d8f23a"
+muted = "rgba(246, 246, 246, 0.05)"
+code_background = "#0e0e0e"
+code_text = "#e8e8e8"
+
+[typography]
+heading_font = "'Archivo Black', 'Archivo', system-ui, sans-serif"
+body_font = "'Archivo', system-ui, sans-serif"
+code_font = "'Space Mono', monospace"
+heading_weight = "400"
+body_weight = "400"
+heading_tracking = "0"
+body_tracking = "0.01em"
+heading_leading = "0.98"
+body_leading = "1.55"
+heading_transform = "uppercase"
+eyebrow_transform = "uppercase"
+
+[spacing]
+slide_padding_y = "clamp(40px, 6vh, 76px)"
+slide_padding_x = "clamp(44px, 6vw, 104px)"
+content_max_width = "none"
+density = "compact"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "3px"
+border_style = "solid"
+
+[shadow]
+sm = "4px 4px 0 rgba(216, 242, 58, 0.9)"
+md = "6px 6px 0 rgba(216, 242, 58, 0.9)"
+lg = "10px 10px 0 rgba(216, 242, 58, 0.9)"
+
+[motion]
+transition = "slide"
+easing = "cubic-bezier(0.16, 1, 0.3, 1)"
+duration = "200ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0
+
+[code]
+syntax_theme = "base16-ocean.dark"

@@ -1,0 +1,42 @@
+# Example presentation playlist for sldr
+#
+# Playlists define which slides to include in a presentation and
+# default settings for the presentation.
+#
+# Place this file in: ~/sldr/playlists/<playlist-name>.toml
+
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json"
+
+# Name of the playlist/presentation
+name = "example-talk"
+
+# Optional title for the presentation
+title = "Example Presentation"
+
+# Optional description
+description = "An example presentation playlist"
+
+# List of slides to include (names or paths)
+# Slides can be:
+# - Simple names: "intro", "conclusion"
+# - Paths with directories: "ai/transformers", "projects/mlops"
+slides = [
+    "intro",
+    "getting-started",
+    "conclusion",
+]
+
+# Default flavor to use for styling
+flavor = "default"
+
+# Rendering configuration
+# (key kept as slidev_config for backwards compat with existing playlists)
+[slidev_config]
+# Transition effect between slides: "fade", "slide-left", "slide-right", "none"
+transition = "fade"
+
+# Aspect ratio hint for PDF/PPTX export (HTML output is fully responsive)
+aspect_ratio = "16/9"
+
+# Start in dark mode
+dark_mode = false

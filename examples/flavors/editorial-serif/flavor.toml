@@ -1,0 +1,98 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "editorial-serif"
+display_name = "Editorial Serif"
+description = "Magazine-grade serif headlines on warm paper. Generous whitespace, tight tracking, hairline rules."
+
+[curation]
+mood = ["literary", "warm", "considered"]
+tone = ["editorial", "serif", "quiet"]
+occasion = ["research talk", "essay", "cultural-institution deck", "long-form report"]
+formality = "medium-high"
+density = "low"
+scheme = "light"
+best_for = "Long-form essays, research presentations, and cultural-institution decks where the speaker wants prose to read as written rather than performed."
+avoid_for = "Punchy product pitches, dense data dashboards, or anything that needs to feel modern-graphic — the warm paper and serif voice commit to a quiet editorial register."
+
+[colors]
+primary = "#1a1a1a"
+secondary = "#5a5a5a"
+background = "#f5f1e8"
+text = "#1a1a1a"
+text_dim = "#6b6b6b"
+accent = "#a83232"
+accent_dim = "rgba(168, 50, 50, 0.06)"
+surface = "#ede6d3"
+surface2 = "#e3dac3"
+border = "rgba(26, 26, 26, 0.12)"
+border_bright = "rgba(26, 26, 26, 0.24)"
+muted = "rgba(26, 26, 26, 0.04)"
+code_background = "#ede6d3"
+code_text = "#1a1a1a"
+
+[dark_colors]
+primary = "#f5f1e8"
+secondary = "#c8c0ad"
+background = "#1a1714"
+text = "#f5f1e8"
+text_dim = "#a8a090"
+accent = "#e07b7b"
+accent_dim = "rgba(224, 123, 123, 0.08)"
+surface = "#241f1a"
+surface2 = "#2e2822"
+border = "rgba(245, 241, 232, 0.10)"
+border_bright = "rgba(245, 241, 232, 0.20)"
+muted = "rgba(245, 241, 232, 0.04)"
+code_background = "#241f1a"
+code_text = "#f5f1e8"
+
+[typography]
+heading_font = "'GT Sectra', 'Tiempos Headline', 'Playfair Display', Georgia, serif"
+body_font = "'Tiempos Text', 'Source Serif Pro', Georgia, serif"
+code_font = "'JetBrains Mono', 'IBM Plex Mono', monospace"
+heading_weight = "700"
+body_weight = "400"
+heading_tracking = "-0.02em"
+body_tracking = "0.005em"
+heading_leading = "1.05"
+body_leading = "1.6"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+
+[spacing]
+slide_padding_y = "clamp(56px, 9vh, 112px)"
+slide_padding_x = "clamp(64px, 10vw, 160px)"
+content_max_width = "68ch"
+density = "spacious"
+stack_gap = "clamp(20px, 3vh, 40px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "2px"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "0 1px 0 rgba(26, 26, 26, 0.08)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "400ms"
+
+[decoration]
+accent = "page-numbers"
+# 0 = flat paper (no atmospheric radial glow). Editorial typography wants
+# a stable, even ground; no shifting backdrops between slides.
+intensity = 0.0
+
+[code]
+# Solarized (light) has a cream background (#fdf6e3) that sits cleanly on
+# warm paper. Other syntect-bundled options: "InspiredGitHub" (pure white),
+# "base16-ocean.light", "Solarized (dark)", "base16-ocean.dark".
+syntax_theme = "Solarized (light)"
+frame_style = "minimal"
+line_numbers = false

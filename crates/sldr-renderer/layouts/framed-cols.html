@@ -1,0 +1,22 @@
+<!-- Layout: framed-cols — deck chrome (framed) with a two-column body
+     (::left:: / ::right:: markers). Shared chrome CSS in base.css. -->
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    <div class="sldr-frame-cols">
+      <div class="sldr-col">
+        {{left}}
+      </div>
+      <div class="sldr-col">
+        {{right}}
+      </div>
+    </div>
+  </div>
+  <footer class="sldr-frame-foot">
+    {{footer}}
+    {{source}}
+  </footer>
+</div>

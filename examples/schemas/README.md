@@ -12,7 +12,7 @@ This directory contains JSON schemas and example configurations for sldr. These 
 |--------|---------|-------------------|
 | `sldr.config.schema.json` | Main sldr configuration (`config.toml`) | ✓ |
 | `sldr.flavor.schema.json` | Flavor/theme configuration (`flavor.toml`) | ✓ |
-| `sldr.skeleton.schema.json` | Presentation skeleton configuration (`skeleton.toml`) | ✓ |
+| `sldr.playlist.schema.json` | Presentation playlist configuration (`playlist.toml`) | ✓ |
 
 ## Example Configs
 
@@ -22,7 +22,7 @@ Located in parent `examples/` directory:
 |------|---------|
 | `config.toml` | Main configuration with all options documented |
 | `example-flavor.toml` | Flavor configuration showing all visual settings |
-| `example-skeleton.toml` | Skeleton configuration showing presentation structure |
+| `example-playlist.toml` | Playlist configuration showing presentation structure |
 
 ## Using Schemas
 

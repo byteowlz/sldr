@@ -1,0 +1,39 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json"
+
+name = "reference"
+title = "The sldr User Guide"
+description = "Reference deck: every built-in layout exactly once, teaching sldr along the way. Rebuild with any --flavor to audition it."
+default_lang = "en"
+
+slides = [
+  "reference/01-cover",
+  "reference/02-intro",
+  "reference/03-agenda",
+  "reference/04-section-basics",
+  "reference/05-slides-are-files",
+  "reference/06-statement",
+  "reference/07-pillars",
+  "reference/08-cli",
+  "reference/09-workflow",
+  "reference/10-two-cols",
+  "reference/11-two-cols-header",
+  "reference/12-hero-stat",
+  "reference/13-versus",
+  "reference/14-flavors",
+  "reference/15-quote",
+  "reference/16-shortcuts",
+  "reference/17-image-right",
+  "reference/18-image-left",
+  "reference/19-feature-image",
+  "reference/20-full-bleed",
+  "reference/21-image-grid",
+  "reference/22-image-row",
+  "reference/23-portraits",
+  "reference/24-image-stack",
+  "reference/25-end",
+  "reference/26-contact",
+]
+
+[slidev_config]
+transition = "fade"
+aspect_ratio = "16/9"

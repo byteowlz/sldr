@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
-use axum::extract::{Json, State as AxumState};
+use anyhow::{anyhow, Context, Result};
+use axum::extract::{Json, Query, State as AxumState};
 use axum::http::StatusCode;
 use axum::response::Html;
 use axum::routing::{get, post};
@@ -12,10 +12,88 @@ use axum::Router;
 use colored::Colorize;
 use serde::Deserialize;
 use sldr_core::config::Config;
+use sldr_core::flavor::FlavorCollection;
 use tokio::net::TcpListener;
 
 /// The flavor builder HTML page (embedded at compile time)
 const BUILDER_HTML: &str = include_str!("../../../sldr-renderer/assets/flavor-builder.html");
+
+/// Tiny postMessage receiver injected into the sample-deck iframe so the
+/// builder can push live token updates and switch preview modes without
+/// an iframe reload.
+///
+/// Protocols:
+/// - `{type:'flavor-update', tokens:{'sldr-background':'#fff', ...}, scheme?:'light'|'dark'}`
+///   Tokens may be passed with or without the leading `--`. Empty/null values
+///   are skipped. Setting `scheme` toggles `html.dark` so dark-mode tokens
+///   activate without re-rendering.
+/// - `{type:'flavor-mode', mode:'gallery'|'focus'}` — gallery stacks all
+///   sample slides vertically (CSS shim), focus restores the standard
+///   single-slide presenter behavior.
+const FLAVOR_LIVE_PATCHER_JS: &str = r#"
+<script data-sldr-flavor-live-patcher>
+(function () {
+  function applyTokens(payload) {
+    var tokens = (payload && payload.tokens) || {};
+    var existing = document.getElementById('sldr-flavor-live');
+    if (!existing) {
+      existing = document.createElement('style');
+      existing.id = 'sldr-flavor-live';
+      existing.setAttribute('data-flavor-live', '');
+      document.head.appendChild(existing);
+    }
+    var lines = [':root, html.dark {'];
+    Object.keys(tokens).forEach(function (k) {
+      var v = tokens[k];
+      if (v === null || v === undefined || v === '') return;
+      var key = k.indexOf('--') === 0 ? k : ('--' + k);
+      lines.push('  ' + key + ': ' + v + ';');
+    });
+    lines.push('}');
+    existing.textContent = lines.join('\n');
+    if (payload && payload.scheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (payload && payload.scheme === 'light') {
+      document.documentElement.classList.remove('dark');
+    }
+  }
+  // Gallery shim: force every .sldr-slide visible and stacked, hide
+  // presenter chrome. Removed when switching back to focus mode so the
+  // built-in presenter resumes control.
+  var GALLERY_CSS = [
+    'html, body { overflow-y: auto !important; overflow-x: hidden !important; height: auto !important; }',
+    '.sldr-deck { position: static !important; height: auto !important; width: 100% !important; overflow: visible !important; }',
+    '.sldr-slide { display: flex !important; position: relative !important; inset: auto !important; height: 100vh !important; width: 100% !important; opacity: 1 !important; }',
+    '.sldr-slide[aria-hidden] { display: flex !important; }',
+    '.sldr-progress, .sldr-toolbar, .sldr-overview, .sldr-presenter-toolbar { display: none !important; }'
+  ].join('\n');
+  function applyMode(mode) {
+    document.documentElement.dataset.previewMode = mode || 'focus';
+    var existing = document.getElementById('sldr-preview-mode');
+    if (mode === 'gallery') {
+      if (!existing) {
+        existing = document.createElement('style');
+        existing.id = 'sldr-preview-mode';
+        document.head.appendChild(existing);
+      }
+      existing.textContent = GALLERY_CSS;
+    } else if (existing) {
+      existing.remove();
+    }
+  }
+  window.addEventListener('message', function (e) {
+    if (!e.data) return;
+    if (e.data.type === 'flavor-update') applyTokens(e.data);
+    else if (e.data.type === 'flavor-mode') applyMode(e.data.mode);
+  });
+  // Tell the parent we're ready so it can push the current flavor state
+  // and preview mode.
+  if (window.parent && window.parent !== window) {
+    try { window.parent.postMessage({type:'flavor-iframe-ready'}, '*'); } catch (_) {}
+  }
+})();
+</script>
+"#;
 
 /// Shared state for routes that need access to paths
 #[derive(Clone)]
@@ -44,12 +122,12 @@ struct UploadLogoRequest {
     mime: String,
 }
 
-pub fn run(flavor_name: Option<String>, port: u16) -> Result<()> {
+pub fn run(flavor_name: Option<String>, port: u16, host: &str) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(async { run_server(flavor_name, port).await })
+    rt.block_on(async { run_server(flavor_name, port, host).await })
 }
 
-async fn run_server(flavor_name: Option<String>, port: u16) -> Result<()> {
+async fn run_server(flavor_name: Option<String>, port: u16, host: &str) -> Result<()> {
     let config = Config::load()?;
     let flavor_dir = config.flavor_dir();
 
@@ -63,13 +141,14 @@ async fn run_server(flavor_name: Option<String>, port: u16) -> Result<()> {
 
     let app = Router::new()
         .route("/", get(|| async { Html(BUILDER_HTML) }))
+        .route("/sample.html", get(handle_sample_html))
         .route("/api/flavor/current", get(handle_get_flavor))
         .route("/api/flavor/save", post(handle_save_flavor))
         .route("/api/logo/upload", post(handle_upload_logo))
         .route("/api/logo/list", get(handle_list_logos))
         .with_state(shared);
 
-    let addr = format!("127.0.0.1:{port}");
+    let addr = format!("{host}:{port}");
     let listener = TcpListener::bind(&addr)
         .await
         .context("Failed to bind port")?;
@@ -82,7 +161,7 @@ async fn run_server(flavor_name: Option<String>, port: u16) -> Result<()> {
         url.cyan().bold()
     );
     println!("  {} Press {} to randomize, {} to shuffle colors, {} to toggle light/dark", "Keys:".dimmed(), "R".bold(), "C".bold(), "D".bold());
-    println!("  {} {} / {} to cycle templates", "     ".dimmed(), "Left".bold(), "Right".bold());
+    println!("  {} {} / {} to cycle layouts", "     ".dimmed(), "Left".bold(), "Right".bold());
     println!("  {} Press {} to quit\n", "     ".dimmed(), "Ctrl+C".bold());
 
     // Open in browser
@@ -126,6 +205,46 @@ async fn handle_get_flavor(
                 "heading_font": flavor.typography.heading_font,
                 "body_font": flavor.typography.body_font,
                 "code_font": flavor.typography.code_font,
+                "heading_weight": flavor.typography.heading_weight,
+                "body_weight": flavor.typography.body_weight,
+                "heading_tracking": flavor.typography.heading_tracking,
+                "body_tracking": flavor.typography.body_tracking,
+                "heading_leading": flavor.typography.heading_leading,
+                "body_leading": flavor.typography.body_leading,
+                "heading_transform": flavor.typography.heading_transform,
+                "eyebrow_transform": flavor.typography.eyebrow_transform,
+            });
+            let spacing = serde_json::json!({
+                "slide_padding_x": flavor.spacing.slide_padding_x,
+                "slide_padding_y": flavor.spacing.slide_padding_y,
+                "content_max_width": flavor.spacing.content_max_width,
+                "stack_gap": flavor.spacing.stack_gap,
+                "density": flavor.spacing.density,
+            });
+            let shape = serde_json::json!({
+                "radius": flavor.shape.radius,
+                "radius_sm": flavor.shape.radius_sm,
+                "radius_lg": flavor.shape.radius_lg,
+                "border_width": flavor.shape.border_width,
+                "border_style": flavor.shape.border_style,
+            });
+            let shadow = serde_json::json!({
+                "sm": flavor.shadow.sm,
+                "md": flavor.shadow.md,
+                "lg": flavor.shadow.lg,
+            });
+            let motion = serde_json::json!({
+                "transition": flavor.motion.transition,
+                "easing": flavor.motion.easing,
+                "duration": flavor.motion.duration,
+            });
+            let decoration = serde_json::json!({
+                "accent": flavor.decoration.accent,
+                "intensity": flavor.decoration.intensity,
+            });
+            let code = serde_json::json!({
+                "syntax_theme": flavor.code.syntax_theme,
+                "frame_style": flavor.code.frame_style,
             });
 
             // Build logo entries with data URIs for preview
@@ -139,7 +258,7 @@ async fn handle_get_flavor(
                     "y": l.y,
                     "width": l.width,
                     "opacity": l.opacity,
-                    "templates": l.templates,
+                    "layouts": l.layouts,
                     "dataUri": data_uri,
                 })
             }).collect();
@@ -148,6 +267,12 @@ async fn handle_get_flavor(
                 "name": flavor.name,
                 "colors": colors,
                 "typography": typography,
+                "spacing": spacing,
+                "shape": shape,
+                "shadow": shadow,
+                "motion": motion,
+                "decoration": decoration,
+                "code": code,
                 "logos": logos,
             });
             if let Some(dc) = dark_colors {
@@ -283,6 +408,57 @@ async fn handle_list_logos(
     }
 
     (StatusCode::OK, Json(serde_json::json!({"files": files})))
+}
+
+#[derive(Deserialize)]
+struct SampleQuery {
+    /// Flavor name. Defaults to the initial flavor the builder was launched with.
+    flavor: Option<String>,
+}
+
+async fn handle_sample_html(
+    AxumState(state): AxumState<Arc<AppState>>,
+    Query(q): Query<SampleQuery>,
+) -> Result<Html<String>, (StatusCode, String)> {
+    // Default: render the same flavor the builder is currently editing.
+    let initial_name = state
+        .initial_flavor_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("default")
+        .to_string();
+    let flavor_name = q.flavor.unwrap_or(initial_name);
+
+    let flavor = resolve_flavor(&state.flavor_dir, &flavor_name).map_err(|e| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Flavor '{flavor_name}' not found: {e}"),
+        )
+    })?;
+
+    let mut html = sldr_renderer::sample::render_sample(flavor, &[])
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Render failed: {e}")))?;
+
+    // Inject the live-patch listener just before </body> so live token updates
+    // can override the embedded <style data-flavor> block.
+    if let Some(idx) = html.rfind("</body>") {
+        html.insert_str(idx, FLAVOR_LIVE_PATCHER_JS);
+    } else {
+        html.push_str(FLAVOR_LIVE_PATCHER_JS);
+    }
+
+    Ok(Html(html))
+}
+
+fn resolve_flavor(flavor_dir: &std::path::Path, name: &str) -> Result<sldr_core::flavor::Flavor> {
+    let collection = FlavorCollection::load_from_dir(flavor_dir)?;
+    if let Some(f) = collection.find(name) {
+        return Ok(f.clone());
+    }
+    if name == "default" {
+        return Ok(sldr_core::flavor::Flavor::default());
+    }
+    Err(anyhow!("not in {}", flavor_dir.display()))
 }
 
 /// Read a logo file and return a data URI for preview, or None

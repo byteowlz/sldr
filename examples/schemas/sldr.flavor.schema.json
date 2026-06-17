@@ -21,17 +21,47 @@
         "value": null
       }
     },
+    "code": {
+      "description": "Code block styling",
+      "$ref": "#/$defs/Code",
+      "default": {
+        "frame_style": null,
+        "line_numbers": null,
+        "syntax_theme": null
+      }
+    },
     "colors": {
       "description": "Color scheme (light mode / default)",
       "$ref": "#/$defs/ColorScheme",
       "default": {
         "accent": null,
+        "accent_dim": null,
         "background": null,
+        "border": null,
+        "border_bright": null,
         "code_background": null,
         "code_text": null,
+        "muted": null,
         "primary": null,
         "secondary": null,
-        "text": null
+        "surface": null,
+        "surface2": null,
+        "text": null,
+        "text_dim": null
+      }
+    },
+    "curation": {
+      "description": "Curatorial metadata — how this flavor *feels* and where it fits.\nUsed by `sldr ls flavors` and agent matching: lets a brief like\n\"confident editorial pitch\" resolve to the right flavor without\nthe agent reading every flavor's TOML.",
+      "$ref": "#/$defs/Curation",
+      "default": {
+        "avoid_for": null,
+        "best_for": null,
+        "density": null,
+        "formality": null,
+        "mood": [],
+        "occasion": [],
+        "scheme": null,
+        "tone": []
       }
     },
     "dark_colors": {
@@ -45,6 +75,15 @@
         }
       ],
       "default": null
+    },
+    "decoration": {
+      "description": "Decorative ornaments",
+      "$ref": "#/$defs/Decoration",
+      "default": {
+        "accent": null,
+        "effect": null,
+        "intensity": null
+      }
     },
     "description": {
       "description": "Description of the flavor",
@@ -62,9 +101,77 @@
       ],
       "default": null
     },
+    "font_imports": {
+      "description": "External font stylesheets to load alongside the deck.\n\nEach entry is a full URL — typically a Google Fonts `css2` link.\nWhen the renderer builds the HTML, it emits a `<link rel=\"stylesheet\">`\nfor every URL across every active flavor (deduplicated). This lets a\nflavor declare its own typography stack without forcing every flavor\nin the deck to share one font set.\n\nExample: `font_imports = [\"https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap\"]`",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "footer": {
+      "description": "Deck footer line — persistent chrome (e.g. a copyright or\nconfidentiality notice) shown via a framed layout's `{{footer}}`\nslot. A slide's own `footer` frontmatter overrides this per slide.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "logos": {
+      "description": "Logo placements - positioned logo overlays on slides",
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/LogoPlacement"
+      }
+    },
+    "motion": {
+      "description": "Motion / transitions",
+      "$ref": "#/$defs/Motion",
+      "default": {
+        "duration": null,
+        "duration_fast": null,
+        "duration_slow": null,
+        "ease_out_expo": null,
+        "ease_out_quart": null,
+        "easing": null,
+        "transition": null
+      }
+    },
     "name": {
       "description": "Unique name for this flavor",
       "type": "string"
+    },
+    "shadow": {
+      "description": "Shadow / elevation scale",
+      "$ref": "#/$defs/Shadow",
+      "default": {
+        "lg": null,
+        "md": null,
+        "sm": null
+      }
+    },
+    "shape": {
+      "description": "Shape (radius, borders)",
+      "$ref": "#/$defs/Shape",
+      "default": {
+        "border_style": null,
+        "border_width": null,
+        "radius": null,
+        "radius_lg": null,
+        "radius_sm": null
+      }
+    },
+    "spacing": {
+      "description": "Spacing rhythm",
+      "$ref": "#/$defs/Spacing",
+      "default": {
+        "content_max_width": null,
+        "density": null,
+        "slide_padding_x": null,
+        "slide_padding_y": null,
+        "stack_gap": null
+      }
     },
     "typography": {
       "description": "Typography settings",
@@ -72,8 +179,20 @@
       "default": {
         "base_size": null,
         "body_font": null,
+        "body_leading": null,
+        "body_tracking": null,
+        "body_weight": null,
+        "body_wrap": null,
         "code_font": null,
-        "heading_font": null
+        "eyebrow_transform": null,
+        "font_features": null,
+        "heading_font": null,
+        "heading_leading": null,
+        "heading_tracking": null,
+        "heading_transform": null,
+        "heading_weight": null,
+        "heading_wrap": null,
+        "optical_sizing": null
       }
     }
   },
@@ -112,6 +231,36 @@
         }
       }
     },
+    "Code": {
+      "description": "Code block styling",
+      "type": "object",
+      "properties": {
+        "frame_style": {
+          "description": "Code frame style: \"card\", \"minimal\", \"terminal\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line_numbers": {
+          "description": "Show line numbers",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "syntax_theme": {
+          "description": "Syntax highlighting theme name (syntect)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
     "ColorScheme": {
       "description": "Color scheme for a flavor",
       "type": "object",
@@ -124,8 +273,32 @@
           ],
           "default": null
         },
+        "accent_dim": {
+          "description": "Dim accent (atmospheric glows, accent backgrounds)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "background": {
           "description": "Background color",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "border": {
+          "description": "Border color (subtle dividers)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "border_bright": {
+          "description": "Brighter border color (emphasised dividers, hovered cards)",
           "type": [
             "string",
             "null"
@@ -148,6 +321,14 @@
           ],
           "default": null
         },
+        "muted": {
+          "description": "Muted background (callouts, blockquotes, disabled)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "primary": {
           "description": "Primary brand color",
           "type": [
@@ -164,8 +345,410 @@
           ],
           "default": null
         },
+        "surface": {
+          "description": "Surface color (cards, columns, callouts)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "surface2": {
+          "description": "Elevated surface color (cards on cards, inset panels)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "text": {
           "description": "Text color",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "text_dim": {
+          "description": "Dim text (captions, footnotes, secondary copy)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "Curation": {
+      "description": "Curatorial metadata for a flavor — how it *feels* and where it fits.\n\nAll fields are optional. Inspired by the per-layout metadata in\n`beautiful-html-templates` (see CREDITS.md). Authors are encouraged\nto fill these in so agents can match a brief to a flavor without\nreading every flavor's TOML.",
+      "type": "object",
+      "properties": {
+        "avoid_for": {
+          "description": "One sentence: when *not* to use it. Soft warning, not a veto.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "best_for": {
+          "description": "One sentence: when to reach for this flavor. Lead with this when\nnarrating a pick to the user.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "density": {
+          "description": "How much content per slide the flavor is comfortable holding.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Density"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "formality": {
+          "description": "Audience-formality the flavor is comfortable with.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Formality"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mood": {
+          "description": "Emotional adjectives — e.g. \"confident\", \"playful\", \"literary\".\nMatch against the *feeling* the user wants.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "occasion": {
+          "description": "Example use cases — e.g. \"founder pitch\", \"research synthesis\".\nSoft signal, not a hard filter.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "scheme": {
+          "description": "Light / dark / mixed canvas preference (independent of dark-mode\ntoggle — describes the flavor's *primary* intent).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Scheme"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tone": {
+          "description": "Voice / personality — e.g. \"bold\", \"minimal\", \"design-led\", \"warm\".",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Decoration": {
+      "description": "Decorative ornaments — applied as a CSS class hook.\nRenderer adds `data-decoration=\"<accent>\"` to the deck root.",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Named ornament: \"none\", \"corner-rules\", \"side-rail\", \"dot-grid\",\n\"halftone\", \"swiss-bar\", \"page-numbers\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "effect": {
+          "description": "Animated background effect: \"stardust\", \"aurora\", \"grain\".\nPure CSS — deterministic, offline, honors prefers-reduced-motion,\nhidden in print. Part of the style layer: switches with the flavor.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "intensity": {
+          "description": "Intensity 0.0–1.0 (controls opacity / scale of the ornament)",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "float",
+          "default": null
+        }
+      }
+    },
+    "Density": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "Formality": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium-low",
+        "medium",
+        "medium-high",
+        "high"
+      ]
+    },
+    "LogoPlacement": {
+      "description": "A logo placement slot.\n\nDefines where a logo should appear, at what size/opacity,\nand on which slide layouts. The actual logo file is resolved\nfrom the flavor's assets directory at build time.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "Filename in the flavor's assets directory (e.g. \"company-logo.svg\")",
+          "type": "string"
+        },
+        "layouts": {
+          "description": "Which layouts this logo appears on.\nUse [\"all\"] for every slide, or specific layouts like [\"default\", \"two-cols\"].",
+          "type": "array",
+          "default": [
+            "all"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "opacity": {
+          "description": "Opacity 0.0-1.0",
+          "type": "number",
+          "format": "float",
+          "default": 0.800000011920929
+        },
+        "position": {
+          "description": "Named position preset: \"top-left\", \"top-right\", \"top-center\",\n\"bottom-left\", \"bottom-right\", \"bottom-center\"",
+          "type": "string",
+          "default": "top-right"
+        },
+        "width": {
+          "description": "Logo width (CSS value, e.g. \"120px\", \"8vw\")",
+          "type": "string",
+          "default": "100px"
+        },
+        "x": {
+          "description": "Custom X offset (CSS value, e.g. \"5%\", \"20px\"). Overrides position preset.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "y": {
+          "description": "Custom Y offset (CSS value, e.g. \"5%\", \"20px\"). Overrides position preset.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "file"
+      ]
+    },
+    "Motion": {
+      "description": "Motion / transitions",
+      "type": "object",
+      "properties": {
+        "duration": {
+          "description": "Transition duration (CSS, e.g. \"300ms\" — sets the base\n`--sldr-duration` and the mid tier `--sldr-duration-base`)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "duration_fast": {
+          "description": "Fast duration tier (CSS, e.g. \"150ms\") — UI feedback, hover states",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "duration_slow": {
+          "description": "Slow duration tier (CSS, e.g. \"600ms\") — emphasis transitions",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "ease_out_expo": {
+          "description": "`ease-out-expo` curve (defaults to cubic-bezier(0.16, 1, 0.3, 1))",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "ease_out_quart": {
+          "description": "`ease-out-quart` curve (defaults to cubic-bezier(0.25, 1, 0.5, 1))",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "easing": {
+          "description": "CSS easing function (sets the base `--sldr-easing`)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "transition": {
+          "description": "Slide transition preset: \"slide\", \"fade\", \"morph\", \"none\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "Scheme": {
+      "type": "string",
+      "enum": [
+        "light",
+        "dark",
+        "mixed"
+      ]
+    },
+    "Shadow": {
+      "description": "Shadow / elevation scale",
+      "type": "object",
+      "properties": {
+        "lg": {
+          "description": "Large elevation (hero, modals)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "md": {
+          "description": "Medium elevation (cards)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "sm": {
+          "description": "Small elevation (subtle lift)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "Shape": {
+      "description": "Shape (radius, borders)",
+      "type": "object",
+      "properties": {
+        "border_style": {
+          "description": "Border style: \"solid\", \"dashed\", \"none\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "border_width": {
+          "description": "Border width (CSS, e.g. \"1px\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "radius": {
+          "description": "Base border-radius (CSS, e.g. \"12px\", \"0\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "radius_lg": {
+          "description": "Large radius (hero cards, full-bleed media frames)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "radius_sm": {
+          "description": "Small radius (chips, code inline)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "Spacing": {
+      "description": "Spacing rhythm",
+      "type": "object",
+      "properties": {
+        "content_max_width": {
+          "description": "Max content width (CSS, e.g. \"70ch\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "density": {
+          "description": "Density preset: \"compact\" | \"comfortable\" | \"spacious\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "slide_padding_x": {
+          "description": "Slide horizontal padding (CSS)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "slide_padding_y": {
+          "description": "Slide vertical padding (CSS, e.g. \"6vh\", \"clamp(40px, 6vh, 80px)\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "stack_gap": {
+          "description": "Gap between stacked content blocks",
           "type": [
             "string",
             "null"
@@ -179,7 +762,7 @@
       "type": "object",
       "properties": {
         "base_size": {
-          "description": "Base font size",
+          "description": "Base font size (CSS, e.g. \"20px\")",
           "type": [
             "string",
             "null"
@@ -194,6 +777,38 @@
           ],
           "default": null
         },
+        "body_leading": {
+          "description": "Body line-height",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "body_tracking": {
+          "description": "Body letter-spacing",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "body_weight": {
+          "description": "Body font weight",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "body_wrap": {
+          "description": "Body text-wrap: \"pretty\" (avoid orphans), \"balance\", \"auto\".",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "code_font": {
           "description": "Code font family",
           "type": [
@@ -202,8 +817,72 @@
           ],
           "default": null
         },
+        "eyebrow_transform": {
+          "description": "Eyebrow / label text-transform (small overline labels)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "font_features": {
+          "description": "CSS font-feature-settings (e.g. `\"ss01\" 1, \"kern\" 1, \"liga\" 1`).\nLets flavors enable stylistic sets, ligatures, kerning.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "heading_font": {
           "description": "Heading font family",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "heading_leading": {
+          "description": "Heading line-height (unitless, e.g. \"1.05\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "heading_tracking": {
+          "description": "Heading letter-spacing (CSS, e.g. \"-0.03em\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "heading_transform": {
+          "description": "Heading text-transform: \"none\", \"uppercase\", \"lowercase\"",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "heading_weight": {
+          "description": "Heading font weight (e.g. \"700\", \"900\")",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "heading_wrap": {
+          "description": "Heading text-wrap: \"balance\" (even multi-line titles), \"pretty\",\n\"auto\", \"nowrap\". Default \"balance\" — suits hero titles.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "optical_sizing": {
+          "description": "CSS font-optical-sizing: \"auto\" (default) or \"none\".\nVariable fonts expose optical sizing; non-variable fonts ignore it.",
           "type": [
             "string",
             "null"

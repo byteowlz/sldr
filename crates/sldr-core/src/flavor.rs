@@ -28,6 +28,13 @@ pub struct Flavor {
     #[serde(default)]
     pub description: Option<String>,
 
+    /// Curatorial metadata — how this flavor *feels* and where it fits.
+    /// Used by `sldr ls flavors` and agent matching: lets a brief like
+    /// "confident editorial pitch" resolve to the right flavor without
+    /// the agent reading every flavor's TOML.
+    #[serde(default)]
+    pub curation: Curation,
+
     /// Color scheme (light mode / default)
     #[serde(default)]
     pub colors: ColorScheme,
@@ -44,13 +51,63 @@ pub struct Flavor {
     #[serde(default)]
     pub background: BackgroundConfig,
 
+    /// Spacing rhythm
+    #[serde(default)]
+    pub spacing: Spacing,
+
+    /// Shape (radius, borders)
+    #[serde(default)]
+    pub shape: Shape,
+
+    /// Shadow / elevation scale
+    #[serde(default)]
+    pub shadow: Shadow,
+
+    /// Motion / transitions
+    #[serde(default)]
+    pub motion: Motion,
+
+    /// Decorative ornaments
+    #[serde(default)]
+    pub decoration: Decoration,
+
+    /// Code block styling
+    #[serde(default)]
+    pub code: Code,
+
+    /// External font stylesheets to load alongside the deck.
+    ///
+    /// Each entry is a full URL — typically a Google Fonts `css2` link.
+    /// When the renderer builds the HTML, it emits a `<link rel="stylesheet">`
+    /// for every URL across every active flavor (deduplicated). This lets a
+    /// flavor declare its own typography stack without forcing every flavor
+    /// in the deck to share one font set.
+    ///
+    /// Example: `font_imports = ["https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"]`
+    #[serde(default)]
+    pub font_imports: Vec<String>,
+
     /// Logo placements - positioned logo overlays on slides
     #[serde(default)]
     pub logos: Vec<LogoPlacement>,
 
+    /// Deck footer line — persistent chrome (e.g. a copyright or
+    /// confidentiality notice) shown via a framed layout's `{{footer}}`
+    /// slot. A slide's own `footer` frontmatter overrides this per slide.
+    #[serde(default)]
+    pub footer: Option<String>,
+
     /// Path to additional assets (logos, images)
     #[serde(default)]
     pub assets_dir: Option<String>,
+
+    /// Inline CSS escape hatch — loaded from `flavor.css` next to `flavor.toml`.
+    /// Appended after generated tokens so it can override or extend anything.
+    /// Use sparingly: prefer tokens. Reserved for visual ideas tokens cannot
+    /// express (decorative SVGs, magazine layouts, frame ornaments).
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub custom_css: Option<String>,
 
     /// Source directory where the flavor was loaded from (not serialized)
     #[serde(skip)]
@@ -88,6 +145,34 @@ pub struct ColorScheme {
     /// Code text color
     #[serde(default)]
     pub code_text: Option<String>,
+
+    /// Surface color (cards, columns, callouts)
+    #[serde(default)]
+    pub surface: Option<String>,
+
+    /// Elevated surface color (cards on cards, inset panels)
+    #[serde(default)]
+    pub surface2: Option<String>,
+
+    /// Border color (subtle dividers)
+    #[serde(default)]
+    pub border: Option<String>,
+
+    /// Brighter border color (emphasised dividers, hovered cards)
+    #[serde(default)]
+    pub border_bright: Option<String>,
+
+    /// Dim text (captions, footnotes, secondary copy)
+    #[serde(default)]
+    pub text_dim: Option<String>,
+
+    /// Dim accent (atmospheric glows, accent backgrounds)
+    #[serde(default)]
+    pub accent_dim: Option<String>,
+
+    /// Muted background (callouts, blockquotes, disabled)
+    #[serde(default)]
+    pub muted: Option<String>,
 }
 
 /// Typography settings
@@ -105,9 +190,60 @@ pub struct Typography {
     #[serde(default)]
     pub code_font: Option<String>,
 
-    /// Base font size
+    /// Base font size (CSS, e.g. "20px")
     #[serde(default)]
     pub base_size: Option<String>,
+
+    /// Heading font weight (e.g. "700", "900")
+    #[serde(default)]
+    pub heading_weight: Option<String>,
+
+    /// Body font weight
+    #[serde(default)]
+    pub body_weight: Option<String>,
+
+    /// Heading letter-spacing (CSS, e.g. "-0.03em")
+    #[serde(default)]
+    pub heading_tracking: Option<String>,
+
+    /// Body letter-spacing
+    #[serde(default)]
+    pub body_tracking: Option<String>,
+
+    /// Heading line-height (unitless, e.g. "1.05")
+    #[serde(default)]
+    pub heading_leading: Option<String>,
+
+    /// Body line-height
+    #[serde(default)]
+    pub body_leading: Option<String>,
+
+    /// Heading text-transform: "none", "uppercase", "lowercase"
+    #[serde(default)]
+    pub heading_transform: Option<String>,
+
+    /// Eyebrow / label text-transform (small overline labels)
+    #[serde(default)]
+    pub eyebrow_transform: Option<String>,
+
+    /// Heading text-wrap: "balance" (even multi-line titles), "pretty",
+    /// "auto", "nowrap". Default "balance" — suits hero titles.
+    #[serde(default)]
+    pub heading_wrap: Option<String>,
+
+    /// Body text-wrap: "pretty" (avoid orphans), "balance", "auto".
+    #[serde(default)]
+    pub body_wrap: Option<String>,
+
+    /// CSS font-feature-settings (e.g. `"ss01" 1, "kern" 1, "liga" 1`).
+    /// Lets flavors enable stylistic sets, ligatures, kerning.
+    #[serde(default)]
+    pub font_features: Option<String>,
+
+    /// CSS font-optical-sizing: "auto" (default) or "none".
+    /// Variable fonts expose optical sizing; non-variable fonts ignore it.
+    #[serde(default)]
+    pub optical_sizing: Option<String>,
 }
 
 /// Background configuration
@@ -124,6 +260,210 @@ pub struct BackgroundConfig {
     /// Opacity for background overlay
     #[serde(default)]
     pub opacity: Option<f32>,
+}
+
+/// Spacing rhythm
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Spacing {
+    /// Slide vertical padding (CSS, e.g. "6vh", "clamp(40px, 6vh, 80px)")
+    #[serde(default)]
+    pub slide_padding_y: Option<String>,
+
+    /// Slide horizontal padding (CSS)
+    #[serde(default)]
+    pub slide_padding_x: Option<String>,
+
+    /// Max content width (CSS, e.g. "70ch")
+    #[serde(default)]
+    pub content_max_width: Option<String>,
+
+    /// Density preset: "compact" | "comfortable" | "spacious"
+    #[serde(default)]
+    pub density: Option<String>,
+
+    /// Gap between stacked content blocks
+    #[serde(default)]
+    pub stack_gap: Option<String>,
+}
+
+/// Shape (radius, borders)
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Shape {
+    /// Base border-radius (CSS, e.g. "12px", "0")
+    #[serde(default)]
+    pub radius: Option<String>,
+
+    /// Small radius (chips, code inline)
+    #[serde(default)]
+    pub radius_sm: Option<String>,
+
+    /// Large radius (hero cards, full-bleed media frames)
+    #[serde(default)]
+    pub radius_lg: Option<String>,
+
+    /// Border width (CSS, e.g. "1px")
+    #[serde(default)]
+    pub border_width: Option<String>,
+
+    /// Border style: "solid", "dashed", "none"
+    #[serde(default)]
+    pub border_style: Option<String>,
+}
+
+/// Shadow / elevation scale
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Shadow {
+    /// Small elevation (subtle lift)
+    #[serde(default)]
+    pub sm: Option<String>,
+
+    /// Medium elevation (cards)
+    #[serde(default)]
+    pub md: Option<String>,
+
+    /// Large elevation (hero, modals)
+    #[serde(default)]
+    pub lg: Option<String>,
+}
+
+/// Motion / transitions
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Motion {
+    /// Slide transition preset: "slide", "fade", "morph", "none"
+    #[serde(default)]
+    pub transition: Option<String>,
+
+    /// CSS easing function (sets the base `--sldr-easing`)
+    #[serde(default)]
+    pub easing: Option<String>,
+
+    /// Transition duration (CSS, e.g. "300ms" — sets the base
+    /// `--sldr-duration` and the mid tier `--sldr-duration-base`)
+    #[serde(default)]
+    pub duration: Option<String>,
+
+    /// Fast duration tier (CSS, e.g. "150ms") — UI feedback, hover states
+    #[serde(default)]
+    pub duration_fast: Option<String>,
+
+    /// Slow duration tier (CSS, e.g. "600ms") — emphasis transitions
+    #[serde(default)]
+    pub duration_slow: Option<String>,
+
+    /// `ease-out-quart` curve (defaults to cubic-bezier(0.25, 1, 0.5, 1))
+    #[serde(default)]
+    pub ease_out_quart: Option<String>,
+
+    /// `ease-out-expo` curve (defaults to cubic-bezier(0.16, 1, 0.3, 1))
+    #[serde(default)]
+    pub ease_out_expo: Option<String>,
+}
+
+/// Decorative ornaments — applied as a CSS class hook.
+/// Renderer adds `data-decoration="<accent>"` to the deck root.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Decoration {
+    /// Named ornament: "none", "corner-rules", "side-rail", "dot-grid",
+    /// "halftone", "swiss-bar", "page-numbers"
+    #[serde(default)]
+    pub accent: Option<String>,
+
+    /// Intensity 0.0–1.0 (controls opacity / scale of the ornament)
+    #[serde(default)]
+    pub intensity: Option<f32>,
+
+    /// Animated background effect: "stardust", "aurora", "grain".
+    /// Pure CSS — deterministic, offline, honors prefers-reduced-motion,
+    /// hidden in print. Part of the style layer: switches with the flavor.
+    #[serde(default)]
+    pub effect: Option<String>,
+}
+
+/// Code block styling
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Code {
+    /// Syntax highlighting theme name (syntect)
+    #[serde(default)]
+    pub syntax_theme: Option<String>,
+
+    /// Code frame style: "card", "minimal", "terminal"
+    #[serde(default)]
+    pub frame_style: Option<String>,
+
+    /// Show line numbers
+    #[serde(default)]
+    pub line_numbers: Option<bool>,
+}
+
+/// Curatorial metadata for a flavor — how it *feels* and where it fits.
+///
+/// All fields are optional. Inspired by the per-layout metadata in
+/// `beautiful-html-templates` (see CREDITS.md). Authors are encouraged
+/// to fill these in so agents can match a brief to a flavor without
+/// reading every flavor's TOML.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Curation {
+    /// Emotional adjectives — e.g. "confident", "playful", "literary".
+    /// Match against the *feeling* the user wants.
+    #[serde(default)]
+    pub mood: Vec<String>,
+
+    /// Voice / personality — e.g. "bold", "minimal", "design-led", "warm".
+    #[serde(default)]
+    pub tone: Vec<String>,
+
+    /// Example use cases — e.g. "founder pitch", "research synthesis".
+    /// Soft signal, not a hard filter.
+    #[serde(default)]
+    pub occasion: Vec<String>,
+
+    /// Audience-formality the flavor is comfortable with.
+    #[serde(default)]
+    pub formality: Option<Formality>,
+
+    /// How much content per slide the flavor is comfortable holding.
+    #[serde(default)]
+    pub density: Option<Density>,
+
+    /// Light / dark / mixed canvas preference (independent of dark-mode
+    /// toggle — describes the flavor's *primary* intent).
+    #[serde(default)]
+    pub scheme: Option<Scheme>,
+
+    /// One sentence: when to reach for this flavor. Lead with this when
+    /// narrating a pick to the user.
+    #[serde(default)]
+    pub best_for: Option<String>,
+
+    /// One sentence: when *not* to use it. Soft warning, not a veto.
+    #[serde(default)]
+    pub avoid_for: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Formality {
+    Low,
+    MediumLow,
+    Medium,
+    MediumHigh,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Density {
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Scheme {
+    Light,
+    Dark,
+    Mixed,
 }
 
 /// A logo placement slot.
@@ -159,8 +499,8 @@ pub struct LogoPlacement {
 
     /// Which layouts this logo appears on.
     /// Use ["all"] for every slide, or specific layouts like ["default", "two-cols"].
-    #[serde(default = "default_logo_templates")]
-    pub templates: Vec<String>,
+    #[serde(default = "default_logo_layouts")]
+    pub layouts: Vec<String>,
 }
 
 fn default_logo_position() -> String {
@@ -175,7 +515,7 @@ fn default_logo_opacity() -> f32 {
     0.8
 }
 
-fn default_logo_templates() -> Vec<String> {
+fn default_logo_layouts() -> Vec<String> {
     vec!["all".to_string()]
 }
 
@@ -213,7 +553,7 @@ impl LogoPlacement {
 
     /// Check if this logo should appear on a given layout
     pub fn applies_to_layout(&self, layout: &str) -> bool {
-        self.templates.iter().any(|t| t == "all" || t == layout)
+        self.layouts.iter().any(|t| t == "all" || t == layout)
     }
 }
 
@@ -223,27 +563,40 @@ impl Default for Flavor {
             name: "default".to_string(),
             display_name: Some("Default".to_string()),
             description: Some("Default sldr flavor".to_string()),
+            curation: Curation::default(),
             colors: ColorScheme::default(),
             dark_colors: None,
             typography: Typography::default(),
             background: BackgroundConfig::default(),
+            spacing: Spacing::default(),
+            shape: Shape::default(),
+            shadow: Shadow::default(),
+            motion: Motion::default(),
+            decoration: Decoration::default(),
+            code: Code::default(),
+            font_imports: Vec::new(),
             logos: Vec::new(),
+            footer: None,
             assets_dir: None,
+            custom_css: None,
             source_dir: None,
         }
     }
 }
 
 impl Flavor {
-    /// Load a flavor from its directory
+    /// Load a flavor from its directory.
+    ///
+    /// Reads `flavor.toml` (required for non-default flavors) and optionally
+    /// `flavor.css` (escape hatch for visual ideas tokens cannot express —
+    /// inlined into the build after generated tokens).
     pub fn load(dir: &Path) -> Result<Self> {
         let config_path = dir.join("flavor.toml");
 
-        if config_path.exists() {
+        let mut flavor = if config_path.exists() {
             let content = std::fs::read_to_string(&config_path)?;
             let mut flavor: Flavor = toml::from_str(&content)?;
 
-            // Set name from directory if not specified
             if flavor.name.is_empty() {
                 flavor.name = dir
                     .file_name()
@@ -252,22 +605,29 @@ impl Flavor {
                     .to_string();
             }
 
-            // Store the source directory for asset copying
-            flavor.source_dir = Some(dir.to_path_buf());
-
-            Ok(flavor)
+            flavor
         } else {
-            // Create a minimal flavor from directory name
-            Ok(Self {
+            Self {
                 name: dir
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown")
                     .to_string(),
-                source_dir: Some(dir.to_path_buf()),
                 ..Default::default()
-            })
+            }
+        };
+
+        flavor.source_dir = Some(dir.to_path_buf());
+
+        let css_path = dir.join("flavor.css");
+        if css_path.exists() {
+            match std::fs::read_to_string(&css_path) {
+                Ok(css) => flavor.custom_css = Some(css),
+                Err(e) => tracing::warn!("Failed to read flavor.css at {}: {}", css_path.display(), e),
+            }
         }
+
+        Ok(flavor)
     }
 
     /// Save flavor configuration to its directory
@@ -279,70 +639,27 @@ impl Flavor {
         Ok(())
     }
 
-    /// Generate CSS variables for this flavor
+    /// Generate CSS custom properties for this flavor.
+    ///
+    /// Emits a `:root { ... }` block with every token the flavor sets,
+    /// followed by an `html.dark { ... }` block for dark-mode color overrides.
+    /// Unset tokens fall through to the defaults defined in `base.css`.
     pub fn to_css_variables(&self) -> String {
         let mut css = String::from(":root {\n");
 
-        if let Some(ref color) = self.colors.primary {
-            let _ = writeln!(css, "  --sldr-primary: {color};");
-        }
-        if let Some(ref color) = self.colors.secondary {
-            let _ = writeln!(css, "  --sldr-secondary: {color};");
-        }
-        if let Some(ref color) = self.colors.background {
-            let _ = writeln!(css, "  --sldr-background: {color};");
-        }
-        if let Some(ref color) = self.colors.text {
-            let _ = writeln!(css, "  --sldr-text: {color};");
-        }
-        if let Some(ref color) = self.colors.accent {
-            let _ = writeln!(css, "  --sldr-accent: {color};");
-        }
-        if let Some(ref color) = self.colors.code_background {
-            let _ = writeln!(css, "  --sldr-code-background: {color};");
-        }
-        if let Some(ref color) = self.colors.code_text {
-            let _ = writeln!(css, "  --sldr-code-text: {color};");
-        }
-        if let Some(ref font) = self.typography.heading_font {
-            let _ = writeln!(css, "  --sldr-heading-font: {font};");
-        }
-        if let Some(ref font) = self.typography.body_font {
-            let _ = writeln!(css, "  --sldr-body-font: {font};");
-        }
-        if let Some(ref font) = self.typography.code_font {
-            let _ = writeln!(css, "  --sldr-code-font: {font};");
-        }
-        if let Some(ref size) = self.typography.base_size {
-            let _ = writeln!(css, "  --sldr-base-size: {size};");
-        }
+        write_color_vars(&mut css, &self.colors);
+        write_typography_vars(&mut css, &self.typography);
+        write_spacing_vars(&mut css, &self.spacing);
+        write_shape_vars(&mut css, &self.shape);
+        write_shadow_vars(&mut css, &self.shadow);
+        write_motion_vars(&mut css, &self.motion);
+        write_decoration_vars(&mut css, &self.decoration);
 
         css.push_str("}\n");
 
-        // Dark mode overrides
         if let Some(ref dark) = self.dark_colors {
             css.push_str("html.dark {\n");
-            if let Some(ref color) = dark.primary {
-                let _ = writeln!(css, "  --sldr-primary: {color};");
-            }
-            if let Some(ref color) = dark.secondary {
-                let _ = writeln!(css, "  --sldr-secondary: {color};");
-            }
-            if let Some(ref color) = dark.background {
-                let _ = writeln!(css, "  --sldr-background: {color};");
-            }
-            if let Some(ref color) = dark.text {
-                let _ = writeln!(css, "  --sldr-text: {color};");
-            }
-            if let Some(ref color) = dark.accent {
-                let _ = writeln!(css, "  --sldr-accent: {color};");
-            }
-            if let Some(ref color) = dark.code_background {
-                let _ = writeln!(css, "  --sldr-code-background: {color};");
-            }
-            if let Some(ref color) = dark.code_text {
-                let _ = writeln!(css, "  --sldr-code-text: {color};");
-            }
+            write_color_vars(&mut css, dark);
             css.push_str("}\n");
         }
 
@@ -401,6 +718,99 @@ impl Flavor {
     }
 }
 
+fn write_var(css: &mut String, name: &str, value: &Option<String>) {
+    if let Some(v) = value {
+        let _ = writeln!(css, "  --sldr-{name}: {v};");
+    }
+}
+
+fn write_color_vars(css: &mut String, c: &ColorScheme) {
+    write_var(css, "primary", &c.primary);
+    write_var(css, "secondary", &c.secondary);
+    write_var(css, "background", &c.background);
+    write_var(css, "text", &c.text);
+    write_var(css, "accent", &c.accent);
+    write_var(css, "code-background", &c.code_background);
+    write_var(css, "code-text", &c.code_text);
+    write_var(css, "surface", &c.surface);
+    write_var(css, "surface2", &c.surface2);
+    write_var(css, "border", &c.border);
+    write_var(css, "border-bright", &c.border_bright);
+    write_var(css, "text-dim", &c.text_dim);
+    write_var(css, "accent-dim", &c.accent_dim);
+    write_var(css, "muted", &c.muted);
+}
+
+fn write_typography_vars(css: &mut String, t: &Typography) {
+    write_var(css, "heading-font", &t.heading_font);
+    write_var(css, "body-font", &t.body_font);
+    write_var(css, "code-font", &t.code_font);
+    write_var(css, "base-size", &t.base_size);
+    write_var(css, "heading-weight", &t.heading_weight);
+    write_var(css, "body-weight", &t.body_weight);
+    write_var(css, "heading-tracking", &t.heading_tracking);
+    write_var(css, "body-tracking", &t.body_tracking);
+    write_var(css, "heading-leading", &t.heading_leading);
+    write_var(css, "body-leading", &t.body_leading);
+    write_var(css, "heading-transform", &t.heading_transform);
+    write_var(css, "eyebrow-transform", &t.eyebrow_transform);
+    write_var(css, "heading-wrap", &t.heading_wrap);
+    write_var(css, "body-wrap", &t.body_wrap);
+    write_var(css, "font-features", &t.font_features);
+    write_var(css, "optical-sizing", &t.optical_sizing);
+}
+
+fn write_spacing_vars(css: &mut String, s: &Spacing) {
+    write_var(css, "slide-padding-y", &s.slide_padding_y);
+    write_var(css, "slide-padding-x", &s.slide_padding_x);
+    write_var(css, "content-max-width", &s.content_max_width);
+    write_var(css, "stack-gap", &s.stack_gap);
+    if let Some(d) = &s.density {
+        let scale = match d.as_str() {
+            "compact" => "0.85",
+            "spacious" => "1.15",
+            _ => "1",
+        };
+        let _ = writeln!(css, "  --sldr-density-scale: {scale};");
+    }
+}
+
+fn write_shape_vars(css: &mut String, s: &Shape) {
+    write_var(css, "radius", &s.radius);
+    write_var(css, "radius-sm", &s.radius_sm);
+    write_var(css, "radius-lg", &s.radius_lg);
+    write_var(css, "border-width", &s.border_width);
+    write_var(css, "border-style", &s.border_style);
+}
+
+fn write_shadow_vars(css: &mut String, s: &Shadow) {
+    write_var(css, "shadow-sm", &s.sm);
+    write_var(css, "shadow-md", &s.md);
+    write_var(css, "shadow-lg", &s.lg);
+}
+
+fn write_motion_vars(css: &mut String, m: &Motion) {
+    write_var(css, "transition", &m.transition);
+    write_var(css, "easing", &m.easing);
+    write_var(css, "duration", &m.duration);
+    write_var(css, "duration-base", &m.duration);
+    write_var(css, "duration-fast", &m.duration_fast);
+    write_var(css, "duration-slow", &m.duration_slow);
+    write_var(css, "ease-out-quart", &m.ease_out_quart);
+    write_var(css, "ease-out-expo", &m.ease_out_expo);
+}
+
+fn write_decoration_vars(css: &mut String, d: &Decoration) {
+    // `intensity` doubles as the atmosphere multiplier (0..=1). Flat
+    // flavors set 0 to suppress the deck-wide radial-glow backdrop.
+    if let Some(i) = d.intensity {
+        let _ = writeln!(css, "  --sldr-atmosphere: {i};");
+    }
+    if let Some(ref accent) = d.accent {
+        let _ = writeln!(css, "  --sldr-decoration-accent: {accent};");
+    }
+}
+
 /// Collection of available flavors
 #[derive(Debug)]
 pub struct FlavorCollection {
@@ -445,6 +855,26 @@ impl FlavorCollection {
         })
     }
 
+    /// Load flavors from several directories, highest priority first.
+    /// A name appearing in an earlier dir shadows the same name in later
+    /// dirs (library wins over config-dir extras, ADR-0007).
+    pub fn load_from_dirs(dirs: &[PathBuf]) -> Result<Self> {
+        let mut merged = Self {
+            flavors: Vec::new(),
+            base_dir: dirs.first().cloned().unwrap_or_default(),
+        };
+        for dir in dirs {
+            let collection = Self::load_from_dir(dir)?;
+            for flavor in collection.flavors {
+                if merged.find(&flavor.name).is_none() {
+                    merged.flavors.push(flavor);
+                }
+            }
+        }
+        merged.flavors.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(merged)
+    }
+
     /// Get flavor names for matching
     pub fn names(&self) -> Vec<String> {
         self.flavors.iter().map(|f| f.name.clone()).collect()
@@ -453,5 +883,49 @@ impl FlavorCollection {
     /// Find a flavor by name
     pub fn find(&self, name: &str) -> Option<&Flavor> {
         self.flavors.iter().find(|f| f.name == name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn curation_roundtrip_via_toml() {
+        let toml_src = r#"
+            name = "test"
+            display_name = "Test"
+            description = "x"
+
+            [curation]
+            mood = ["literary", "warm"]
+            tone = ["editorial"]
+            occasion = ["essay"]
+            formality = "medium-high"
+            density = "low"
+            scheme = "light"
+            best_for = "long-form"
+            avoid_for = "dashboards"
+        "#;
+        let flavor: Flavor = toml::from_str(toml_src).expect("parse");
+        assert_eq!(flavor.curation.mood, vec!["literary", "warm"]);
+        assert_eq!(flavor.curation.tone, vec!["editorial"]);
+        assert_eq!(flavor.curation.formality, Some(Formality::MediumHigh));
+        assert_eq!(flavor.curation.density, Some(Density::Low));
+        assert_eq!(flavor.curation.scheme, Some(Scheme::Light));
+        assert_eq!(flavor.curation.best_for.as_deref(), Some("long-form"));
+        assert_eq!(flavor.curation.avoid_for.as_deref(), Some("dashboards"));
+    }
+
+    #[test]
+    fn curation_is_optional() {
+        let toml_src = r#"
+            name = "bare"
+            display_name = "Bare"
+            description = "no curation block"
+        "#;
+        let flavor: Flavor = toml::from_str(toml_src).expect("parse");
+        assert!(flavor.curation.mood.is_empty());
+        assert_eq!(flavor.curation.formality, None);
     }
 }

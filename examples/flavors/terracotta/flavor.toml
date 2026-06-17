@@ -1,0 +1,95 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "terracotta"
+display_name = "Terracotta"
+description = "Sun-baked clay, sand, and olive. Fraunces headlines with warm optical sizing — a deck that feels handmade."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Karla:wght@400;500&family=Fira+Code:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["warm", "organic", "grounded", "inviting"]
+tone = ["human", "approachable", "thoughtful"]
+occasion = ["community talk", "sustainability report", "food & hospitality", "design retrospective"]
+formality = "medium"
+density = "medium"
+scheme = "light"
+best_for = "Human-centered stories: community work, sustainability, hospitality, craft brands, team retrospectives."
+avoid_for = "Hard-edged technical or financial content that wants cool precision."
+
+[colors]
+primary = "#8a3b22"
+secondary = "#5f6c37"
+background = "#f3e7d7"
+text = "#3a2a1e"
+text_dim = "#8a7763"
+accent = "#c2632f"
+accent_dim = "rgba(194, 99, 47, 0.12)"
+surface = "#ecdcc5"
+surface2 = "#e4d1b4"
+border = "#d6c1a3"
+border_bright = "#8a3b22"
+muted = "rgba(58, 42, 30, 0.05)"
+code_background = "#ecdcc5"
+code_text = "#3a2a1e"
+
+[dark_colors]
+primary = "#e8b48c"
+secondary = "#aab873"
+background = "#221710"
+text = "#f0e2cf"
+text_dim = "#a08b73"
+accent = "#e07b3c"
+accent_dim = "rgba(224, 123, 60, 0.16)"
+surface = "#2c1f15"
+surface2 = "#36271a"
+border = "#423022"
+border_bright = "#e07b3c"
+muted = "rgba(240, 226, 207, 0.04)"
+code_background = "#1b120b"
+code_text = "#e8dac4"
+
+[typography]
+heading_font = "'Fraunces', Georgia, serif"
+body_font = "'Karla', system-ui, sans-serif"
+code_font = "'Fira Code', monospace"
+heading_weight = "500"
+body_weight = "400"
+heading_tracking = "-0.01em"
+body_tracking = "0.005em"
+heading_leading = "1.12"
+body_leading = "1.65"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+optical_sizing = "auto"
+
+[spacing]
+slide_padding_y = "clamp(48px, 7.5vh, 92px)"
+slide_padding_x = "clamp(56px, 8vw, 136px)"
+content_max_width = "68ch"
+density = "comfortable"
+
+[shape]
+radius = "18px"
+radius_sm = "10px"
+radius_lg = "28px"
+border_width = "1.5px"
+border_style = "solid"
+
+[shadow]
+sm = "0 1px 2px rgba(58, 42, 30, 0.08)"
+md = "0 4px 14px rgba(58, 42, 30, 0.10)"
+lg = "0 14px 40px rgba(58, 42, 30, 0.14)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.25, 1, 0.5, 1)"
+duration = "380ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.2
+
+[code]
+syntax_theme = "Solarized (light)"

@@ -43,6 +43,16 @@ pub struct SlideInput {
     #[serde(default = "default_layout")]
     pub layout: String,
 
+    /// Horizontal alignment override: "left" | "center" | "right".
+    /// Optional — when omitted, the layout's default applies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub align: Option<String>,
+
+    /// Vertical alignment override: "top" | "center" | "bottom".
+    /// Optional — when omitted, the layout's default applies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valign: Option<String>,
+
     /// The markdown content of the slide (without frontmatter)
     pub content: String,
 
@@ -76,6 +86,14 @@ impl SlideInput {
         }
 
         let _ = writeln!(output, "layout: {}", self.layout);
+
+        if let Some(ref a) = self.align {
+            let _ = writeln!(output, "align: {a}");
+        }
+        if let Some(ref v) = self.valign {
+            let _ = writeln!(output, "valign: {v}");
+        }
+
         output.push_str("---\n\n");
         output.push_str(&self.content);
 
@@ -105,6 +123,27 @@ pub struct SlideMetadata {
     #[serde(default)]
     pub description: Option<String>,
 
+    /// Subheadline — the smaller line under the headline in a framed
+    /// layout's chrome zone (exposed as the `{{subheadline}}` slot).
+    #[serde(default)]
+    pub subtitle: Option<String>,
+
+    /// Source attribution for web-clipping slides — display text shown as
+    /// a "Source: …" line via the `{{source}}` slot. Pair with `source_url`
+    /// to make it a link.
+    #[serde(default)]
+    pub source: Option<String>,
+
+    /// Optional link target for `source`. When set, the source line becomes
+    /// a hyperlink (still self-contained; only resolved if the viewer clicks).
+    #[serde(default)]
+    pub source_url: Option<String>,
+
+    /// Per-slide override for the deck footer line (the `{{footer}}` slot).
+    /// Falls back to the flavor's `footer` when omitted.
+    #[serde(default)]
+    pub footer: Option<String>,
+
     /// Topic or category
     #[serde(default)]
     pub topic: Option<String>,
@@ -113,13 +152,21 @@ pub struct SlideMetadata {
     #[serde(default)]
     pub tags: Vec<String>,
 
-    /// Template to use for this slide
-    #[serde(default)]
-    pub template: Option<String>,
-
     /// Preferred layout
     #[serde(default)]
     pub layout: Option<String>,
+
+    /// Horizontal alignment of slide content: "left", "center", "right".
+    /// Overrides the layout's default. Applied as `data-align` on the
+    /// slide section so CSS can pin alignment without changing markup.
+    #[serde(default)]
+    pub align: Option<String>,
+
+    /// Vertical alignment of slide content: "top", "center", "bottom".
+    /// Overrides the layout's default. Applied as `data-valign` on the
+    /// slide section.
+    #[serde(default)]
+    pub valign: Option<String>,
 
     /// Research area this slide belongs to
     #[serde(default)]
@@ -161,7 +208,7 @@ impl Slide {
     /// Load a slide from a file path
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let (metadata, content) = parse_frontmatter(&content);
+        let (metadata, content) = parse_frontmatter(&content, &path.display().to_string());
 
         let name = path
             .file_stem()
@@ -188,10 +235,30 @@ impl Slide {
 
         Ok(slide)
     }
+
+    /// Construct a slide from an in-memory markdown string.
+    ///
+    /// Used for bundled sample slides (compiled into the binary via
+    /// `include_str!`) and for tests that don't want to touch the filesystem.
+    /// `name` is the slide's logical name (filename without extension).
+    /// `virtual_path` is the path that will be reported in `path` and
+    /// `relative_path` — useful for media resolution if the slide references
+    /// images alongside it.
+    pub fn from_str(name: impl Into<String>, virtual_path: impl Into<PathBuf>, content: &str) -> Self {
+        let path = virtual_path.into();
+        let (metadata, body) = parse_frontmatter(content, &path.display().to_string());
+        Self {
+            relative_path: path.to_string_lossy().to_string(),
+            path,
+            name: name.into(),
+            metadata,
+            content: body,
+        }
+    }
 }
 
 /// Parse YAML frontmatter from markdown content
-fn parse_frontmatter(content: &str) -> (SlideMetadata, String) {
+fn parse_frontmatter(content: &str, source: &str) -> (SlideMetadata, String) {
     let content = content.trim();
 
     if !content.starts_with("---") {
@@ -204,7 +271,18 @@ fn parse_frontmatter(content: &str) -> (SlideMetadata, String) {
         let yaml_content = &rest[..end_idx].trim();
         let markdown_content = &rest[end_idx + 4..].trim();
 
-        let metadata: SlideMetadata = serde_yaml_ng::from_str(yaml_content).unwrap_or_default();
+        // Invalid YAML must not silently become default metadata — a slide
+        // quietly losing its layout/title is exactly the kind of failure
+        // that ships unnoticed. Surface it loudly on stderr.
+        let metadata: SlideMetadata = match serde_yaml_ng::from_str(yaml_content) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!(
+                    "  ! {source}: invalid frontmatter (using defaults — layout, title etc. are LOST): {e}"
+                );
+                SlideMetadata::default()
+            }
+        };
 
         (metadata, markdown_content.to_string())
     } else {
@@ -298,7 +376,7 @@ tags:
 This is the content.
 ";
 
-        let (metadata, content) = parse_frontmatter(content);
+        let (metadata, content) = parse_frontmatter(content, "test");
         assert_eq!(metadata.title, Some("Test Slide".to_string()));
         assert_eq!(metadata.tags, vec!["test", "example"]);
         assert!(content.contains("# Hello World"));
@@ -307,7 +385,7 @@ This is the content.
     #[test]
     fn test_parse_no_frontmatter() {
         let content = "# Just Markdown\n\nNo frontmatter here.";
-        let (metadata, parsed_content) = parse_frontmatter(content);
+        let (metadata, parsed_content) = parse_frontmatter(content, "test");
         assert!(metadata.title.is_none());
         assert!(parsed_content.contains("# Just Markdown"));
     }

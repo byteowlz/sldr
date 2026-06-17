@@ -3,9 +3,16 @@
 //! Uses pulldown-cmark for markdown parsing and syntect for code highlighting.
 
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
-use syntect::highlighting::ThemeSet;
-use syntect::html::highlighted_html_for_string;
+use syntect::html::{ClassStyle, ClassedHTMLGenerator};
 use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
+
+/// Class style for highlighted code. Prefixed so generated class names
+/// (`syn-keyword`, `syn-string`, ...) can't collide with user CSS. The
+/// matching color rules are emitted per flavor from `[code] syntax_theme`
+/// into the flavor's own <style data-flavor> block — highlighting is part
+/// of the style layer and swaps with the flavor at runtime (ADR-0003).
+pub const SYN_CLASS_STYLE: ClassStyle = ClassStyle::SpacedPrefixed { prefix: "syn-" };
 
 use crate::media::{self, ImageMode, MediaEmbed};
 
@@ -18,6 +25,7 @@ pub struct MediaConfig {
     pub slide_dir: Option<std::path::PathBuf>,
     /// Directory to copy assets to (for `ImageMode::External`)
     pub assets_dir: Option<std::path::PathBuf>,
+
 }
 
 impl Default for MediaConfig {
@@ -32,19 +40,54 @@ impl Default for MediaConfig {
 
 /// Converts markdown content to HTML with syntax-highlighted code blocks.
 ///
-/// The `::left::` and `::right::` column markers are detected and returned
-/// separately so the template engine can place them in the correct slots.
+/// Recognized layout markers (each split is mutually exclusive):
+/// - `::left::` + `::right::` — two-column layout (`two-cols`, `two-cols-header`)
+/// - `::content::` + `::image::` — content + image column (`image-left`,
+///   `image-right`). The layout engine decides DOM order based on layout.
+///
+/// A marker counts only when it stands alone on a line *outside* fenced
+/// code blocks — so slides can document the markers in code samples and
+/// inline code without getting split apart. Unrecognized markers pass
+/// through as raw text.
 pub fn render_markdown(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
-    // Check for column markers
-    if content.contains("::left::") && content.contains("::right::") {
-        return render_two_cols(content, media_config);
+    let markers = scan_markers(content);
+    if markers.contains_key("left") && markers.contains_key("right") {
+        return render_two_cols(content, &markers, media_config);
+    }
+    if markers.contains_key("content") && markers.contains_key("image") {
+        return render_content_image(content, &markers, media_config);
     }
 
     let html = markdown_to_html(content, media_config);
     MarkdownOutput::Single(html)
 }
 
-/// Result of rendering markdown - either a single block or split columns
+/// Byte offsets of split markers: lines that are exactly `::name::`
+/// (whitespace-tolerant), skipping fenced code blocks (``` or ~~~).
+/// Only the first occurrence of each marker is recorded.
+fn scan_markers(content: &str) -> std::collections::HashMap<&'static str, (usize, usize)> {
+    let mut markers = std::collections::HashMap::new();
+    let mut in_fence = false;
+    let mut offset = 0;
+    for line in content.split_inclusive('\n') {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+        } else if !in_fence {
+            for name in ["left", "right", "content", "image"] {
+                if trimmed == format!("::{name}::") {
+                    markers
+                        .entry(name)
+                        .or_insert((offset, offset + line.len()));
+                }
+            }
+        }
+        offset += line.len();
+    }
+    markers
+}
+
+/// Result of rendering markdown — either a single block or split columns
 pub enum MarkdownOutput {
     /// Standard single-content slide
     Single(String),
@@ -54,21 +97,54 @@ pub enum MarkdownOutput {
         left: String,
         right: String,
     },
+    /// Content + image split (used by image-left / image-right layouts).
+    /// The layout engine picks DOM order from the layout name; the
+    /// markdown can declare the two halves in either order.
+    ContentImage { content: String, image: String },
 }
 
-/// Parse a two-column slide by splitting on ::left:: and ::right:: markers
-fn render_two_cols(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
-    // Split on ::left:: first
-    let (before_left, after_left) = match content.split_once("::left::") {
-        Some((before, after)) => (before.trim(), after),
-        None => return MarkdownOutput::Single(markdown_to_html(content, media_config)),
+/// Parse a content+image slide using pre-scanned marker positions.
+///
+/// The two markers may appear in either order in the markdown — we identify
+/// the halves by marker name, not position. The layout engine places them
+/// in the correct DOM order based on the layout (`image-left` puts image
+/// first, `image-right` puts content first).
+fn render_content_image(
+    input: &str,
+    markers: &std::collections::HashMap<&'static str, (usize, usize)>,
+    media_config: &MediaConfig,
+) -> MarkdownOutput {
+    let (c_start, c_end) = markers["content"];
+    let (i_start, i_end) = markers["image"];
+
+    let (content_md, image_md) = if c_start < i_start {
+        (&input[c_end..i_start], &input[i_end..])
+    } else {
+        (&input[c_end..], &input[i_end..c_start])
     };
 
-    // Split the remainder on ::right::
-    let (left_md, right_md) = match after_left.split_once("::right::") {
-        Some((left, right)) => (left.trim(), right.trim()),
-        None => return MarkdownOutput::Single(markdown_to_html(content, media_config)),
-    };
+    MarkdownOutput::ContentImage {
+        content: markdown_to_html(content_md.trim(), media_config),
+        image: markdown_to_html(image_md.trim(), media_config),
+    }
+}
+
+/// Parse a two-column slide using pre-scanned marker positions.
+fn render_two_cols(
+    content: &str,
+    markers: &std::collections::HashMap<&'static str, (usize, usize)>,
+    media_config: &MediaConfig,
+) -> MarkdownOutput {
+    let (l_start, l_end) = markers["left"];
+    let (r_start, r_end) = markers["right"];
+    if r_start < l_start {
+        // ::right:: before ::left:: is not a recognized shape.
+        return MarkdownOutput::Single(markdown_to_html(content, media_config));
+    }
+
+    let before_left = content[..l_start].trim();
+    let left_md = content[l_end..r_start].trim();
+    let right_md = content[r_end..].trim();
 
     let heading = if before_left.is_empty() {
         String::new()
@@ -89,8 +165,6 @@ fn render_two_cols(content: &str, media_config: &MediaConfig) -> MarkdownOutput 
 /// Core markdown -> HTML conversion with syntax highlighting and media embedding
 fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
     let ss = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
-    let theme = &ts.themes["base16-ocean.dark"];
 
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
@@ -126,20 +200,32 @@ fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
             Event::End(TagEnd::CodeBlock) => {
                 in_code_block = false;
 
-                // Try syntax highlighting
+                // Class-based syntax highlighting: spans carry syn-*
+                // classes; the colors live in the flavor's style block.
                 let highlighted = if code_lang.is_empty() {
                     None
                 } else if let Some(syntax) = ss.find_syntax_by_token(&code_lang) {
-                    highlighted_html_for_string(&code_content, &ss, syntax, theme).ok()
+                    let mut generator =
+                        ClassedHTMLGenerator::new_with_class_style(syntax, &ss, SYN_CLASS_STYLE);
+                    let mut ok = true;
+                    for line in LinesWithEndings::from(&code_content) {
+                        if generator
+                            .parse_html_for_line_which_includes_newline(line)
+                            .is_err()
+                        {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    ok.then(|| generator.finalize())
                 } else {
                     None
                 };
 
-                if let Some(html) = highlighted {
-                    // syntect wraps in <pre style="..."><code>...</code></pre>
-                    // Replace with our class-based approach
-                    let html = inject_code_class(&html);
-                    output.push_str(&html);
+                if let Some(inner) = highlighted {
+                    output.push_str("<pre class=\"sldr-code\"><code class=\"syn-code\">");
+                    output.push_str(&inner);
+                    output.push_str("</code></pre>\n");
                 } else {
                     // Fallback: plain code block
                     output.push_str("<pre class=\"sldr-code\"><code>");
@@ -333,13 +419,6 @@ fn write_close_tag(out: &mut String, tag: TagEnd) {
     }
 }
 
-/// Replace syntect's inline-style <pre> with our class-based version
-fn inject_code_class(syntect_html: &str) -> String {
-    // syntect output: <pre style="background-color:#2b303b;">...
-    // We want: <pre class="sldr-code" style="...">...
-    syntect_html.replacen("<pre style=\"", "<pre class=\"sldr-code\" style=\"", 1)
-}
-
 /// Basic HTML escaping for text content
 fn html_escape(input: &str) -> String {
     input
@@ -386,12 +465,77 @@ mod tests {
                 assert!(left.contains("Left stuff"));
                 assert!(right.contains("Right stuff"));
             }
-            MarkdownOutput::Single(_) => panic!("Expected TwoCols"),
+            _ => panic!("Expected TwoCols"),
+        }
+    }
+
+    #[test]
+    fn test_content_image_split() {
+        let md = "::content::\n\n# Side by side\n\nBody copy.\n\n::image::\n\n![](pic.png)";
+        let result = render_markdown(md, &default_config());
+        match result {
+            MarkdownOutput::ContentImage { content, image } => {
+                assert!(content.contains("Side by side"));
+                assert!(content.contains("Body copy"));
+                assert!(image.contains("pic.png"));
+            }
+            _ => panic!("Expected ContentImage"),
+        }
+    }
+
+    #[test]
+    fn test_content_image_split_reversed_order() {
+        // Markers in opposite order: ::image:: before ::content::.
+        let md = "::image::\n\n![](pic.png)\n\n::content::\n\n# Title\n\nBody.";
+        let result = render_markdown(md, &default_config());
+        match result {
+            MarkdownOutput::ContentImage { content, image } => {
+                assert!(content.contains("Title"));
+                assert!(content.contains("Body"));
+                assert!(image.contains("pic.png"));
+            }
+            _ => panic!("Expected ContentImage"),
         }
     }
 
     #[test]
     fn test_html_escape() {
         assert_eq!(html_escape("<script>"), "&lt;script&gt;");
+    }
+
+    #[test]
+    fn markers_inside_code_fences_do_not_split() {
+        // A slide documenting the markers must not get cut apart by its
+        // own code samples (fence-aware, line-anchored scanning).
+        let md = "# Real two-col\n\n::left::\nBefore code.\n```markdown\n::left::\nfirst\n::right::\nsecond\n```\n::right::\nRight column.\n";
+        match render_markdown(md, &MediaConfig::default()) {
+            MarkdownOutput::TwoCols { left, right, .. } => {
+                assert!(left.contains("Before code."), "left: {left}");
+                assert!(left.contains("first"), "code stays in left: {left}");
+                assert!(right.contains("Right column."), "right: {right}");
+            }
+            _ => panic!("expected TwoCols"),
+        }
+    }
+
+    #[test]
+    fn inline_code_markers_do_not_split() {
+        let md = "::left::\nUses `::left::` and `::right::` markers.\n::right::\nRight.\n";
+        match render_markdown(md, &MediaConfig::default()) {
+            MarkdownOutput::TwoCols { left, right, .. } => {
+                assert!(left.contains("markers"), "left: {left}");
+                assert!(right.trim_end().ends_with("Right.</p>"), "right: {right}");
+            }
+            _ => panic!("expected TwoCols"),
+        }
+    }
+
+    #[test]
+    fn markers_must_stand_alone_on_a_line() {
+        let md = "Some prose mentioning ::left:: and ::right:: inline.\n";
+        assert!(matches!(
+            render_markdown(md, &MediaConfig::default()),
+            MarkdownOutput::Single(_)
+        ));
     }
 }

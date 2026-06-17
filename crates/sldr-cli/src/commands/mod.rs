@@ -2,6 +2,7 @@
 
 pub mod add;
 pub mod build;
+pub mod bundle;
 pub mod config;
 pub mod export;
 pub mod flavor_builder;
@@ -12,7 +13,10 @@ pub mod new;
 pub mod open;
 pub mod preview;
 pub mod rm;
+pub mod sample;
 pub mod search;
-pub mod skeleton;
+pub mod serve;
+pub mod show;
+pub mod playlist;
 pub mod slides;
 pub mod watch;

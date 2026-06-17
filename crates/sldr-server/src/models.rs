@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use sldr_core::flavor::Flavor;
-use sldr_core::presentation::{Skeleton, SlidevConfig}; // SlidevConfig = RenderOpts alias
+use sldr_core::presentation::{Playlist, SlidevConfig}; // SlidevConfig = RenderOpts alias
 use sldr_core::slide::SlideMetadata;
 use uuid::Uuid;
 
@@ -29,7 +29,7 @@ pub struct CreateSlideRequest {
     #[serde(default)]
     pub metadata: Option<SlideMetadata>,
     #[serde(default)]
-    pub template: Option<String>,
+    pub scaffold: Option<String>,
     #[serde(default)]
     pub subdir: Option<String>,
 }
@@ -48,12 +48,12 @@ pub struct SlidesResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SkeletonsResponse {
-    pub skeletons: Vec<Skeleton>,
+pub struct PlaylistsResponse {
+    pub playlists: Vec<Playlist>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CreateSkeletonRequest {
+pub struct CreatePlaylistRequest {
     pub name: String,
     #[serde(default)]
     pub title: Option<String>,
@@ -75,7 +75,7 @@ pub struct FlavorsResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct BuildRequest {
-    pub skeleton: String,
+    pub playlist: String,
     #[serde(default)]
     pub flavor: Option<String>,
     #[serde(default)]
@@ -107,7 +107,7 @@ pub struct PreviewRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct TemplateEditResponse {
+pub struct ScaffoldEditResponse {
     pub session_id: Uuid,
     pub url: String,
     pub port: u16,

@@ -1,0 +1,102 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+# Adapted from beautiful-html-templates/monochrome (MIT). See CREDITS.md.
+
+name = "monochrome"
+display_name = "Monochrome"
+description = "Ivory ledger paper with all-black ink. Lora serif headlines, Jost body, JetBrains Mono captions. No color at all — words are the design."
+
+font_imports = [
+  "https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Jost:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap",
+]
+
+[curation]
+mood = ["restrained", "literary", "archival", "ledger"]
+tone = ["literary", "considered", "neutral", "honest"]
+occasion = ["user research synthesis", "white paper", "longform report", "academic deck", "policy brief", "advisory deliverable"]
+formality = "high"
+density = "high"
+scheme = "light"
+best_for = "Anything that should feel like a hand-typeset ledger: research synthesis, white papers, longform reports, academic and policy briefs, advisory deliverables. Equally good for tech, design, or brand decks that want their words to be the only thing on the page."
+avoid_for = "Decks that need visual personality or color-led storytelling — the all-ink palette is intentionally austere."
+
+[colors]
+primary = "#1a1a16"
+secondary = "#5e5e54"
+background = "#fafadf"
+text = "#1a1a16"
+text_dim = "#8a8a80"
+accent = "#1a1a16"
+accent_dim = "rgba(26, 26, 22, 0.06)"
+surface = "#f5f0e4"
+surface2 = "#f0e8d0"
+border = "rgba(26, 26, 22, 0.18)"
+border_bright = "#1a1a16"
+muted = "rgba(26, 26, 22, 0.04)"
+code_background = "#f5f0e4"
+code_text = "#1a1a16"
+
+[dark_colors]
+primary = "#fafadf"
+secondary = "#c5c5b6"
+background = "#1a1a16"
+text = "#fafadf"
+text_dim = "#8a8a80"
+accent = "#fafadf"
+accent_dim = "rgba(250, 250, 223, 0.08)"
+surface = "#26261f"
+surface2 = "#2e2e26"
+border = "rgba(250, 250, 223, 0.14)"
+border_bright = "#fafadf"
+muted = "rgba(250, 250, 223, 0.04)"
+code_background = "#26261f"
+code_text = "#fafadf"
+
+[typography]
+heading_font = "'Lora', 'Noto Serif SC', Georgia, serif"
+body_font = "'Jost', 'Noto Sans SC', system-ui, sans-serif"
+code_font = "'JetBrains Mono', ui-monospace, monospace"
+heading_weight = "500"
+body_weight = "400"
+heading_tracking = "-0.01em"
+body_tracking = "0.005em"
+heading_leading = "1.1"
+body_leading = "1.65"
+heading_transform = "none"
+eyebrow_transform = "uppercase"
+heading_wrap = "balance"
+body_wrap = "pretty"
+optical_sizing = "auto"
+
+[spacing]
+slide_padding_y = "clamp(56px, 9vh, 112px)"
+slide_padding_x = "clamp(72px, 10vw, 160px)"
+content_max_width = "72ch"
+density = "spacious"
+stack_gap = "clamp(20px, 3vh, 40px)"
+
+[shape]
+radius = "0"
+radius_sm = "0"
+radius_lg = "0"
+border_width = "1px"
+border_style = "solid"
+
+[shadow]
+sm = "none"
+md = "none"
+lg = "0 1px 0 rgba(26, 26, 22, 0.12)"
+
+[motion]
+transition = "fade"
+easing = "cubic-bezier(0.4, 0, 0.2, 1)"
+duration = "320ms"
+
+[decoration]
+accent = "page-numbers"
+intensity = 0.0
+
+[code]
+syntax_theme = "Solarized (light)"
+frame_style = "minimal"
+line_numbers = false
