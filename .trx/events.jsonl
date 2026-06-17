@@ -29,3 +29,16 @@
 {"id":"evt_6kc529cy","issue_id":"trx-3vp5","action":"closed","timestamp":"2026-06-11T20:44:42.296919316Z"}
 {"id":"evt_qafvttzp","issue_id":"trx-vsxe","action":"closed","timestamp":"2026-06-11T20:44:42.310669428Z"}
 {"id":"evt_xffk6fmb","issue_id":"trx-e9bd","action":"closed","timestamp":"2026-06-11T21:05:49.663808903Z"}
+{"id":"evt_e86e5jg4","issue_id":"trx-ksse","action":"created","timestamp":"2026-06-16T18:28:16.168960785Z"}
+{"id":"evt_sqy8p9fv","issue_id":"trx-cg41","action":"created","timestamp":"2026-06-16T18:28:16.183130408Z"}
+{"id":"evt_gwym62b9","issue_id":"trx-e1k4","action":"created","timestamp":"2026-06-16T18:28:16.196412356Z"}
+{"id":"evt_eq2xx2qe","issue_id":"trx-jw5x","action":"created","timestamp":"2026-06-16T18:28:16.206253666Z"}
+{"id":"evt_gezhg627","issue_id":"trx-zack","action":"created","timestamp":"2026-06-16T18:28:16.215419111Z"}
+{"id":"evt_515ssvdp","issue_id":"trx-q74x","action":"created","timestamp":"2026-06-16T18:28:16.226592924Z"}
+{"id":"evt_nbxnk522","issue_id":"trx-r72j","action":"created","timestamp":"2026-06-16T18:28:16.235997877Z"}
+{"id":"evt_0rb5y2fp","issue_id":"trx-ksse","action":"closed","timestamp":"2026-06-16T18:28:20.504177743Z"}
+{"id":"evt_rs2hfqtr","issue_id":"trx-9wqc","action":"created","timestamp":"2026-06-17T08:00:32.053665722Z"}
+{"id":"evt_njeft1e0","issue_id":"trx-yzf1","action":"created","timestamp":"2026-06-17T08:00:32.067665094Z"}
+{"id":"evt_3ne0fgp3","issue_id":"trx-9wqc","action":"closed","timestamp":"2026-06-17T08:00:36.716292626Z"}
+{"id":"evt_ep2atkm5","issue_id":"trx-yzf1","action":"closed","timestamp":"2026-06-17T08:06:18.161156043Z"}
+{"id":"evt_ef6jmwrz","issue_id":"trx-yzf1","action":"updated","timestamp":"2026-06-17T08:06:31.357912605Z","changes":[{"field":"description","from":"Asymmetry vs layouts. Layouts ship as embedded BUILTIN_LAYOUTS resolved at runtime (override by user file). Flavors have NO built-in tier (only `default`): load_flavor searches disk only, so the 21 bundled flavors must be bulk-written to ~/.config/sldr/flavors on `init` to be usable.\n\nConsequence (now visible via `sldr show`): those copies are frozen at the sldr version that ran init. `sldr show flavor aurora` resolves to the stale config copy, not the binary — a later improved built-in never reaches the user, with no built-in tier beneath to fall back to. Silent staleness.\n\nProposal: add embedded flavors as a real lowest-priority resolution tier in load_flavor (mirror LayoutRegistry::builtin). Then `init` need not bulk-write them; user materializes one on demand via `sldr flavor fork/eject` (trx-r72j) which overrides by name. Single source of truth, no drift, flavors↔layouts symmetric. Open question the user is weighing: keep on-disk install for raw-file legibility (cat/grep the whole catalog) vs binary-only + `show`. `show` now covers per-item legibility either way.","to":"DECIDED (won't change): keep the bundled flavors installed to disk and editable. They are seeds, not sacred — edit/rename/delete freely; `sldr init --force` re-installs/overwrites the bundled set to restore or refresh them. No runtime built-in tier needed; the on-disk install IS the model. Per-item legibility is covered by `sldr show flavor <name>` (trx-9wqc). Layouts stay built-in + overridable; `sldr show layout <name>` reads them and piping to a file forks one."}]}
