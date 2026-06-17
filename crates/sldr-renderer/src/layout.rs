@@ -125,6 +125,24 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("versus", include_str!("../layouts/versus.html")),
 ];
 
+/// Raw source of a built-in layout by exact name — the authored `.html`
+/// with comments and `<style>` intact (unlike a parsed `LayoutDef`, which
+/// strips them). For `sldr show layout` and other inspection. `None` if no
+/// built-in carries that name.
+pub fn builtin_layout_source(name: &str) -> Option<&'static str> {
+    BUILTIN_LAYOUTS
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, src)| *src)
+}
+
+/// All built-in layout names, sorted.
+pub fn builtin_layout_names() -> Vec<&'static str> {
+    let mut names: Vec<&'static str> = BUILTIN_LAYOUTS.iter().map(|(n, _)| *n).collect();
+    names.sort_unstable();
+    names
+}
+
 /// Layout name → definition. Built-ins first, user dirs override by name.
 pub struct LayoutRegistry {
     layouts: HashMap<String, LayoutDef>,

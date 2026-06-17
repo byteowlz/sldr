@@ -224,6 +224,25 @@ enum Commands {
         json: bool,
     },
 
+    /// Print the raw source of a layout or flavor (what the name resolves to)
+    ///
+    /// `ls` lists names; `show` prints the actual source — the authored
+    /// layout `.html` or flavor `.toml` — honoring the same resolution order
+    /// as a build (user library/config dirs override built-ins). Source to
+    /// stdout (pipeable), origin to stderr. For learning the format, copying
+    /// a starting point, or seeing what a name really resolves to.
+    Show {
+        /// What to show: layout or flavor
+        what: String,
+
+        /// Name of the layout or flavor (fuzzy-matched)
+        name: String,
+
+        /// Output as JSON ({kind, name, origin, source})
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Search slides by content, tags, or metadata
     Search {
         /// Search query
@@ -469,6 +488,8 @@ fn main() -> anyhow::Result<()> {
         } => commands::sample::run(&flavor, output, no_open),
 
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
+
+        Commands::Show { what, name, json } => commands::show::run(&what, &name, json),
 
         Commands::Search {
             query,

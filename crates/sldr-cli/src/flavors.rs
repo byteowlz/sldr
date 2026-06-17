@@ -180,6 +180,20 @@ pub const FLAVORS: &[BundledFlavor] = &[
 /// Install all bundled flavors into `flavor_dir`. Each flavor lives in its
 /// own subdirectory. Existing files are kept unless `overwrite` is true.
 ///
+/// The files of a bundled flavor by exact slug — for `sldr show flavor` and
+/// other inspection of the embedded set, without needing them written to
+/// disk. `None` if no built-in carries that slug.
+pub fn builtin_flavor_files(slug: &str) -> Option<&'static [FlavorFile]> {
+    FLAVORS.iter().find(|f| f.slug == slug).map(|f| f.files)
+}
+
+/// All bundled flavor slugs, sorted.
+pub fn builtin_flavor_slugs() -> Vec<&'static str> {
+    let mut slugs: Vec<&'static str> = FLAVORS.iter().map(|f| f.slug).collect();
+    slugs.sort_unstable();
+    slugs
+}
+
 /// Returns the number of flavor *directories* that received at least one
 /// fresh write.
 pub fn install_flavors(flavor_dir: &std::path::Path, overwrite: bool) -> std::io::Result<usize> {
