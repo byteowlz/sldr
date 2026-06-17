@@ -1,6 +1,6 @@
 # sldr - Markdown based presentations with self-contained HTML output
 
-**IMPORTANT**: This document is meant for the development of sldr. For using sldr, please refer to AGENTS_USE.md
+**IMPORTANT**: This document is meant for the development of sldr. For *using* sldr (driving the CLI to make presentations), see the canonical [`use-sldr` skill](https://github.com/byteowlz/skillissues/tree/main/skills/use-sldr).
 
 ## Overview
 
@@ -38,6 +38,8 @@ sldr add name_of_presentation slide_names            # Append slides to a playli
 sldr ls slides                                       # List available slides
 sldr ls playlists                                    # List available playlists
 sldr ls flavors                                      # List available flavors
+sldr show flavor name_of_flavor                      # Print a flavor's resolved source (.toml)
+sldr show layout name_of_layout                      # Print a layout's resolved source (.html)
 sldr new slide_name --scaffold two-cols              # Create a new slide
 sldr init                                            # Initialize sldr directories
 ```

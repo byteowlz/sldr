@@ -172,8 +172,7 @@ enum Commands {
     /// sldr handles slide/playlist/asset CRUD + rendering. It does NOT fetch
     /// URLs, OCR, or summarize content — those are agent jobs.
     ///
-    /// Endpoints listed at GET / (the root URL). See AGENTS_USE.md for the
-    /// full agent-facing API contract.
+    /// Endpoints are listed at GET / (the root URL).
     Serve {
         /// Port to listen on
         #[arg(short, long, default_value = "3032")]

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-06-17
+
+### Added
+- `sldr show layout|flavor <name>` — print the raw source a name resolves to (the authored layout `.html` / flavor `.toml`), honoring the build's resolution order (user library/config dirs override built-ins). Source to stdout (pipeable), origin to stderr, `--json` for both. Fuzzy-matched and fail-loud with the available set. Makes both extension axes legible on a user machine: flavors already lived on disk after `init`, but layouts were binary-only — `show` reads them and reports which copy actually wins (trx-9wqc).
+- `builtin_layout_source` / `builtin_layout_names` (sldr-renderer) and `builtin_flavor_files` / `builtin_flavor_slugs` (sldr-cli) accessors backing `show`.
+
+### Fixed
+- `sldr watch` now live-reloads flavor and layout edits, not just slides. It watches every dir that feeds a rebuild — all flavor and layout search dirs (library and configured-extra, de-duped) — and re-resolves flavors from disk on each rebuild, so token/background/logo edits take effect instead of rebuilding from the flavor resolved once at startup (trx-ksse).
+
 ## [0.4.0] - 2026-05-04
 
 ### Added

@@ -13,6 +13,10 @@ sldr separates **content**, **layout**, and **style** for presentations:
 
 Build a presentation once, export with different branding. Create a slide once, reuse across presentations.
 
+### Using sldr with AI agents
+
+The canonical guide for driving sldr from a coding agent is the **[`use-sldr` skill](https://github.com/byteowlz/skillissues/tree/main/skills/use-sldr)** in [byteowlz/skillissues](https://github.com/byteowlz/skillissues) — the mental model, effective-use guidance, the full CLI/frontmatter/flavor reference, and worked example decks.
+
 ## Architecture
 
 ```
@@ -69,13 +73,17 @@ sldr new my-slide
 sldr new ai/transformers --scaffold two-cols
 ```
 
-### List slides, playlists, flavors
+### List and inspect slides, playlists, flavors, layouts
 
 ```bash
 sldr ls slides
 sldr ls playlists
 sldr ls flavors
+sldr show flavor aurora     # print a flavor's resolved source (the .toml)
+sldr show layout framed     # print a layout's resolved source (the .html)
 ```
+
+`ls` lists names; `show` prints the actual source a name resolves to — the authored flavor `.toml` or layout `.html` — honoring the build's resolution order (your library/config dirs override the built-ins). Source goes to stdout (pipeable: `sldr show layout framed > ~/sldr/layouts/mine.html`), the origin to stderr, `--json` for both.
 
 ### Build a presentation
 
@@ -92,7 +100,7 @@ sldr watch my-talk                       # Default port (3030)
 sldr watch my-talk --flavor dark --port 8080
 ```
 
-Watches slide files, playlists, and flavors for changes. Rebuilds and reloads the browser automatically via Server-Sent Events.
+Watches slide files, playlists, flavors, and layouts for changes (library and configured dirs alike) — flavors are re-read from disk so token/background/logo edits take effect too. Rebuilds and reloads the browser automatically via Server-Sent Events.
 
 ### Export
 
