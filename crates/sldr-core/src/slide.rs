@@ -3,6 +3,7 @@
 use crate::error::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -183,6 +184,86 @@ pub struct SlideMetadata {
     /// Last modified date
     #[serde(default)]
     pub modified: Option<String>,
+
+    /// Per-language overrides for the framed-chrome fields, keyed by language
+    /// code (e.g. `de`, `fr`). The top-level fields are the default language;
+    /// a `translations.<lang>` block overrides the chrome for that language,
+    /// and any omitted field falls back to the top-level value. This is the
+    /// frontmatter analog of the body's `::lang:xx::` markers — so a deck
+    /// built with `--lang de` translates the headline/subtitle/source, not
+    /// just the body. A slide with no `translations` block is unchanged.
+    #[serde(default)]
+    pub translations: HashMap<String, ChromeTranslation>,
+}
+
+/// Per-language overrides for the translatable framed-chrome fields. Any
+/// field left unset falls back to the slide's top-level (default-language)
+/// value — so a translator only fills the fields that actually differ.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ChromeTranslation {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub subtitle: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub source_url: Option<String>,
+    #[serde(default)]
+    pub footer: Option<String>,
+}
+
+/// The framed-chrome fields resolved for one language, plus a gap signal.
+#[derive(Debug, Clone, Default)]
+pub struct ResolvedChrome {
+    pub title: Option<String>,
+    pub subtitle: Option<String>,
+    pub source: Option<String>,
+    pub source_url: Option<String>,
+    pub footer: Option<String>,
+    /// `Some(lang)` when a non-default language was requested but this slide
+    /// carries no `translations.<lang>` block while it *does* have chrome —
+    /// i.e. its headline/subtitle/source show in the default language. The
+    /// build turns this into a loud warning; a translation gap is never
+    /// silent (mirrors the body's `LanguageOutcome::Fallback`).
+    pub untranslated_to: Option<String>,
+}
+
+impl SlideMetadata {
+    /// Resolve the framed-chrome fields for one language.
+    ///
+    /// `target` is `requested` when given, else `deck_default`. Each field
+    /// takes the `translations.<target>` override when present, otherwise the
+    /// top-level (default-language) value. When a non-default language is
+    /// requested but the slide carries no override block for it *and* has
+    /// chrome to show, `untranslated_to` is set so the build warns loudly —
+    /// a translation gap must never be silent.
+    pub fn chrome_for(&self, requested: Option<&str>, deck_default: &str) -> ResolvedChrome {
+        let default = deck_default.to_lowercase();
+        let target = requested.unwrap_or(deck_default).to_lowercase();
+        let block = self.translations.get(&target);
+
+        let pick = |over: Option<&String>, base: &Option<String>| -> Option<String> {
+            over.cloned().or_else(|| base.clone())
+        };
+
+        let has_chrome =
+            self.title.is_some() || self.subtitle.is_some() || self.source.is_some();
+        let untranslated_to = if target != default && block.is_none() && has_chrome {
+            Some(target.clone())
+        } else {
+            None
+        };
+
+        ResolvedChrome {
+            title: pick(block.and_then(|b| b.title.as_ref()), &self.title),
+            subtitle: pick(block.and_then(|b| b.subtitle.as_ref()), &self.subtitle),
+            source: pick(block.and_then(|b| b.source.as_ref()), &self.source),
+            source_url: pick(block.and_then(|b| b.source_url.as_ref()), &self.source_url),
+            footer: pick(block.and_then(|b| b.footer.as_ref()), &self.footer),
+            untranslated_to,
+        }
+    }
 }
 
 /// Represents a single slide file
@@ -380,6 +461,68 @@ This is the content.
         assert_eq!(metadata.title, Some("Test Slide".to_string()));
         assert_eq!(metadata.tags, vec!["test", "example"]);
         assert!(content.contains("# Hello World"));
+    }
+
+    #[test]
+    fn chrome_for_parses_translations_block() {
+        let content = r#"---
+title: Hello
+subtitle: World
+footer: "© Acme"
+layout: framed
+translations:
+  de:
+    title: Hallo
+    subtitle: Welt
+---
+body
+"#;
+        let (meta, _) = parse_frontmatter(content, "test");
+        let de = meta.chrome_for(Some("de"), "en");
+        assert_eq!(de.title.as_deref(), Some("Hallo"));
+        assert_eq!(de.subtitle.as_deref(), Some("Welt"));
+        // Omitted field falls back to the top-level value, no gap warning.
+        assert_eq!(de.footer.as_deref(), Some("© Acme"));
+        assert!(de.untranslated_to.is_none());
+    }
+
+    #[test]
+    fn chrome_for_default_language_uses_top_level() {
+        let mut meta = SlideMetadata {
+            title: Some("Hello".into()),
+            ..Default::default()
+        };
+        meta.translations
+            .insert("de".into(), ChromeTranslation { title: Some("Hallo".into()), ..Default::default() });
+        // Requesting the deck default (or nothing) → top-level, never a gap.
+        let en = meta.chrome_for(Some("en"), "en");
+        assert_eq!(en.title.as_deref(), Some("Hello"));
+        assert!(en.untranslated_to.is_none());
+        let none = meta.chrome_for(None, "en");
+        assert_eq!(none.title.as_deref(), Some("Hello"));
+    }
+
+    #[test]
+    fn chrome_for_missing_block_flags_untranslated() {
+        let meta = SlideMetadata {
+            title: Some("Hello".into()),
+            ..Default::default()
+        };
+        // Non-default language requested, no translations block, slide has
+        // chrome → loud-warn signal, content falls back to default language.
+        let de = meta.chrome_for(Some("de"), "en");
+        assert_eq!(de.title.as_deref(), Some("Hello"));
+        assert_eq!(de.untranslated_to.as_deref(), Some("de"));
+    }
+
+    #[test]
+    fn chrome_for_no_chrome_never_warns() {
+        // A language-neutral slide with no chrome should not warn even when a
+        // non-default language is requested — nothing to translate.
+        let meta = SlideMetadata::default();
+        let de = meta.chrome_for(Some("de"), "en");
+        assert!(de.untranslated_to.is_none());
+        assert!(de.title.is_none());
     }
 
     #[test]

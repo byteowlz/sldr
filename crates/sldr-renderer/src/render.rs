@@ -261,24 +261,37 @@ impl HtmlRenderer {
         // Pre-render each chrome element with a standard class so framed
         // layouts place it bare (`{{headline}}` alone on a line collapses
         // when empty) and flavors style it by class.
+        // Resolve chrome for this variant's language (translations.<lang>
+        // overriding the top-level default), then warn loudly if the slide
+        // carries chrome but no translation for a non-default language — the
+        // headline must never stay in the wrong language silently.
+        let resolved = slide
+            .metadata
+            .chrome_for(request, &self.config.default_language);
+        if let Some(target) = &resolved.untranslated_to {
+            self.warnings.push(format!(
+                "Slide '{}' chrome not translated to '{target}' — showing \
+                 default-language headline/subtitle/source",
+                slide.name
+            ));
+        }
         let flavor_footer = self.flavors.first().and_then(|f| f.footer.as_deref());
         let chrome = Chrome {
-            headline: slide.metadata.title.as_deref().map(|t| {
+            headline: resolved.title.as_deref().map(|t| {
                 format!("<h1 class=\"sldr-headline\">{}</h1>", html_escape_text(t))
             }),
-            subheadline: slide.metadata.subtitle.as_deref().map(|t| {
+            subheadline: resolved.subtitle.as_deref().map(|t| {
                 format!("<p class=\"sldr-subheadline\">{}</p>", html_escape_text(t))
             }),
-            footer: slide
-                .metadata
+            footer: resolved
                 .footer
                 .as_deref()
                 .or(flavor_footer)
                 .map(|t| format!("<div class=\"sldr-footer\">{}</div>", html_escape_text(t))),
-            source: slide.metadata.source.as_deref().map(|s| {
+            source: resolved.source.as_deref().map(|s| {
                 format!(
                     "<div class=\"sldr-source\">{}</div>",
-                    render_source(s, slide.metadata.source_url.as_deref())
+                    render_source(s, resolved.source_url.as_deref())
                 )
             }),
         };
