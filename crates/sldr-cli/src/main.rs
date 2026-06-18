@@ -116,6 +116,11 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
 
+        /// Language(s) to render (comma list; first is active). A PDF is
+        /// static, so all listed languages are laid out in sequence.
+        #[arg(short, long)]
+        lang: Option<String>,
+
         /// Export format (currently: pdf)
         #[arg(long, default_value = "pdf")]
         format: String,
@@ -466,8 +471,9 @@ fn main() -> anyhow::Result<()> {
             playlist,
             flavor,
             output,
+            lang,
             format,
-        } => commands::export::run(&playlist, flavor, output, &format),
+        } => commands::export::run(&playlist, flavor, output, lang, &format),
 
         Commands::Watch {
             playlist,

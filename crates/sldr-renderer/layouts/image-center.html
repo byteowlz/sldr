@@ -1,0 +1,28 @@
+<!-- Layout: image-center — one image shown whole (uncropped), centered on the
+     flavor background, no body text. For a diagram, chart, or screenshot that
+     *is* the slide. Use `image` for an edge-to-edge photo that fills and may
+     crop, or `feature-image` when you also need a caption. -->
+<style>
+.sldr-slide[data-layout="image-center"] .sldr-content {
+  align-items: center;
+  justify-content: center;
+}
+.sldr-slide[data-layout="image-center"] .sldr-content > p {
+  margin: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  overflow: hidden;
+}
+.sldr-slide[data-layout="image-center"] .sldr-content img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+</style>
+<div class="sldr-content">
+  {{content}}
+</div>

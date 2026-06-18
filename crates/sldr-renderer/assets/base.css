@@ -1696,11 +1696,23 @@ html:not(.dark) .sldr-edit-btn {
 /* =========================================================================
  * Print styles
  * ========================================================================= */
+/* PDF export: one 16:9 landscape page per slide, edge-to-edge — no portrait
+ * orientation, no page margins, no browser header/footer. Chrome's
+ * print-to-pdf honors @page size + margin; print-color-adjust forces the
+ * flavor background and other colors to actually print. */
+@page {
+  size: 1280px 720px;
+  margin: 0;
+}
+
 @media print {
   html, body {
     overflow: visible;
-    height: auto;
     width: auto;
+    height: auto;
+    margin: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .sldr-deck {
@@ -1710,18 +1722,28 @@ html:not(.dark) .sldr-edit-btn {
     overflow: visible;
   }
 
-  .sldr-slide {
-    display: block !important;
+  /* Each slide is exactly one page and keeps its on-screen flex layout, so
+   * every layout prints identically to the presenter. */
+  .sldr-slide,
+  .sldr-slide.active,
+  .sldr-slide[aria-hidden="true"] {
+    display: flex !important;
+    flex-direction: column;
     position: relative;
-    width: 100%;
-    height: auto;
-    min-height: 100vh;
+    width: 1280px;
+    height: 720px;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
     page-break-after: always;
     break-after: page;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  .sldr-slide[aria-hidden="true"] {
-    display: block !important;
+  .sldr-slide:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 
   .sldr-slide::before,

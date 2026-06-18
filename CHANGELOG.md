@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `image-center` layout — a single image shown *whole* (uncropped, `object-fit: contain`), centered on the flavor background, no body text. Fills the gap between `image` (edge-to-edge, fills and may crop) and `feature-image` (forces a caption rail): the layout for a diagram, chart, or screenshot that *is* the slide.
+- `framed-figure` layout — the framed-family counterpart of `image-center`: a single whole/centered image in the body with the persistent deck chrome (headline/subheadline/footer + flavor logos/background). For a branded diagram/screenshot slide. (To show logos on it, add `"framed-figure"` to the flavor's `[[logos]]` `layouts` lists.)
+
+### Fixed
+- PDF export geometry: PDFs now come out as **frameless 16:9 landscape** pages (one slide per page) instead of portrait Letter with a thick white margin and Chrome's header/footer metadata. The print CSS gained an `@page { size: 1280px 720px; margin: 0 }` rule, each slide is sized to exactly one page while keeping its on-screen flex layout, and `print-color-adjust: exact` forces the flavor background and colors to print.
+- `sldr export` now accepts `--lang` (it was silently unsupported) — and `sldr build --pdf` passes the build's `--lang` through. A PDF is static, so all listed languages are laid out in sequence.
+- `sldr export` PDF now **fails loud** when the headless browser exits cleanly but writes no file (e.g. a sandbox/permission denial), surfacing Chrome's own error instead of falsely printing "Success!".
+- PDF export now renders **logos on every page**. Logos are a single deck-level overlay (so they don't flicker between slides on screen), which in paged media only landed on the first page. The print-prep step now clones each slide's matching logos (by `data-logo-layouts`) into the slide itself, so every printed page carries exactly its layout's logos. On-screen rendering is unchanged (this runs only in the export/print path).
+- The built-in "Source:" chrome label is now localized by `--lang` (e.g. "Quelle:" in German), not just the frontmatter `source` text. It was a hardcoded string in the renderer, so a translated deck kept an English "Source:" prefix. A small shipped label table (en/de/fr/es/it/pt/nl) is resolved by the slide's active language — falling back to the deck default's label, then English — and works for both static `--lang` builds and the live `L` switch. Add a language by appending one row to `SOURCE_LABELS`.
+
 ## [0.6.0] - 2026-06-18
 
 ### Changed

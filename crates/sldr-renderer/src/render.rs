@@ -276,6 +276,9 @@ impl HtmlRenderer {
             ));
         }
         let flavor_footer = self.flavors.first().and_then(|f| f.footer.as_deref());
+        // The "Source:" prefix is a built-in UI label, localized by the same
+        // active language as the chrome/body (not a frontmatter string).
+        let source_label = source_label_for(request, &self.config.default_language);
         let chrome = Chrome {
             headline: resolved.title.as_deref().map(|t| {
                 format!("<h1 class=\"sldr-headline\">{}</h1>", html_escape_text(t))
@@ -291,7 +294,7 @@ impl HtmlRenderer {
             source: resolved.source.as_deref().map(|s| {
                 format!(
                     "<div class=\"sldr-source\">{}</div>",
-                    render_source(s, resolved.source_url.as_deref())
+                    render_source(s, resolved.source_url.as_deref(), source_label)
                 )
             }),
         };
@@ -740,22 +743,75 @@ fn html_escape_text(input: &str) -> String {
     input.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
-/// Render the web-clipping source line: "Source: …", linked when a URL is
-/// given. Self-contained — the link is inert until clicked.
-fn render_source(text: &str, url: Option<&str>) -> String {
-    let label = html_escape_text(text);
+/// Built-in localization of the framed "Source:" chrome label, keyed by
+/// language code. These are shipped defaults resolved by the slide's active
+/// language (the same axis as the body and chrome) — the label is a UI string
+/// the renderer injects, not slide frontmatter, so it needs its own table.
+/// Add a language by appending one row.
+const SOURCE_LABELS: &[(&str, &str)] = &[
+    ("en", "Source:"),
+    ("de", "Quelle:"),
+    ("fr", "Source :"),
+    ("es", "Fuente:"),
+    ("it", "Fonte:"),
+    ("pt", "Fonte:"),
+    ("nl", "Bron:"),
+];
+
+/// Resolve the "Source:" label for the active language (`requested`, else the
+/// deck default), falling back to the deck default's label, then English. A
+/// language absent from the table degrades to "Source:" rather than failing —
+/// a cosmetic gap, unlike a missing headline.
+fn source_label_for(requested: Option<&str>, deck_default: &str) -> &'static str {
+    let lookup = |code: &str| {
+        SOURCE_LABELS
+            .iter()
+            .find(|(c, _)| *c == code)
+            .map(|(_, l)| *l)
+    };
+    let target = requested.unwrap_or(deck_default).to_lowercase();
+    lookup(&target)
+        .or_else(|| lookup(&deck_default.to_lowercase()))
+        .unwrap_or("Source:")
+}
+
+/// Render the web-clipping source line: "<prefix> …", linked when a URL is
+/// given. `prefix` is the localized label (e.g. "Source:", "Quelle:").
+/// Self-contained — the link is inert until clicked.
+fn render_source(text: &str, url: Option<&str>, prefix: &str) -> String {
+    let text_esc = html_escape_text(text);
+    let prefix_esc = html_escape_text(prefix);
     match url {
         Some(u) => format!(
-            "<span class=\"sldr-source-label\">Source:</span> <a href=\"{}\">{label}</a>",
+            "<span class=\"sldr-source-label\">{prefix_esc}</span> <a href=\"{}\">{text_esc}</a>",
             html_escape_attr(u)
         ),
-        None => format!("<span class=\"sldr-source-label\">Source:</span> {label}"),
+        None => format!("<span class=\"sldr-source-label\">{prefix_esc}</span> {text_esc}"),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_label_localizes_and_falls_back() {
+        assert_eq!(source_label_for(Some("de"), "en"), "Quelle:");
+        assert_eq!(source_label_for(Some("FR"), "en"), "Source :"); // case-insensitive
+        assert_eq!(source_label_for(None, "de"), "Quelle:"); // no request → deck default
+        // requested language absent → deck default's label …
+        assert_eq!(source_label_for(Some("zz"), "de"), "Quelle:");
+        // … then English when neither is in the table.
+        assert_eq!(source_label_for(Some("zz"), "qq"), "Source:");
+    }
+
+    #[test]
+    fn render_source_uses_localized_prefix() {
+        let html = render_source("NPR", Some("https://npr.org"), "Quelle:");
+        assert!(html.contains(">Quelle:</span>"));
+        assert!(html.contains("href=\"https://npr.org\""));
+        assert!(!html.contains("Source:"));
+    }
 
     #[test]
     fn test_extract_notes_block() {

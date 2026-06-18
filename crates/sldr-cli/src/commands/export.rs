@@ -24,6 +24,29 @@ if (window.location.search.includes('print')) {
       s.style.position = 'relative';
       s.style.pageBreakAfter = 'always';
     });
+    // Per-page logos: the deck-level .sldr-logos overlay is a single
+    // absolutely-positioned element, so in paged media it only lands on the
+    // first page. Clone each slide's matching logos (by data-logo-layouts)
+    // into the slide itself so every printed page carries its own logos.
+    var overlay = document.querySelector('.sldr-logos');
+    if (overlay) {
+      var logos = Array.prototype.slice.call(overlay.querySelectorAll('.sldr-logo'));
+      document.querySelectorAll('.sldr-slide').forEach(function(slide) {
+        var layout = slide.getAttribute('data-layout') || '';
+        var holder = null;
+        logos.forEach(function(logo) {
+          var list = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
+          if (list.indexOf('all') !== -1 || list.indexOf(layout) !== -1) {
+            if (!holder) { holder = document.createElement('div'); holder.className = 'sldr-logos'; }
+            var clone = logo.cloneNode(true);
+            clone.classList.add('sldr-logo-on');
+            holder.appendChild(clone);
+          }
+        });
+        if (holder) slide.appendChild(holder);
+      });
+      overlay.style.display = 'none';
+    }
     // Hide toolbar and nav
     var toolbar = document.querySelector('.sldr-toolbar');
     if (toolbar) toolbar.style.display = 'none';
@@ -40,6 +63,7 @@ pub fn run(
     playlist_name: &str,
     flavor: Option<String>,
     output: Option<String>,
+    lang: Option<String>,
     format: &str,
 ) -> Result<()> {
     let config = Config::load()?;
@@ -85,6 +109,23 @@ pub fn run(
         .clone()
         .unwrap_or_else(|| "none".to_string()); // No transitions for export
 
+    // Language axis: CLI --lang (comma list) > playlist default_lang > "en".
+    // A PDF can't toggle, so every listed language is laid out in sequence.
+    let default_language = playlist
+        .default_lang
+        .clone()
+        .unwrap_or_else(|| "en".to_string());
+    let languages: Vec<String> = lang
+        .as_deref()
+        .map(|l| {
+            l.split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+
     let render_config = sldr_renderer::RenderConfig {
         title,
         transition,
@@ -94,6 +135,8 @@ pub fn run(
             .clone()
             .unwrap_or_else(|| "16/9".to_string()),
         speaker_notes: false, // No notes in PDF
+        languages,
+        default_language,
         ..Default::default()
     };
 
@@ -191,7 +234,7 @@ fn export_pdf(html: &str, output_path: &std::path::Path) -> Result<()> {
         let url = format!("http://127.0.0.1:{port}/?print");
         println!("  {} Rendering PDF...", ">".cyan());
 
-        let status = tokio::process::Command::new(&browser)
+        let out = tokio::process::Command::new(&browser)
             .args([
                 "--headless",
                 "--disable-gpu",
@@ -204,15 +247,32 @@ fn export_pdf(html: &str, output_path: &std::path::Path) -> Result<()> {
             ])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
-            .status()
+            .output()
             .await
             .context("Failed to run headless browser")?;
 
         // Abort the server
         server_handle.abort();
 
-        if !status.success() {
-            anyhow::bail!("Headless browser exited with error. Is Chrome/Chromium installed?");
+        // Verify the PDF was actually written — Chrome can exit 0 yet write
+        // nothing (e.g. a sandbox/permission denial on the output path), so
+        // the exit code alone is not proof. Fail loud with Chrome's own error.
+        let wrote = std::fs::metadata(output_path)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false);
+        if !out.status.success() || !wrote {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let mut tail: Vec<&str> = stderr.lines().rev().filter(|l| !l.trim().is_empty()).take(3).collect();
+            tail.reverse();
+            let detail = if tail.is_empty() {
+                "Is Chrome/Chromium installed and able to write the output path?".to_string()
+            } else {
+                tail.join("\n")
+            };
+            anyhow::bail!(
+                "Headless browser did not produce a PDF at {}.\n{detail}",
+                output_path.display()
+            );
         }
 
         Ok::<(), anyhow::Error>(())
