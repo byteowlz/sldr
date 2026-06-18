@@ -294,9 +294,8 @@ slides = [
 # Default flavor to use for styling
 flavor = "default"
 
-# Rendering configuration
-# (key kept as slidev_config for backwards compat with existing playlists)
-[slidev_config]
+# Rendering configuration (legacy `[slidev_config]` key is still read)
+[render]
 # Transition effect between slides: "fade", "slide-left", "slide-right", "none"
 transition = "fade"
 
@@ -389,7 +388,7 @@ fn generate_playlist_input_example(examples_dir: &PathBuf) {
     "conclusion"
   ],
   "flavor": "default",
-  "slidev_config": {
+  "render": {
     "transition": "fade",
     "aspect_ratio": "16/9"
   }

@@ -80,7 +80,7 @@ pub fn run(
         .unwrap_or_else(|| playlist.name.clone());
 
     let transition = playlist
-        .slidev_config
+        .render
         .transition
         .clone()
         .unwrap_or_else(|| "none".to_string()); // No transitions for export
@@ -89,7 +89,7 @@ pub fn run(
         title,
         transition,
         aspect_ratio: playlist
-            .slidev_config
+            .render
             .aspect_ratio
             .clone()
             .unwrap_or_else(|| "16/9".to_string()),

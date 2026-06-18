@@ -38,15 +38,16 @@ pub struct Playlist {
     pub default_lang: Option<String>,
 
     /// Rendering configuration
-    #[serde(default)]
-    pub slidev_config: RenderOpts,
+    #[serde(default, alias = "slidev_config")]
+    pub render: RenderOpts,
 }
 
 /// Presentation rendering configuration
 ///
-/// Serialized as `slidev_config` for backwards compatibility with existing
-/// playlist.toml files. Controls transition style, aspect ratio, and other
-/// rendering options for the self-contained HTML output.
+/// Serialized as the `[render]` table of a playlist (the legacy
+/// `[slidev_config]` key is still read for older playlist.toml files).
+/// Controls transition style, aspect ratio, and other rendering options for
+/// the self-contained HTML output.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct RenderOpts {
     /// Theme name (reserved for future use)
@@ -82,9 +83,6 @@ pub struct RenderOpts {
     #[serde(default)]
     pub record: Option<bool>,
 }
-
-/// Backwards-compatible type alias
-pub type SlidevConfig = RenderOpts;
 
 impl Playlist {
     /// Load a playlist from a TOML file
@@ -137,8 +135,8 @@ pub struct PlaylistInput {
     pub flavor: Option<String>,
 
     /// Rendering configuration
-    #[serde(default)]
-    pub slidev_config: Option<RenderOpts>,
+    #[serde(default, alias = "slidev_config")]
+    pub render: Option<RenderOpts>,
 }
 
 impl From<PlaylistInput> for Playlist {
@@ -150,7 +148,7 @@ impl From<PlaylistInput> for Playlist {
             slides: input.slides,
             flavor: input.flavor,
             default_lang: None,
-            slidev_config: input.slidev_config.unwrap_or_default(),
+            render: input.render.unwrap_or_default(),
         }
     }
 }

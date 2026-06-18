@@ -51,7 +51,7 @@ pub fn run(presentation: &str, slides: &str, position: Option<usize>) -> Result<
             slides: Vec::new(),
             flavor: None,
             default_lang: None,
-            slidev_config: sldr_core::presentation::SlidevConfig::default(),
+            render: sldr_core::presentation::RenderOpts::default(),
         }
     };
 

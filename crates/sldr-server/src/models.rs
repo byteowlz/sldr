@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use sldr_core::flavor::Flavor;
-use sldr_core::presentation::{Playlist, SlidevConfig}; // SlidevConfig = RenderOpts alias
+use sldr_core::presentation::{Playlist, RenderOpts};
 use sldr_core::slide::SlideMetadata;
 use uuid::Uuid;
 
@@ -63,9 +63,9 @@ pub struct CreatePlaylistRequest {
     pub slides: Vec<String>,
     #[serde(default)]
     pub flavor: Option<String>,
-    /// Kept for backwards compatibility with existing API consumers
-    #[serde(default)]
-    pub slidev_config: SlidevConfig,
+    /// Rendering options (legacy `slidev_config` key still accepted)
+    #[serde(default, alias = "slidev_config")]
+    pub render: RenderOpts,
 }
 
 #[derive(Debug, Serialize)]

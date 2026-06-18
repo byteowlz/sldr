@@ -447,7 +447,7 @@ fn create_from_dir_inner(
         slides: slide_refs.clone(),
         flavor: None,
         default_lang: None,
-        slidev_config: Default::default(),
+        render: Default::default(),
     };
 
     // Create parent directory if needed

@@ -202,7 +202,7 @@ slides = [
 # flavor = "default"
 
 # Rendering options
-[slidev_config]
+[render]
 transition = "fade"
 aspect_ratio = "16/9"
 "#,

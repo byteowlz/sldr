@@ -239,7 +239,7 @@ async fn create_playlist(
         slides: payload.slides,
         flavor: payload.flavor,
         default_lang: None,
-        slidev_config: payload.slidev_config,
+        render: payload.render,
     };
 
     playlist
@@ -269,7 +269,7 @@ async fn update_playlist(
         slides: payload.slides,
         flavor: payload.flavor,
         default_lang: None,
-        slidev_config: payload.slidev_config,
+        render: payload.render,
     };
 
     playlist
@@ -468,13 +468,13 @@ fn build_html_from_playlist(
         .unwrap_or_else(|| playlist.name.clone());
 
     let transition = playlist
-        .slidev_config
+        .render
         .transition
         .clone()
         .unwrap_or_else(|| "fade".to_string());
 
     let aspect_ratio = playlist
-        .slidev_config
+        .render
         .aspect_ratio
         .clone()
         .unwrap_or_else(|| "16/9".to_string());

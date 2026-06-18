@@ -14,4 +14,4 @@ pub mod flavor;
 pub use config::Config;
 pub use error::{Error, Result};
 pub use flavor::Flavor;
-pub use presentation::{RenderOpts, Playlist, SlidevConfig};
+pub use presentation::{Playlist, RenderOpts};

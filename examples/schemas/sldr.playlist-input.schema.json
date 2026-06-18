@@ -24,14 +24,7 @@
       "description": "Name of the playlist (used as filename)",
       "type": "string"
     },
-    "slides": {
-      "description": "List of slide references (paths relative to slides directory)",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "slidev_config": {
+    "render": {
       "description": "Rendering configuration",
       "anyOf": [
         {
@@ -42,6 +35,13 @@
         }
       ],
       "default": null
+    },
+    "slides": {
+      "description": "List of slide references (paths relative to slides directory)",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "title": {
       "description": "Title for the presentation",
@@ -55,7 +55,7 @@
   ],
   "$defs": {
     "RenderOpts": {
-      "description": "Presentation rendering configuration\n\nSerialized as `slidev_config` for backwards compatibility with existing\nplaylist.toml files. Controls transition style, aspect ratio, and other\nrendering options for the self-contained HTML output.",
+      "description": "Presentation rendering configuration\n\nSerialized as the `[render]` table of a playlist (the legacy\n`[slidev_config]` key is still read for older playlist.toml files).\nControls transition style, aspect ratio, and other rendering options for\nthe self-contained HTML output.",
       "type": "object",
       "properties": {
         "aspect_ratio": {
