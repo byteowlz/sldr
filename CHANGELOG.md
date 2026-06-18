@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-06-18
+
+### Changed
+- Playlist TOML: the rendering-options table is now `[render]` instead of the legacy `[slidev_config]` (a leftover from the pre-rewrite slidev days). Existing playlists with `[slidev_config]` still load — the key is read via a serde alias — and re-saving migrates them to `[render]`. The `SlidevConfig` type alias is removed (`RenderOpts` is the type). Templates, schemas, and examples regenerated.
+
+### Fixed
+- Framed chrome (headline/subtitle/source/footer) is now translated by `--lang`, not just the body. Previously `--lang de` swapped the `::lang:de::` body but left the frontmatter-fed chrome in the base language — a German deck kept an English headline. Slides gain an optional per-language `translations:` frontmatter block (the analog of the body's `::lang:xx::`): top-level fields are the default language, `translations.<lang>` overrides the chrome for that language, and an omitted field falls back to the top-level value. A non-default language with chrome but no translation block warns loudly and falls back — never a silent wrong-language headline. Works for both static `--lang` builds and the live `L` switcher (each language is already a full `data-lang` slide section, so no presenter change). trx-2zb8.
+
 ## [0.5.0] - 2026-06-17
 
 ### Added
