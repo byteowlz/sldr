@@ -655,6 +655,28 @@ impl Flavor {
         write_motion_vars(&mut css, &self.motion);
         write_decoration_vars(&mut css, &self.decoration);
 
+        // Reserve the headline's right edge so it never runs under a logo in
+        // the top band (e.g. a top-right brand mark). For every logo with an
+        // explicit position in the top band (y < 25%) on the right half
+        // (x >= 50%), the headline must stop before its left edge; the framed
+        // head zone starts at 4.4%. Derived from the flavor's own logo
+        // coordinates, so it adapts per flavor instead of being hardcoded.
+        let parse_pct = |s: &str| s.trim().trim_end_matches('%').parse::<f64>().ok();
+        let head_right = self
+            .logos
+            .iter()
+            .filter_map(|l| {
+                let x = l.x.as_deref().and_then(parse_pct)?;
+                let y = l.y.as_deref().and_then(parse_pct)?;
+                (y < 25.0 && x >= 50.0).then_some(x)
+            })
+            .fold(f64::INFINITY, f64::min);
+        if head_right.is_finite() {
+            // 2% gap before the logo; floor the width so it never collapses.
+            let width = (head_right - 2.0 - 4.4).max(20.0);
+            let _ = writeln!(css, "  --sldr-head-width: {width:.1}%;");
+        }
+
         css.push_str("}\n");
 
         if let Some(ref dark) = self.dark_colors {

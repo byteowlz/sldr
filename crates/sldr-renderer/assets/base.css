@@ -226,7 +226,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 /* Chrome placed at the source deck's exact coordinates. Sizes
  * are vw-relative so they track the 16:9 design; positions are % of slide.
  * 22pt headline / 20pt subheadline / 12pt footer on a 13.33in-wide slide. */
-.sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: 6.3%; width: 91.1%; }
+.sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: 6.3%; width: var(--sldr-head-width, 91.1%); }
 .sldr-framed .sldr-headline {
   font-size: 2.29vw;
   font-weight: 700;
@@ -1699,9 +1699,15 @@ html:not(.dark) .sldr-edit-btn {
 /* PDF export: one 16:9 landscape page per slide, edge-to-edge — no portrait
  * orientation, no page margins, no browser header/footer. Chrome's
  * print-to-pdf honors @page size + margin; print-color-adjust forces the
- * flavor background and other colors to actually print. */
+ * flavor background and other colors to actually print.
+ *
+ * The page is 1920x1080: layouts size type/spacing with vw/vh, so the print
+ * viewport must match a typical large authoring window. At a cramped width
+ * (e.g. 1280) clamp() minimums crowd the content and it overflows; 1920
+ * lands close to a maximized laptop browser. Output is vector, so the larger
+ * page costs no sharpness. */
 @page {
-  size: 1280px 720px;
+  size: 1920px 1080px;
   margin: 0;
 }
 
@@ -1730,8 +1736,8 @@ html:not(.dark) .sldr-edit-btn {
     display: flex !important;
     flex-direction: column;
     position: relative;
-    width: 1280px;
-    height: 720px;
+    width: 1920px;
+    height: 1080px;
     min-height: 0;
     margin: 0;
     overflow: hidden;
