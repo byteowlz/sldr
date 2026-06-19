@@ -552,6 +552,38 @@
     }
   }
 
+  // Shrink-to-fit: if a slide's body content overflows its region, scale the
+  // region down so it fits — at any viewport size, without a fixed canvas.
+  // The region element is scaled directly (transform is visual-only), so the
+  // chrome (headline/subheadline/footer/source) and the deck-level logos —
+  // which live in *separate* elements — are never scaled and never collide
+  // with the body. Only ever shrinks; a slide that already fits is untouched.
+  function fitSlide(slide) {
+    if (!slide) return;
+    var regions = slide.querySelectorAll(".sldr-content, .sldr-frame-body");
+    for (var i = 0; i < regions.length; i++) {
+      var el = regions[i];
+      // Only fit the region's own body, not a nested column's region.
+      if (el.parentNode && el.parentNode.closest &&
+          el.parentNode.closest(".sldr-content, .sldr-frame-body")) continue;
+      el.style.transform = "";
+      var availH = el.clientHeight, availW = el.clientWidth;
+      if (!availH || !availW) continue;
+      var needH = el.scrollHeight, needW = el.scrollWidth;
+      var scale = Math.min(1, availH / needH, availW / needW);
+      if (scale < 0.999) {
+        el.style.transformOrigin = "center center";
+        el.style.transform = "scale(" + scale + ")";
+      }
+    }
+  }
+
+  // Fit every slide — used by the PDF export path, where all slides are shown
+  // at once (the per-slide showSlide hook never fires for the inactive ones).
+  window.__sldrFitAll = function () {
+    for (var i = 0; i < total; i++) fitSlide(slides[i]);
+  };
+
   function showSlide(index, dir, prevIndex) {
     // Clean up any in-flight animations first to prevent stuck states.
     cleanupAllAnimations();
@@ -575,6 +607,9 @@
     // Show only the logos that apply to this slide's layout. Logos that
     // carry across consecutive slides stay on (no toggle, no flicker).
     updateLogos(enterSlide.getAttribute("data-layout") || "");
+
+    // Shrink the body to fit if its content overflows (responsive auto-fit).
+    fitSlide(enterSlide);
 
     if (dir !== "none") {
       var enterClass = getTransitionClass(dir, "enter");
@@ -969,7 +1004,9 @@
   // Resize handling
   // ---------------------------------------------------------------------------
   function onResize() {
-    // CSS handles scaling. Hook for future enhancements.
+    // Re-fit the visible slide: the body box changed size, so the
+    // shrink-to-fit scale must be recomputed.
+    if (slides[current]) fitSlide(slides[current]);
   }
 
   // ---------------------------------------------------------------------------

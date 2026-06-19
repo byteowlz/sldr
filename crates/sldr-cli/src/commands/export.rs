@@ -54,6 +54,11 @@ if (window.location.search.includes('print')) {
     if (nav) nav.style.display = 'none';
     var progress = document.querySelector('.sldr-progress');
     if (progress) progress.style.display = 'none';
+    // Shrink-to-fit every slide once they're all laid out for print (the
+    // presenter's per-slide fit hook only runs for the active slide).
+    requestAnimationFrame(function() {
+      if (window.__sldrFitAll) window.__sldrFitAll();
+    });
   });
 }
 </script>
