@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.6.1] - 2026-06-19
 
 ### Fixed
 - Framed headlines no longer collide with a top-corner logo. The headline zone's width is now reserved from the flavor's own logo coordinates — for any logo in the top band (y < 25%) on the right half, the headline stops before its left edge (with a small gap) — so a long headline wraps instead of running under the brand mark. Derived per flavor (via a `--sldr-head-width` token), not hardcoded.
