@@ -116,8 +116,9 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
 
-        /// Language(s) to render (comma list; first is active). A PDF is
-        /// static, so all listed languages are laid out in sequence.
+        /// Language(s) to render (comma list). A PDF can't toggle language,
+        /// so multiple languages export one file per language
+        /// (deck.de.pdf, deck.en.pdf).
         #[arg(short, long)]
         lang: Option<String>,
 

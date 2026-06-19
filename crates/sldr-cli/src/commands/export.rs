@@ -4,7 +4,7 @@
 //! The presentation's built-in @media print CSS handles the layout.
 
 use std::net::TcpListener;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -115,7 +115,8 @@ pub fn run(
         .unwrap_or_else(|| "none".to_string()); // No transitions for export
 
     // Language axis: CLI --lang (comma list) > playlist default_lang > "en".
-    // A PDF can't toggle, so every listed language is laid out in sequence.
+    // A PDF can't toggle language, so multiple languages export one file each
+    // (deck.de.pdf, deck.en.pdf) — see the per-language loop below.
     let default_language = playlist
         .default_lang
         .clone()
@@ -131,66 +132,94 @@ pub fn run(
         })
         .unwrap_or_default();
 
-    let render_config = sldr_renderer::RenderConfig {
-        title,
-        transition,
-        aspect_ratio: playlist
-            .render
-            .aspect_ratio
-            .clone()
-            .unwrap_or_else(|| "16/9".to_string()),
-        speaker_notes: false, // No notes in PDF
-        languages,
-        default_language,
-        ..Default::default()
+    let aspect_ratio = playlist
+        .render
+        .aspect_ratio
+        .clone()
+        .unwrap_or_else(|| "16/9".to_string());
+
+    // A PDF/PPTX can't toggle language at view time, so each requested
+    // language is its own file (deck.de.pdf, deck.en.pdf) rather than one
+    // combined document. No --lang → a single file in the deck default.
+    let export_langs: Vec<Option<String>> = if languages.len() > 1 {
+        languages.iter().cloned().map(Some).collect()
+    } else {
+        vec![languages.first().cloned()]
     };
+    let multi = export_langs.len() > 1;
 
-    let mut renderer =
-        sldr_renderer::HtmlRenderer::new(render_config).add_flavor(flavor);
-    for dir in config.layout_dirs() {
-        renderer.load_layouts(&dir)?;
-    }
-    renderer.add_slides(&resolved_slides)?;
-    let html = renderer.render()?;
-
-    // Inject print preparation script
-    let html = inject_print_prep(&html);
-
-    // Determine output path
-    let output_path = if let Some(out) = output {
+    // Base output path: custom --output, or <output_dir>/<playlist>.<ext>.
+    let base_path = if let Some(out) = output {
         PathBuf::from(out)
     } else {
         let output_dir = config.output_dir().join(&playlist.name);
         std::fs::create_dir_all(&output_dir)?;
-        output_dir.join(format!("{}.pdf", playlist.name))
+        let ext = if format == "pptx" { "pptx" } else { "pdf" };
+        output_dir.join(format!("{}.{ext}", playlist.name))
     };
 
-    match format {
-        "pdf" => export_pdf(&html, &output_path)?,
-        "pptx" => {
-            let pptx_path = if output_path.extension().is_some_and(|e| e == "pdf") {
-                output_path.with_extension("pptx")
-            } else {
-                output_path.clone()
-            };
-            export_pptx(&html, resolved_slides.len(), &pptx_path)?;
-            println!(
-                "\n{} Exported to {}",
-                "Success!".green().bold(),
-                pptx_path.display().to_string().cyan()
-            );
-            return Ok(());
+    for lang_opt in export_langs {
+        let render_config = sldr_renderer::RenderConfig {
+            title: title.clone(),
+            transition: transition.clone(),
+            aspect_ratio: aspect_ratio.clone(),
+            speaker_notes: false, // No notes in PDF
+            // One concrete language per file → single (untagged) variant.
+            languages: lang_opt.clone().map(|l| vec![l]).unwrap_or_default(),
+            default_language: default_language.clone(),
+            ..Default::default()
+        };
+
+        let mut renderer =
+            sldr_renderer::HtmlRenderer::new(render_config).add_flavor(flavor.clone());
+        for dir in config.layout_dirs() {
+            renderer.load_layouts(&dir)?;
         }
-        other => anyhow::bail!("Unsupported export format: {other}. Supported: pdf, pptx"),
+        renderer.add_slides(&resolved_slides)?;
+        let html = inject_print_prep(&renderer.render()?);
+
+        // Suffix the filename with the language when emitting one per lang.
+        let out_path = match (&lang_opt, multi) {
+            (Some(l), true) => insert_lang_suffix(&base_path, l),
+            _ => base_path.clone(),
+        };
+
+        let final_path = match format {
+            "pdf" => {
+                export_pdf(&html, &out_path)?;
+                out_path
+            }
+            "pptx" => {
+                let pptx_path = if out_path.extension().is_some_and(|e| e == "pdf") {
+                    out_path.with_extension("pptx")
+                } else {
+                    out_path.clone()
+                };
+                export_pptx(&html, resolved_slides.len(), &pptx_path)?;
+                pptx_path
+            }
+            other => {
+                anyhow::bail!("Unsupported export format: {other}. Supported: pdf, pptx")
+            }
+        };
+
+        println!(
+            "\n{} Exported to {}",
+            "Success!".green().bold(),
+            final_path.display().to_string().cyan()
+        );
     }
 
-    println!(
-        "\n{} Exported to {}",
-        "Success!".green().bold(),
-        output_path.display().to_string().cyan()
-    );
-
     Ok(())
+}
+
+/// Insert `.<lang>` before a path's extension: `foo.pdf` + `de` → `foo.de.pdf`.
+fn insert_lang_suffix(path: &Path, lang: &str) -> PathBuf {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("pdf");
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("export");
+    let mut out = path.to_path_buf();
+    out.set_file_name(format!("{stem}.{lang}.{ext}"));
+    out
 }
 
 fn inject_print_prep(html: &str) -> String {
