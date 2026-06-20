@@ -82,6 +82,12 @@ pub struct RenderOpts {
     /// Enable slide recording (reserved for future use)
     #[serde(default)]
     pub record: Option<bool>,
+
+    /// Aspect-lock the deck to a centered, letterboxed 16:9 box instead of
+    /// filling the browser window. Off by default. On makes the on-screen
+    /// slide the exact shape that exports (browser == projector == PDF).
+    #[serde(default)]
+    pub aspect_lock: Option<bool>,
 }
 
 impl Playlist {

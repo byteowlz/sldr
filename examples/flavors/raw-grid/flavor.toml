@@ -68,11 +68,11 @@ heading_wrap = "balance"
 body_wrap = "pretty"
 
 [spacing]
-slide_padding_y = "clamp(40px, 6vh, 72px)"
-slide_padding_x = "clamp(48px, 6vw, 96px)"
+slide_padding_y = "calc(var(--sldr-uh) * 6)"
+slide_padding_x = "calc(var(--sldr-u) * 6)"
 content_max_width = "84ch"
 density = "compact"
-stack_gap = "clamp(16px, 2.4vh, 28px)"
+stack_gap = "calc(var(--sldr-uh) * 2.4)"
 
 [shape]
 radius = "0"

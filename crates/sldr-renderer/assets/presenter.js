@@ -552,6 +552,20 @@
     }
   }
 
+  // Resolution-independent sizing: set the slide-relative unit (1% of the
+  // slide box) so every `calc(var(--sldr-u) * N)` length renders identically
+  // at any display size — type is a fraction of the slide, not the viewport.
+  // Set on the slide element so its own padding picks it up too. Must run
+  // before fitSlide (which measures the now-correctly-sized content).
+  function setUnit(slide) {
+    if (!slide) return;
+    var w = slide.clientWidth, h = slide.clientHeight;
+    if (w > 0 && h > 0) {
+      slide.style.setProperty("--sldr-u", w / 100 + "px");
+      slide.style.setProperty("--sldr-uh", h / 100 + "px");
+    }
+  }
+
   // Shrink-to-fit: if a slide's body content overflows its region, scale the
   // region down so it fits — at any viewport size, without a fixed canvas.
   // The region element is scaled directly (transform is visual-only), so the
@@ -581,7 +595,7 @@
   // Fit every slide — used by the PDF export path, where all slides are shown
   // at once (the per-slide showSlide hook never fires for the inactive ones).
   window.__sldrFitAll = function () {
-    for (var i = 0; i < total; i++) fitSlide(slides[i]);
+    for (var i = 0; i < total; i++) { setUnit(slides[i]); fitSlide(slides[i]); }
   };
 
   function showSlide(index, dir, prevIndex) {
@@ -608,7 +622,8 @@
     // carry across consecutive slides stay on (no toggle, no flicker).
     updateLogos(enterSlide.getAttribute("data-layout") || "");
 
-    // Shrink the body to fit if its content overflows (responsive auto-fit).
+    // Resolution-independent unit, then shrink the body to fit if it overflows.
+    setUnit(enterSlide);
     fitSlide(enterSlide);
 
     if (dir !== "none") {
@@ -1004,9 +1019,8 @@
   // Resize handling
   // ---------------------------------------------------------------------------
   function onResize() {
-    // Re-fit the visible slide: the body box changed size, so the
-    // shrink-to-fit scale must be recomputed.
-    if (slides[current]) fitSlide(slides[current]);
+    // The slide box changed size: recompute the unit and the fit scale.
+    if (slides[current]) { setUnit(slides[current]); fitSlide(slides[current]); }
   }
 
   // ---------------------------------------------------------------------------

@@ -29,6 +29,16 @@
  * use the var() in the rules below, expose it in flavor.rs.
  */
 :root {
+  /* Slide-relative sizing unit (resolution independence).
+   * Type/spacing are expressed as `calc(var(--sldr-u) * N)` instead of `Nvw`,
+   * so a heading is always N% of the *slide*, not of the display — identical
+   * at 1366p, 4K, a projector, and the PDF page. These defaults make the unit
+   * equal viewport-% (the legacy behavior) until the presenter sets a precise
+   * per-slide pixel value (slide width/height ÷ 100). With JS off, type still
+   * sizes sensibly. --sldr-u = horizontal unit, --sldr-uh = vertical. */
+  --sldr-u: 1vw;
+  --sldr-uh: 1vh;
+
   /* Color — base values can be hex, rgb(), or oklch().
    * Derived tokens (border, accent-dim, muted) auto-tint from the base
    * tokens via color-mix(in oklch, ...). Flavors can still set them
@@ -55,7 +65,7 @@
   --sldr-heading-font: 'DM Sans', system-ui, sans-serif;
   --sldr-body-font: 'DM Sans', system-ui, sans-serif;
   --sldr-code-font: 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
-  --sldr-base-size: clamp(16px, 1.8vw, 22px);
+  --sldr-base-size: calc(var(--sldr-u) * 1.8);
   --sldr-heading-weight: 700;
   --sldr-body-weight: 400;
   --sldr-heading-tracking: -0.5px;
@@ -70,10 +80,10 @@
   --sldr-optical-sizing: auto;
 
   /* Spacing */
-  --sldr-slide-padding-y: clamp(40px, 6vh, 80px);
-  --sldr-slide-padding-x: clamp(48px, 7vw, 120px);
+  --sldr-slide-padding-y: calc(var(--sldr-uh) * 6);
+  --sldr-slide-padding-x: calc(var(--sldr-u) * 7);
   --sldr-content-max-width: none;
-  --sldr-stack-gap: clamp(16px, 2.5vh, 32px);
+  --sldr-stack-gap: calc(var(--sldr-uh) * 2.5);
   --sldr-density-scale: 1;
 
   /* Shape */
@@ -115,7 +125,7 @@ body {
   background: var(--sldr-background);
   color: var(--sldr-text);
   font-family: var(--sldr-body-font);
-  font-size: clamp(16px, 1.8vw, 22px);
+  font-size: calc(var(--sldr-u) * 1.8);
   line-height: 1.6;
   font-feature-settings: var(--sldr-font-features);
   font-optical-sizing: var(--sldr-optical-sizing);
@@ -164,9 +174,23 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 /* === Slide deck container === */
 .sldr-deck {
   position: relative;
-  width: 100vw;
+  width: 100vw;   /* deck genuinely fills the viewport (not slide-relative) */
   height: 100vh;
   overflow: hidden;
+}
+
+/* Aspect-locked mode (opt-in): the deck becomes a centered 16:9 (or configured)
+ * box, letterboxed in whatever space it has — so the on-screen slide is the
+ * exact shape that gets exported, and browser == PDF == projector. Not a fixed
+ * pixel canvas: it still scales to fill the available space. */
+.sldr-deck[data-aspect-lock="on"] {
+  --sldr-aspect: 16 / 9;
+  width: min(100vw, 100vh * (16 / 9));
+  height: min(100vh, 100vw * (9 / 16));
+  aspect-ratio: var(--sldr-aspect);
+  position: absolute;
+  inset: 0;
+  margin: auto;   /* center in the viewport, black bars around */
 }
 
 /* === Individual slides === */
@@ -228,7 +252,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
  * 22pt headline / 20pt subheadline / 12pt footer on a 13.33in-wide slide. */
 .sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: 6.3%; width: var(--sldr-head-width, 91.1%); }
 .sldr-framed .sldr-headline {
-  font-size: 2.29vw;
+  font-size: calc(var(--sldr-u) * 2.29);
   font-weight: 700;
   letter-spacing: var(--sldr-heading-tracking);
   line-height: 1.12;
@@ -236,11 +260,11 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   margin: 0;
 }
 .sldr-framed .sldr-subheadline {
-  font-size: 2.08vw;
+  font-size: calc(var(--sldr-u) * 2.08);
   font-weight: 400;
   line-height: 1.15;
   color: var(--sldr-accent);
-  margin: 0.3vw 0 0;
+  margin: calc(var(--sldr-u) * 0.3) 0 0;
 }
 .sldr-framed .sldr-frame-body {
   position: absolute;
@@ -251,13 +275,13 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 1.6vw;
-  font-size: 1.6vw;
+  gap: calc(var(--sldr-u) * 1.6);
+  font-size: calc(var(--sldr-u) * 1.6);
   line-height: 1.4;
 }
 .sldr-framed .sldr-frame-body :is(h2, h3) {
   color: var(--sldr-primary);
-  font-size: 1.8vw;
+  font-size: calc(var(--sldr-u) * 1.8);
   margin: 0;
 }
 .sldr-framed .sldr-frame-body p { margin: 0; }
@@ -289,7 +313,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   top: 92.5%;
   width: 80%;
   font-family: var(--sldr-body-font);
-  font-size: 1.25vw;
+  font-size: calc(var(--sldr-u) * 1.25);
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.7;
 }
@@ -299,7 +323,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   top: 88.2%;
   width: 86%;
   font-family: var(--sldr-body-font);
-  font-size: 1.1vw;
+  font-size: calc(var(--sldr-u) * 1.1);
   line-height: 1.3;
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.65;
@@ -318,7 +342,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-framed .sldr-frame-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3vw;
+  gap: calc(var(--sldr-u) * 3);
   align-content: start;
   width: 100%;
   height: 100%;
@@ -326,14 +350,14 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-framed .sldr-frame-imgsplit {
   display: grid;
   grid-template-columns: 1fr 42%;
-  gap: 2.4vw;
+  gap: calc(var(--sldr-u) * 2.4);
   align-items: center;
   width: 100%;
   height: 100%;
 }
 .sldr-framed .sldr-frame-imgsplit .sldr-col-image img {
   width: 100%;
-  max-height: 64vh;
+  max-height: calc(var(--sldr-uh) * 64);
   object-fit: contain;
   border-radius: var(--sldr-radius-sm);
 }
@@ -391,7 +415,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="image-right"] .sldr-col-content > h1:first-child,
 .sldr-slide[data-layout="image-right"] .sldr-col-content > h2:first-child {
   /* Tight title→body gap. The flex `gap` adds another ~16-32px on top. */
-  margin-bottom: clamp(8px, 1.5vh, 20px);
+  margin-bottom: calc(var(--sldr-uh) * 1.5);
 }
 
 
@@ -413,8 +437,8 @@ html[data-sldr-motion="off"] .sldr-fx::after {
    * rhythm of the deck. Max width 65ch is the editorial reading-line;
    * flavors override via `spacing.content_max_width`. */
   justify-content: flex-start;
-  padding-top: clamp(16px, 4vh, 48px);
-  gap: clamp(16px, 2.5vh, 28px);
+  padding-top: calc(var(--sldr-uh) * 4);
+  gap: calc(var(--sldr-uh) * 2.5);
   max-width: var(--sldr-content-max-width, 65ch);
 }
 
@@ -460,17 +484,17 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   /* "The first heading should not scream." (taste-skill rule)
    * Hierarchy comes from weight, tracking, and color — not raw scale.
    * Reduced from 96px max to 80px max for sophistication. */
-  font-size: clamp(40px, 6vw, 80px);
+  font-size: calc(var(--sldr-u) * 6);
   font-weight: var(--sldr-heading-weight);
   letter-spacing: var(--sldr-heading-tracking);
   line-height: var(--sldr-heading-leading);
   text-transform: var(--sldr-heading-transform);
   text-wrap: balance;
-  margin-bottom: clamp(8px, 1.5vh, 20px);
+  margin-bottom: calc(var(--sldr-uh) * 1.5);
 }
 
 .sldr-slide[data-layout="cover"] p {
-  font-size: clamp(16px, 2.5vw, 28px);
+  font-size: calc(var(--sldr-u) * 2.5);
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.7;
   max-width: 70%;
@@ -504,13 +528,13 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 
 .sldr-slide[data-layout="section"] .sldr-content {
   justify-content: center;
-  gap: clamp(8px, 1.5vh, 20px);
+  gap: calc(var(--sldr-uh) * 1.5);
 }
 
 .sldr-slide[data-layout="section"] h1 {
   /* Section divider — slightly larger than content h1 to signal chapter
    * break, but still controlled. Anti-oversized-H1. */
-  font-size: clamp(36px, 6.5vw, 88px);
+  font-size: calc(var(--sldr-u) * 6.5);
   font-weight: var(--sldr-heading-weight);
   letter-spacing: var(--sldr-heading-tracking);
   line-height: var(--sldr-heading-leading);
@@ -518,7 +542,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 }
 
 .sldr-slide[data-layout="section"] p {
-  font-size: clamp(16px, 2.2vw, 26px);
+  font-size: calc(var(--sldr-u) * 2.2);
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.6;
 }
@@ -530,14 +554,14 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="two-cols"] .sldr-content {
   /* Headline anchored top (matches default layout), columns below. */
   justify-content: flex-start;
-  padding-top: clamp(16px, 4vh, 48px);
-  gap: clamp(16px, 2.5vh, 28px);
+  padding-top: calc(var(--sldr-uh) * 4);
+  gap: calc(var(--sldr-uh) * 2.5);
 }
 
 .sldr-slide[data-layout="two-cols"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(32px, 4vw, 80px);
+  gap: calc(var(--sldr-u) * 4);
   align-content: start;
   min-height: 0;
   width: 100%;
@@ -546,11 +570,11 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="two-cols"] .sldr-col {
   display: flex;
   flex-direction: column;
-  gap: clamp(6px, 1vh, 14px);
+  gap: calc(var(--sldr-uh) * 1);
   background: var(--sldr-surface);
   border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
   border-radius: var(--sldr-radius);
-  padding: clamp(20px, 3vh, 36px) clamp(20px, 2.5vw, 36px);
+  padding: calc(var(--sldr-uh) * 3) calc(var(--sldr-u) * 2.5);
 }
 
 
@@ -559,14 +583,14 @@ html[data-sldr-motion="off"] .sldr-fx::after {
  * ========================================================================= */
 .sldr-slide[data-layout="two-cols-header"] .sldr-content {
   justify-content: flex-start;
-  padding-top: clamp(16px, 4vh, 48px);
-  gap: clamp(16px, 2.5vh, 28px);
+  padding-top: calc(var(--sldr-uh) * 4);
+  gap: calc(var(--sldr-uh) * 2.5);
 }
 
 .sldr-slide[data-layout="two-cols-header"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(32px, 4vw, 80px);
+  gap: calc(var(--sldr-u) * 4);
   align-content: start;
   min-height: 0;
   width: 100%;
@@ -610,11 +634,11 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="image-left"] .sldr-col-content {
   /* Visual-explainer's split-panel pattern: each panel centers its
    * content vertically. Title + body together as a centered block. */
-  padding: clamp(32px, 5vh, 60px) clamp(32px, 4vw, 60px);
+  padding: calc(var(--sldr-uh) * 5) calc(var(--sldr-u) * 4);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(12px, 2vh, 24px);
+  gap: calc(var(--sldr-uh) * 2);
 }
 
 
@@ -631,11 +655,11 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="image-right"] .sldr-col-content {
   /* Visual-explainer's split-panel pattern: each panel centers its
    * content vertically. Title + body together as a centered block. */
-  padding: clamp(32px, 5vh, 60px) clamp(32px, 4vw, 60px);
+  padding: calc(var(--sldr-uh) * 5) calc(var(--sldr-u) * 4);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(12px, 2vh, 24px);
+  gap: calc(var(--sldr-uh) * 2);
 }
 
 .sldr-slide[data-layout="image-right"] .sldr-col-image {
@@ -656,7 +680,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: clamp(60px, 10vh, 120px) clamp(60px, 12vw, 200px);
+  padding: calc(var(--sldr-uh) * 10) calc(var(--sldr-u) * 12);
 }
 
 .sldr-slide[data-layout="quote"] .sldr-content {
@@ -665,14 +689,14 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 }
 
 .sldr-slide[data-layout="quote"] blockquote {
-  font-size: clamp(28px, 4.5vw, 56px);
+  font-size: calc(var(--sldr-u) * 4.5);
   font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
   font-weight: 400;
   line-height: 1.3;
   border-left: none;
   padding: 0;
-  margin: 0 0 clamp(20px, 4vh, 48px);
+  margin: 0 0 calc(var(--sldr-uh) * 4);
   max-width: 85%;
   text-wrap: balance;
   color: var(--sldr-text);
@@ -694,18 +718,18 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="quote"] blockquote::before {
   content: '\201C';
   display: block;
-  font-size: clamp(100px, 18vw, 220px);
+  font-size: calc(var(--sldr-u) * 18);
   line-height: 0.6;
   opacity: 0.07;
   font-family: Georgia, serif;
   color: var(--sldr-accent);
-  margin-bottom: clamp(12px, 3vh, 36px);
+  margin-bottom: calc(var(--sldr-uh) * 3);
 }
 
 /* Attribution and commentary below the quote */
 .sldr-slide[data-layout="quote"] .sldr-content > p {
   font-family: var(--sldr-code-font);
-  font-size: clamp(12px, 1.5vw, 16px);
+  font-size: calc(var(--sldr-u) * 1.5);
   font-style: normal;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -716,7 +740,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 
 .sldr-slide[data-layout="quote"] .sldr-attribution {
   font-family: var(--sldr-code-font);
-  font-size: clamp(11px, 1.4vw, 15px);
+  font-size: calc(var(--sldr-u) * 1.4);
   font-style: normal;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -751,9 +775,9 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   /* Headline anchored top like other content slides; the collage itself
    * centers in the remaining space (flex: 1 + align-content on it). */
   justify-content: flex-start;
-  padding-top: clamp(16px, 4vh, 48px);
+  padding-top: calc(var(--sldr-uh) * 4);
   align-items: stretch;
-  gap: clamp(12px, 2vh, 24px);
+  gap: calc(var(--sldr-uh) * 2);
 }
 
 /* Headlines and subheadlines center horizontally for collage layouts. */
@@ -770,7 +794,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="image-portraits"] .sldr-content > p,
 .sldr-slide[data-layout="image-stack"] .sldr-content > p {
   color: var(--sldr-text-dim, var(--sldr-text));
-  font-size: clamp(14px, 1.6vw, 18px);
+  font-size: calc(var(--sldr-u) * 1.6);
   margin: 0;
   text-wrap: balance;
 }
@@ -786,7 +810,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   justify-content: center;
   align-content: center;
   align-items: flex-start;
-  gap: clamp(16px, 2vw, 28px);
+  gap: calc(var(--sldr-u) * 2);
   flex: 1;
   min-height: 0;
 }
@@ -803,15 +827,15 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 60vh;
+  max-height: calc(var(--sldr-uh) * 60);
   object-fit: contain;
   border-radius: var(--sldr-radius-sm);
 }
 
 .sldr-collage-item figcaption {
-  font-size: clamp(13px, 1.4vw, 16px);
+  font-size: calc(var(--sldr-u) * 1.4);
   color: var(--sldr-text-dim, var(--sldr-text));
-  margin-top: clamp(6px, 1vh, 12px);
+  margin-top: calc(var(--sldr-uh) * 1);
   text-align: center;
   text-wrap: balance;
 }
@@ -821,37 +845,37 @@ html[data-sldr-motion="off"] .sldr-fx::after {
  * item count so few = big, many = smaller with extra rows. */
 .sldr-slide[data-layout="image-grid"] .sldr-collage > .sldr-collage-item {
   flex: 0 1 auto;
-  max-width: clamp(220px, 26vw, 340px);
+  max-width: calc(var(--sldr-u) * 26);
 }
 
 .sldr-slide[data-layout="image-grid"] .sldr-collage > .sldr-collage-item img {
   width: auto;
   max-width: 100%;
-  max-height: 38vh;
+  max-height: calc(var(--sldr-uh) * 38);
 }
 
 /* 1–4 items: bigger images, single row. */
 .sldr-slide[data-layout="image-grid"] .sldr-collage:not(:has(> :nth-child(5))) > .sldr-collage-item {
-  max-width: clamp(260px, 32vw, 420px);
+  max-width: calc(var(--sldr-u) * 32);
 }
 .sldr-slide[data-layout="image-grid"] .sldr-collage:not(:has(> :nth-child(5))) > .sldr-collage-item img {
-  max-height: 60vh;
+  max-height: calc(var(--sldr-uh) * 60);
 }
 
 /* 7+ items: smaller, lets 2–3 rows fit. */
 .sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(7)) > .sldr-collage-item {
-  max-width: clamp(180px, 22vw, 260px);
+  max-width: calc(var(--sldr-u) * 22);
 }
 .sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(7)) > .sldr-collage-item img {
-  max-height: 28vh;
+  max-height: calc(var(--sldr-uh) * 28);
 }
 
 /* 13+ items: tightest cap. */
 .sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(13)) > .sldr-collage-item {
-  max-width: clamp(140px, 17vw, 200px);
+  max-width: calc(var(--sldr-u) * 17);
 }
 .sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(13)) > .sldr-collage-item img {
-  max-height: 22vh;
+  max-height: calc(var(--sldr-uh) * 22);
 }
 
 /* image-row: one filmstrip row with a shared image height. Cells size to
@@ -873,7 +897,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   width: auto;
   max-width: 100%;
   height: auto;
-  max-height: clamp(180px, 50vh, 480px);
+  max-height: calc(var(--sldr-uh) * 50);
   object-fit: contain;
 }
 
@@ -885,13 +909,13 @@ html[data-sldr-motion="off"] .sldr-fx::after {
  * non-square portraits look broken in a circle. */
 .sldr-slide[data-layout="image-portraits"] .sldr-collage > .sldr-collage-item {
   flex: 0 0 auto;
-  width: clamp(120px, 14vw, 180px);
+  width: calc(var(--sldr-u) * 14);
   align-items: center;
 }
 
 .sldr-slide[data-layout="image-portraits"] .sldr-collage > .sldr-collage-item img {
   aspect-ratio: 1 / 1;
-  width: clamp(96px, 11vw, 140px);
+  width: calc(var(--sldr-u) * 11);
   height: auto;
   max-height: none;
   object-fit: cover;
@@ -912,7 +936,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-slide[data-layout="image-stack"] .sldr-collage {
   position: relative;
   display: block;
-  min-height: clamp(280px, 52vh, 540px);
+  min-height: calc(var(--sldr-uh) * 52);
   padding: 0;
 }
 
@@ -920,31 +944,31 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: clamp(180px, 22vw, 320px);
+  width: calc(var(--sldr-u) * 22);
   margin: 0;
   background: var(--sldr-surface);
-  padding: clamp(8px, 1vh, 14px);
+  padding: calc(var(--sldr-uh) * 1);
   box-shadow: var(--sldr-shadow-lg);
 }
 
 .sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+1) {
-  transform: translate(calc(-50% - 21vw), calc(-50% + 4vh)) rotate(-8deg);
+  transform: translate(calc(-50% - calc(var(--sldr-u) * 21)), calc(-50% + calc(var(--sldr-uh) * 4))) rotate(-8deg);
   z-index: 1;
 }
 .sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+2) {
-  transform: translate(calc(-50% - 7vw), calc(-50% - 3vh)) rotate(4deg);
+  transform: translate(calc(-50% - calc(var(--sldr-u) * 7)), calc(-50% - calc(var(--sldr-uh) * 3))) rotate(4deg);
   z-index: 2;
 }
 .sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+3) {
-  transform: translate(calc(-50% + 7vw), calc(-50% + 3vh)) rotate(-3deg);
+  transform: translate(calc(-50% + calc(var(--sldr-u) * 7)), calc(-50% + calc(var(--sldr-uh) * 3))) rotate(-3deg);
   z-index: 3;
 }
 .sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n+4) {
-  transform: translate(calc(-50% + 21vw), calc(-50% - 4vh)) rotate(7deg);
+  transform: translate(calc(-50% + calc(var(--sldr-u) * 21)), calc(-50% - calc(var(--sldr-uh) * 4))) rotate(7deg);
   z-index: 4;
 }
 .sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item:nth-of-type(5n) {
-  transform: translate(-50%, calc(-50% + 1vh)) rotate(-5deg);
+  transform: translate(-50%, calc(-50% + calc(var(--sldr-uh) * 1))) rotate(-5deg);
   z-index: 5;
 }
 
@@ -957,7 +981,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 
 .sldr-slide[data-layout="image-stack"] .sldr-collage > .sldr-collage-item figcaption {
   font-style: italic;
-  margin-top: clamp(8px, 1vh, 12px);
+  margin-top: calc(var(--sldr-uh) * 1);
   text-align: center;
 }
 
@@ -991,27 +1015,27 @@ h1, h2, h3, h4, h5, h6 {
  * H1 max 48px (was 56) per anti-oversized-H1 rule. Hierarchy is set by
  * weight/tracking/color, not by raw scale. */
 h1 {
-  font-size: clamp(28px, 3.8vw, 48px);
+  font-size: calc(var(--sldr-u) * 3.8);
 }
 
 h2 {
-  font-size: clamp(22px, 2.8vw, 36px);
+  font-size: calc(var(--sldr-u) * 2.8);
   font-weight: calc(var(--sldr-heading-weight) - 100);
 }
 
 h3 {
-  font-size: clamp(18px, 2.1vw, 27px);
+  font-size: calc(var(--sldr-u) * 2.1);
   font-weight: calc(var(--sldr-heading-weight) - 100);
 }
 
 h4 {
-  font-size: clamp(16px, 1.7vw, 20px);
+  font-size: calc(var(--sldr-u) * 1.7);
   font-weight: calc(var(--sldr-heading-weight) - 100);
 }
 
 p {
   margin-bottom: 0.6em;
-  font-size: clamp(15px, 2vw, 22px);
+  font-size: calc(var(--sldr-u) * 2);
   font-weight: var(--sldr-body-weight);
   letter-spacing: var(--sldr-body-tracking);
   line-height: var(--sldr-body-leading);
@@ -1024,8 +1048,8 @@ ul, ol {
 }
 
 li {
-  margin-bottom: clamp(6px, 1vh, 14px);
-  font-size: clamp(15px, 2vw, 22px);
+  margin-bottom: calc(var(--sldr-uh) * 1);
+  font-size: calc(var(--sldr-u) * 2);
   line-height: 1.55;
   padding-left: 0.3em;
 }
@@ -1064,7 +1088,7 @@ em {
 
 blockquote {
   border-left: 3px solid var(--sldr-primary);
-  padding-left: clamp(16px, 2vw, 28px);
+  padding-left: calc(var(--sldr-u) * 2);
   margin: 0.8em 0;
   color: var(--sldr-text-dim, #94a3b8);
 }
@@ -1078,11 +1102,11 @@ pre.sldr-code {
   color: var(--sldr-code-text);
   border-radius: var(--sldr-radius);
   border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border-bright, rgba(148, 163, 184, 0.12));
-  padding: clamp(16px, 2.5vh, 32px) clamp(20px, 2.5vw, 32px);
+  padding: calc(var(--sldr-uh) * 2.5) calc(var(--sldr-u) * 2.5);
   overflow-x: auto;
-  font-size: clamp(13px, 1.4vw, 17px);
+  font-size: calc(var(--sldr-u) * 1.4);
   line-height: 1.7;
-  margin: clamp(10px, 1.5vh, 20px) 0;
+  margin: calc(var(--sldr-uh) * 1.5) 0;
   box-shadow: var(--sldr-shadow-md);
   transition: background 0.3s ease, color 0.3s ease;
 }
@@ -1109,7 +1133,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin: 0.6em 0;
-  font-size: clamp(13px, 1.6vw, 19px);
+  font-size: calc(var(--sldr-u) * 1.6);
   background: var(--sldr-surface, #1e293b);
   border-radius: 12px;
   overflow: hidden;
@@ -1119,10 +1143,10 @@ table {
 th {
   background: var(--sldr-surface2, #283548);
   color: var(--sldr-text-dim, #94a3b8);
-  padding: clamp(10px, 1.5vh, 16px) clamp(14px, 2vw, 22px);
+  padding: calc(var(--sldr-uh) * 1.5) calc(var(--sldr-u) * 2);
   text-align: left;
   font-weight: 600;
-  font-size: clamp(10px, 1.2vw, 13px);
+  font-size: calc(var(--sldr-u) * 1.2);
   font-family: var(--sldr-code-font);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1131,7 +1155,7 @@ th {
 }
 
 td {
-  padding: clamp(8px, 1.2vh, 14px) clamp(14px, 2vw, 22px);
+  padding: calc(var(--sldr-uh) * 1.2) calc(var(--sldr-u) * 2);
   border-bottom: 1px solid var(--sldr-border, rgba(148, 163, 184, 0.06));
 }
 
@@ -1301,8 +1325,8 @@ tr:hover td {
  * ========================================================================= */
 .sldr-nav {
   position: fixed;
-  bottom: clamp(8px, 1.5vh, 16px);
-  right: clamp(12px, 2vw, 24px);
+  bottom: calc(var(--sldr-uh) * 1.5);
+  right: calc(var(--sldr-u) * 2);
   z-index: 100;
   opacity: 0;
   transition: opacity 0.3s ease;

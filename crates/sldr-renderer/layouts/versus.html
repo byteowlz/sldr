@@ -2,13 +2,13 @@
 <style>
 .sldr-slide[data-layout="versus"] .sldr-content {
   justify-content: flex-start;
-  padding-top: clamp(16px, 4vh, 48px);
-  gap: clamp(16px, 2.5vh, 28px);
+  padding-top: calc(var(--sldr-uh) * 4);
+  gap: calc(var(--sldr-uh) * 2.5);
 }
 .sldr-slide[data-layout="versus"] .sldr-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(48px, 6vw, 96px);
+  gap: calc(var(--sldr-u) * 6);
   position: relative;
   width: 100%;
   align-content: start;
@@ -29,15 +29,15 @@
   left: 50%;
   transform: translate(-50%, -50%);
   font-family: var(--sldr-code-font);
-  font-size: clamp(12px, 1.4vw, 16px);
+  font-size: calc(var(--sldr-u) * 1.4);
   font-weight: 700;
   letter-spacing: 2px;
   color: var(--sldr-accent);
   background: var(--sldr-background);
   border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border-bright);
   border-radius: 50%;
-  width: clamp(44px, 5vw, 64px);
-  height: clamp(44px, 5vw, 64px);
+  width: calc(var(--sldr-u) * 5);
+  height: calc(var(--sldr-u) * 5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,7 +45,7 @@
 .sldr-slide[data-layout="versus"] .sldr-col {
   display: flex;
   flex-direction: column;
-  gap: clamp(6px, 1vh, 14px);
+  gap: calc(var(--sldr-uh) * 1);
 }
 .sldr-slide[data-layout="versus"] .sldr-col > h2:first-child,
 .sldr-slide[data-layout="versus"] .sldr-col > h3:first-child {

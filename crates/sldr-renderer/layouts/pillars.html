@@ -2,8 +2,8 @@
 <style>
 .sldr-slide[data-layout="pillars"] .sldr-content {
   justify-content: flex-start;
-  padding-top: clamp(16px, 4vh, 48px);
-  gap: clamp(24px, 4.5vh, 56px);
+  padding-top: calc(var(--sldr-uh) * 4);
+  gap: calc(var(--sldr-uh) * 4.5);
 }
 .sldr-slide[data-layout="pillars"] ul {
   list-style: none;
@@ -18,9 +18,9 @@
 .sldr-slide[data-layout="pillars"] ul > li {
   counter-increment: pillar;
   margin: 0;
-  padding: 0 clamp(20px, 2.8vw, 44px);
+  padding: 0 calc(var(--sldr-u) * 2.8);
   border-left: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
-  font-size: clamp(14px, 1.6vw, 19px);
+  font-size: calc(var(--sldr-u) * 1.6);
   line-height: 1.55;
 }
 .sldr-slide[data-layout="pillars"] ul > li:first-child {
@@ -34,15 +34,15 @@
   content: counter(pillar, decimal-leading-zero);
   display: block;
   font-family: var(--sldr-code-font);
-  font-size: clamp(12px, 1.3vw, 15px);
+  font-size: calc(var(--sldr-u) * 1.3);
   letter-spacing: 2px;
   color: var(--sldr-accent);
-  margin-bottom: clamp(12px, 2vh, 22px);
+  margin-bottom: calc(var(--sldr-uh) * 2);
 }
 .sldr-slide[data-layout="pillars"] ul > li > strong:first-child {
   display: block;
   font-family: var(--sldr-heading-font);
-  font-size: clamp(18px, 2.1vw, 26px);
+  font-size: calc(var(--sldr-u) * 2.1);
   font-weight: var(--sldr-heading-weight);
   letter-spacing: var(--sldr-heading-tracking);
   line-height: var(--sldr-heading-leading);

@@ -8,27 +8,27 @@
 .sldr-slide[data-layout="contact"] .sldr-content {
   justify-content: center;
   align-items: center;
-  gap: clamp(18px, 3vh, 36px);
+  gap: calc(var(--sldr-uh) * 3);
 }
 .sldr-slide[data-layout="contact"] h1 {
-  font-size: clamp(40px, 6.5vw, 92px);
+  font-size: calc(var(--sldr-u) * 6.5);
 }
 .sldr-slide[data-layout="contact"] ul {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: clamp(10px, 1.4vw, 18px);
+  gap: calc(var(--sldr-u) * 1.4);
   padding: 0;
   margin: 0;
 }
 .sldr-slide[data-layout="contact"] ul li {
   margin: 0;
-  padding: clamp(8px, 1.2vh, 12px) clamp(16px, 2vw, 26px);
+  padding: calc(var(--sldr-uh) * 1.2) calc(var(--sldr-u) * 2);
   border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border-bright);
   border-radius: 999px;
   font-family: var(--sldr-code-font);
-  font-size: clamp(12px, 1.4vw, 16px);
+  font-size: calc(var(--sldr-u) * 1.4);
   letter-spacing: 0.5px;
 }
 .sldr-slide[data-layout="contact"] ul li a {

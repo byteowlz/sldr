@@ -7,24 +7,24 @@
 .sldr-cover-frame {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; justify-content: center;
-  gap: clamp(10px, 1.8vh, 22px);
-  padding: clamp(48px, 9vh, 110px) clamp(56px, 7vw, 120px);
+  gap: calc(var(--sldr-uh) * 1.8);
+  padding: calc(var(--sldr-uh) * 9) calc(var(--sldr-u) * 7);
 }
 .sldr-cover-frame .sldr-subheadline {
   order: -1;
-  font-size: clamp(15px, 1.8vw, 22px);
+  font-size: calc(var(--sldr-u) * 1.8);
   font-weight: 600; color: var(--sldr-text); margin: 0;
 }
 .sldr-cover-frame .sldr-headline {
-  font-size: clamp(40px, 6vw, 88px);
+  font-size: calc(var(--sldr-u) * 6);
   font-weight: var(--sldr-heading-weight);
   letter-spacing: var(--sldr-heading-tracking);
   line-height: 1.02; color: var(--sldr-text); margin: 0;
   max-width: 22ch;
 }
 .sldr-cover-frame .sldr-cover-body {
-  font-size: clamp(15px, 1.8vw, 22px);
-  color: var(--sldr-text-dim, var(--sldr-text)); margin-top: clamp(8px, 1.5vh, 18px);
+  font-size: calc(var(--sldr-u) * 1.8);
+  color: var(--sldr-text-dim, var(--sldr-text)); margin-top: calc(var(--sldr-uh) * 1.5);
 }
 </style>
 <div class="sldr-cover-frame">

@@ -8,7 +8,7 @@
 .sldr-slide[data-layout="framed-scatter"] .sldr-scatter {
   display: grid;
   grid-template-columns: 42% 1fr;
-  gap: 2vw;
+  gap: calc(var(--sldr-u) * 2);
   width: 100%;
   height: 100%;
 }
@@ -20,7 +20,7 @@
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  font-size: 1.4vw;
+  font-size: calc(var(--sldr-u) * 1.4);
   line-height: 1.4;
 }
 .sldr-slide[data-layout="framed-scatter"] .sldr-scatter-left img {

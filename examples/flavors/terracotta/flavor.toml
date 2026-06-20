@@ -65,8 +65,8 @@ eyebrow_transform = "uppercase"
 optical_sizing = "auto"
 
 [spacing]
-slide_padding_y = "clamp(48px, 7.5vh, 92px)"
-slide_padding_x = "clamp(56px, 8vw, 136px)"
+slide_padding_y = "calc(var(--sldr-uh) * 7.5)"
+slide_padding_x = "calc(var(--sldr-u) * 8)"
 content_max_width = "68ch"
 density = "comfortable"
 

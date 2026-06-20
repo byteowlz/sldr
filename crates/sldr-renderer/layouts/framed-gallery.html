@@ -7,7 +7,7 @@
 .sldr-slide[data-layout="framed-gallery"] .sldr-collage {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: clamp(6px, 0.8vw, 12px);
+  gap: calc(var(--sldr-u) * 0.8);
   align-content: start;
 }
 .sldr-slide[data-layout="framed-gallery"] .sldr-collage-item { margin: 0; }

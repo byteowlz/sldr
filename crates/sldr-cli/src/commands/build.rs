@@ -137,6 +137,7 @@ pub fn run(
         output_dir: Some(output_dir.clone()),
         languages,
         default_language,
+        aspect_lock: playlist.render.aspect_lock.unwrap_or(false),
     };
 
     let mut renderer = HtmlRenderer::new(render_config).add_flavors(flavors);

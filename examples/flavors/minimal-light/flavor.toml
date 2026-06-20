@@ -63,11 +63,11 @@ body_wrap = "pretty"
 optical_sizing = "auto"
 
 [spacing]
-slide_padding_y = "clamp(56px, 9vh, 104px)"
-slide_padding_x = "clamp(64px, 9vw, 144px)"
+slide_padding_y = "calc(var(--sldr-uh) * 9)"
+slide_padding_x = "calc(var(--sldr-u) * 9)"
 content_max_width = "72ch"
 density = "comfortable"
-stack_gap = "clamp(20px, 2.8vh, 36px)"
+stack_gap = "calc(var(--sldr-uh) * 2.8)"
 
 [shape]
 radius = "4px"

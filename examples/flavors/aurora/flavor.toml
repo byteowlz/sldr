@@ -68,8 +68,8 @@ background_type = "gradient"
 value = "radial-gradient(ellipse at 70% -20%, rgba(157, 140, 255, 0.20) 0%, transparent 55%), radial-gradient(ellipse at 20% 110%, rgba(126, 240, 195, 0.14) 0%, transparent 50%), #06121a"
 
 [spacing]
-slide_padding_y = "clamp(48px, 7vh, 88px)"
-slide_padding_x = "clamp(56px, 7.5vw, 128px)"
+slide_padding_y = "calc(var(--sldr-uh) * 7)"
+slide_padding_x = "calc(var(--sldr-u) * 7.5)"
 content_max_width = "70ch"
 density = "comfortable"
 
