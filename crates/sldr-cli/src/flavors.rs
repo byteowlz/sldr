@@ -175,6 +175,20 @@ pub const FLAVORS: &[BundledFlavor] = &[
             content: include_str!("../../../examples/flavors/raw-grid/flavor.toml"),
         }],
     },
+    // Neutral wireframe lens for previewing layouts / rendering thumbnails.
+    BundledFlavor {
+        slug: "skeleton",
+        files: &[
+            FlavorFile {
+                name: "flavor.toml",
+                content: include_str!("../../../examples/flavors/skeleton/flavor.toml"),
+            },
+            FlavorFile {
+                name: "flavor.css",
+                content: include_str!("../../../examples/flavors/skeleton/flavor.css"),
+            },
+        ],
+    },
 ];
 
 /// Install all bundled flavors into `flavor_dir`. Each flavor lives in its

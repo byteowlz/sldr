@@ -1,0 +1,27 @@
+/* Skeleton wireframe overlay — reveal each layout's anatomy.
+ *
+ * Dashed outlines on the structural regions so the layout's *shape* reads at
+ * a glance (headline / body / columns / image zones), independent of any
+ * brand styling. Purely additive; strip this file and you get a plain
+ * neutral flavor. Meant for the layout catalog and thumbnails, not a talk. */
+
+/* Content + framed body/chrome zones */
+.sldr-content,
+.sldr-framed .sldr-frame-head,
+.sldr-framed .sldr-frame-body,
+.sldr-framed .sldr-frame-foot,
+.sldr-columns,
+.sldr-col,
+.sldr-col-content,
+.sldr-col-image,
+.sldr-frame-imgsplit > * {
+  outline: 1px dashed var(--sldr-border-bright);
+  outline-offset: -1px;
+}
+
+/* Mark image zones too, so the picture regions read as structure. */
+.sldr-content img,
+.sldr-frame-body img {
+  outline: 1px dashed var(--sldr-border-bright);
+  outline-offset: -1px;
+}

@@ -1,0 +1,65 @@
+"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+
+name = "skeleton"
+display_name = "Skeleton"
+description = "A neutral wireframe lens for showing what a layout *is*, independent of any brand. System fonts (no web-font fetch, so it renders instantly), grayscale, visible region borders. Use it to preview the layout catalog and to render fast thumbnails — the structure reads, not the styling."
+
+[curation]
+mood = ["neutral", "structural", "plain"]
+tone = ["wireframe", "utilitarian"]
+occasion = ["layout preview", "thumbnails", "scaffolding"]
+formality = "low"
+density = "medium"
+scheme = "light"
+best_for = "Previewing the layout catalog and rendering thumbnails — a flavor-independent skeleton that shows each layout's anatomy (where headline/body/image/columns sit)."
+avoid_for = "An actual talk — this is intentionally unstyled; pick a real flavor to present."
+
+[colors]
+primary = "#1f2328"
+secondary = "#57606a"
+background = "#ffffff"
+text = "#1f2328"
+text_dim = "#8c959f"
+accent = "#57606a"
+accent_dim = "rgba(87, 96, 106, 0.10)"
+surface = "#f6f8fa"
+surface2 = "#eaeef2"
+border = "rgba(31, 35, 40, 0.22)"
+border_bright = "rgba(31, 35, 40, 0.40)"
+muted = "rgba(31, 35, 40, 0.05)"
+code_background = "#f6f8fa"
+code_text = "#1f2328"
+
+[dark_colors]
+primary = "#e6edf3"
+secondary = "#9198a1"
+background = "#0d1117"
+text = "#e6edf3"
+text_dim = "#7d8590"
+accent = "#9198a1"
+accent_dim = "rgba(145, 152, 161, 0.14)"
+surface = "#161b22"
+surface2 = "#21262d"
+border = "rgba(230, 237, 243, 0.22)"
+border_bright = "rgba(230, 237, 243, 0.40)"
+muted = "rgba(230, 237, 243, 0.05)"
+code_background = "#161b22"
+code_text = "#e6edf3"
+
+[typography]
+heading_font = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+body_font = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+code_font = "ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace"
+heading_weight = "650"
+body_weight = "400"
+
+[shape]
+radius = "4px"
+radius_sm = "2px"
+radius_lg = "6px"
+border_width = "1px"
+border_style = "solid"
+
+[decoration]
+effect = "none"
+intensity = 0
