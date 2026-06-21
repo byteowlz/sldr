@@ -26,8 +26,8 @@
 .sldr-slide:not([data-layout="cover"])::after {
   content: attr(data-page);
   position: absolute;
-  bottom: clamp(24px, 3.5vh, 40px);
-  right: clamp(28px, 4vw, 64px);
+  bottom: calc(var(--sldr-uh) * 3.5);
+  right: calc(var(--sldr-u) * 4);
   font-family: var(--sldr-code-font, ui-monospace, monospace);
   font-size: 11px;
   font-weight: 500;
@@ -61,7 +61,7 @@
   width: 32px;
   height: 2px;
   background: var(--sldr-accent);
-  margin-bottom: clamp(16px, 2.5vh, 28px);
+  margin-bottom: calc(var(--sldr-uh) * 2.5);
 }
 
 /* Section dividers get a thicker, longer rule — chapter-mark feel */
@@ -71,7 +71,7 @@
   width: 48px;
   height: 3px;
   background: var(--sldr-accent);
-  margin-bottom: clamp(20px, 3.5vh, 40px);
+  margin-bottom: calc(var(--sldr-uh) * 3.5);
 }
 
 /* ============================================================
@@ -82,13 +82,13 @@
 .sldr-slide[data-layout="cover"] .sldr-content > p,
 .sldr-slide[data-layout="section"] .sldr-content > p {
   font-family: var(--sldr-body-font);
-  font-size: clamp(14px, 1.6vw, 20px);
+  font-size: calc(var(--sldr-u) * 1.6);
   font-weight: 400;
   font-style: italic;
   letter-spacing: 0.005em;
   color: var(--sldr-text-dim);
   opacity: 1;
-  margin-top: clamp(8px, 1.2vh, 16px);
+  margin-top: calc(var(--sldr-uh) * 1.2);
 }
 
 /* ============================================================
@@ -101,7 +101,7 @@
   width: 40px;
   height: 2px;
   background: var(--sldr-accent);
-  margin: 0 auto clamp(24px, 4vh, 48px);
+  margin: 0 auto calc(var(--sldr-uh) * 4);
   opacity: 1;
   font-size: 0;
   line-height: 0;
@@ -111,12 +111,12 @@
 /* Attribution — small caps, mono, dim */
 .sldr-slide[data-layout="quote"] .sldr-content > p {
   font-family: var(--sldr-code-font);
-  font-size: clamp(11px, 1.3vw, 14px);
+  font-size: calc(var(--sldr-u) * 1.3);
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--sldr-text-dim);
-  margin-top: clamp(20px, 3vh, 36px);
+  margin-top: calc(var(--sldr-uh) * 3);
 }
 
 /* ============================================================

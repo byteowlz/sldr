@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Resolution-independent type.** Type and spacing are now sized relative to the *slide* instead of the *viewport*. Lengths that were `Nvw`/`Nvh` (and their `clamp()` readability floors) are now `calc(var(--sldr-u) * N)`, where the presenter sets `--sldr-u`/`--sldr-uh` per slide to 1% of the slide box. A heading is the same fraction of the slide at any display resolution — 1366p, 4K, a projector, and the PDF page all match (verified across viewport sizes). The unit defaults to `1vw`/`1vh`, so type still sizes sensibly with JS off. Converted `base.css`, all layouts, and the bundled flavors; the one tradeoff is that the absolute `clamp()` pixel floors are gone (true proportionality and an absolute minimum size are mutually exclusive).
+
+### Added
+- `aspect_lock` playlist option (`[render] aspect_lock = true`). Renders the deck as a centered, letterboxed 16:9 box instead of filling the browser window, so the on-screen slide is the exact shape that exports — browser == projector == PDF. Off by default (fill-window). It's a responsive box, not a fixed pixel canvas.
+
 ## [0.6.1] - 2026-06-19
 
 ### Fixed

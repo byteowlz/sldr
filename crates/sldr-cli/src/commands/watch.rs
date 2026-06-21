@@ -125,6 +125,7 @@ pub fn run(
         transition: transition.clone(),
         aspect_ratio: aspect_ratio.clone(),
         speaker_notes: true,
+        aspect_lock: playlist.render.aspect_lock.unwrap_or(false),
         ..Default::default()
     };
 

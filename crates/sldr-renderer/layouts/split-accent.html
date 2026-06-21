@@ -12,11 +12,11 @@
 .sldr-slide[data-layout="split-accent"] .sldr-content {
   justify-content: center;
   max-width: 52%;
-  gap: clamp(12px, 2vh, 24px);
+  gap: calc(var(--sldr-uh) * 2);
   z-index: 1;
 }
 .sldr-slide[data-layout="split-accent"] h1 {
-  font-size: clamp(36px, 5vw, 64px);
+  font-size: calc(var(--sldr-u) * 5);
 }
 .sldr-slide[data-layout="split-accent"] p {
   max-width: 44ch;

@@ -85,6 +85,12 @@ pub struct RenderConfig {
     /// Deck default language — what `::lang::`-blocked slides fall back to
     /// when the requested language is missing (with a loud warning).
     pub default_language: String,
+
+    /// Aspect-lock: render the deck as a centered, letterboxed 16:9 box
+    /// instead of filling the browser window. Off by default (fill-window).
+    /// On → the on-screen slide is the exact shape that gets exported, so
+    /// browser, projector, and PDF all match.
+    pub aspect_lock: bool,
 }
 
 impl Default for RenderConfig {
@@ -98,6 +104,7 @@ impl Default for RenderConfig {
             output_dir: None,
             languages: Vec::new(),
             default_language: "en".to_string(),
+            aspect_lock: false,
         }
     }
 }
@@ -430,17 +437,24 @@ impl HtmlRenderer {
             .flavors
             .iter()
             .any(|f| f.decoration.effect.is_some());
+        let lock_attr = if self.config.aspect_lock {
+            " data-aspect-lock=\"on\""
+        } else {
+            ""
+        };
         if self.config.languages.len() > 1 {
             let _ = writeln!(
                 html,
-                "  <div class=\"sldr-deck\" data-transition=\"{}\" data-langs=\"{}\">",
+                "  <div class=\"sldr-deck\"{} data-transition=\"{}\" data-langs=\"{}\">",
+                lock_attr,
                 html_escape_attr(&self.config.transition),
                 html_escape_attr(&self.config.languages.join(","))
             );
         } else {
             let _ = writeln!(
                 html,
-                "  <div class=\"sldr-deck\" data-transition=\"{}\">",
+                "  <div class=\"sldr-deck\"{} data-transition=\"{}\">",
+                lock_attr,
                 html_escape_attr(&self.config.transition)
             );
         }

@@ -167,6 +167,7 @@ pub fn run(
             // One concrete language per file → single (untagged) variant.
             languages: lang_opt.clone().map(|l| vec![l]).unwrap_or_default(),
             default_language: default_language.clone(),
+            aspect_lock: playlist.render.aspect_lock.unwrap_or(false),
             ..Default::default()
         };
 

@@ -64,8 +64,8 @@ heading_transform = "none"
 eyebrow_transform = "uppercase"
 
 [spacing]
-slide_padding_y = "clamp(52px, 9vh, 104px)"
-slide_padding_x = "clamp(64px, 9vw, 152px)"
+slide_padding_y = "calc(var(--sldr-uh) * 9)"
+slide_padding_x = "calc(var(--sldr-u) * 9)"
 content_max_width = "66ch"
 density = "comfortable"
 
