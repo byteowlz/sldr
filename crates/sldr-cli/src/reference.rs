@@ -130,6 +130,46 @@ pub const REFERENCE_SLIDES: &[ReferenceFile] = &[
         name: "ref-square.svg",
         content: include_str!("../../../examples/reference/slides/ref-square.svg"),
     },
+    ReferenceFile {
+        name: "27-framed.md",
+        content: include_str!("../../../examples/reference/slides/27-framed.md"),
+    },
+    ReferenceFile {
+        name: "28-framed-cols.md",
+        content: include_str!("../../../examples/reference/slides/28-framed-cols.md"),
+    },
+    ReferenceFile {
+        name: "29-framed-image.md",
+        content: include_str!("../../../examples/reference/slides/29-framed-image.md"),
+    },
+    ReferenceFile {
+        name: "30-framed-figure.md",
+        content: include_str!("../../../examples/reference/slides/30-framed-figure.md"),
+    },
+    ReferenceFile {
+        name: "31-framed-gallery.md",
+        content: include_str!("../../../examples/reference/slides/31-framed-gallery.md"),
+    },
+    ReferenceFile {
+        name: "32-framed-scatter.md",
+        content: include_str!("../../../examples/reference/slides/32-framed-scatter.md"),
+    },
+    ReferenceFile {
+        name: "33-framed-cover.md",
+        content: include_str!("../../../examples/reference/slides/33-framed-cover.md"),
+    },
+    ReferenceFile {
+        name: "34-framed-section.md",
+        content: include_str!("../../../examples/reference/slides/34-framed-section.md"),
+    },
+    ReferenceFile {
+        name: "35-framed-full.md",
+        content: include_str!("../../../examples/reference/slides/35-framed-full.md"),
+    },
+    ReferenceFile {
+        name: "36-image-center.md",
+        content: include_str!("../../../examples/reference/slides/36-image-center.md"),
+    },
 ];
 
 /// The playlist, installed to `<playlist_dir>/reference.toml`.

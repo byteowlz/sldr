@@ -32,6 +32,16 @@ slides = [
   "reference/24-image-stack",
   "reference/25-end",
   "reference/26-contact",
+  "reference/27-framed",
+  "reference/28-framed-cols",
+  "reference/29-framed-image",
+  "reference/30-framed-figure",
+  "reference/31-framed-gallery",
+  "reference/32-framed-scatter",
+  "reference/33-framed-cover",
+  "reference/34-framed-section",
+  "reference/35-framed-full",
+  "reference/36-image-center",
 ]
 
 [render]
