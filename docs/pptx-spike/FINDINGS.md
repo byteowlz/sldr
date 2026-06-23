@@ -1,6 +1,6 @@
 # PPTX spike (trx-4s9s.1) — does hand-built OOXML open?
 
-**Result: YES.** A 16-part hand-built `.pptx` (theme from `example-flavor`, one
+**Result: YES.** A 16-part hand-built `.pptx` (theme from an example flavor, one
 slideMaster, two slideLayouts — `framed` + `two-cols` with EMU-positioned
 placeholders — and one filled slide) opened in LibreOffice Impress with **no
 repair prompt** and rendered correctly: dark theme background, white title at

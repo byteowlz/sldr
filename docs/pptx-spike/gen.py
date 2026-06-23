@@ -53,17 +53,17 @@ P["ppt/presentation.xml"] = f'''<?xml version="1.0" encoding="UTF-8" standalone=
 P["ppt/presProps.xml"] = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:presentationPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>'''
 
-# Theme: colors from example-flavor (accent1 cyan, accent2 coral), minimal fmtScheme
+# Theme: a generic demo palette (blue/amber on slate); minimal fmtScheme
 P["ppt/theme/theme1.xml"] = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="sldr example-flavor">
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="sldr demo">
 <a:themeElements>
 <a:clrScheme name="sldr">
 <a:dk1><a:srgbClr val="0F172A"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
 <a:dk2><a:srgbClr val="0F172A"/></a:dk2><a:lt2><a:srgbClr val="E2E8F0"/></a:lt2>
 <a:accent1><a:srgbClr val="3B82F6"/></a:accent1><a:accent2><a:srgbClr val="F59E0B"/></a:accent2>
-<a:accent3><a:srgbClr val="E2E8F0"/></a:accent3><a:accent4><a:srgbClr val="888888"/></a:accent4>
+<a:accent3><a:srgbClr val="E2E8F0"/></a:accent3><a:accent4><a:srgbClr val="94A3B8"/></a:accent4>
 <a:accent5><a:srgbClr val="3B82F6"/></a:accent5><a:accent6><a:srgbClr val="F59E0B"/></a:accent6>
-<a:hlink><a:srgbClr val="3B82F6"/></a:hlink><a:folHlink><a:srgbClr val="888888"/></a:folHlink>
+<a:hlink><a:srgbClr val="3B82F6"/></a:hlink><a:folHlink><a:srgbClr val="94A3B8"/></a:folHlink>
 </a:clrScheme>
 <a:fontScheme name="sldr">
 <a:majorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>
