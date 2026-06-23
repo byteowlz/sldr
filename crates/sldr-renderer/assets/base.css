@@ -1054,6 +1054,10 @@ li {
   padding-left: 0.3em;
 }
 
+/* Square is the default bullet (project house style); flavors may override. */
+ul {
+  list-style-type: square;
+}
 li::marker {
   color: var(--sldr-primary);
 }
