@@ -48,6 +48,7 @@ use serde::{Deserialize, Serialize};
 use sldr_core::config::Config;
 use sldr_core::flavor::{Flavor, FlavorCollection};
 use sldr_core::slide::{Slide, SlideCollection, SlideInputBatch};
+use sldr_renderer::{HtmlRenderer, RenderConfig};
 use tokio::net::TcpListener;
 
 #[derive(Clone)]
@@ -69,6 +70,8 @@ async fn run_server(port: u16, open_browser: bool, host: &str) -> Result<()> {
         .route("/api/health", get(handle_health))
         .route("/api/sample", get(handle_sample_sources))
         .route("/sample.html", get(handle_sample_html))
+        .route("/slide/{*name}", get(handle_slide_html))
+        .route("/layout/{name}", get(handle_layout_html))
         .route("/api/flavors", get(handle_list_flavors))
         .route("/api/flavors/{name}", get(handle_get_flavor))
         .route("/api/slides", get(handle_list_slides).post(handle_create_slides))
@@ -118,6 +121,8 @@ async fn handle_root() -> Html<&'static str> {
 <li><code>GET /api/health</code></li>
 <li><code>GET /api/sample</code> — slide catalog (markdown sources)</li>
 <li><code>GET /sample.html?flavor=NAME</code> — rendered sample deck</li>
+<li><code>GET /slide/{name}?flavor=NAME</code> — one slide as self-contained HTML (for thumbnails)</li>
+<li><code>GET /layout/{name}?flavor=NAME</code> — a layout preview (defaults to the <code>skeleton</code> lens)</li>
 </ul>
 <h2>Flavors</h2>
 <ul>
@@ -189,6 +194,77 @@ async fn handle_sample_html(
     let html = sldr_renderer::sample::render_sample(flavor, &[])
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Html(html))
+}
+
+/// Render a single slide to self-contained HTML — the per-item primitive a
+/// slide-management frontend embeds in a scaled iframe for fast, live,
+/// vector-crisp thumbnails (no rasterization). Media is inlined.
+fn render_single_slide(
+    state: &AppState,
+    slide: &Slide,
+    flavor: Flavor,
+) -> Result<String, (StatusCode, String)> {
+    let ise = |e: anyhow::Error| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+    let mut renderer = HtmlRenderer::new(RenderConfig {
+        speaker_notes: false,
+        ..Default::default()
+    })
+    .add_flavor(flavor);
+    for dir in state.config.layout_dirs() {
+        renderer.load_layouts(&dir).map_err(ise)?;
+    }
+    renderer
+        .add_slides(std::slice::from_ref(slide))
+        .map_err(ise)?;
+    renderer.render().map_err(ise)
+}
+
+/// GET /slide/{name}?flavor=X — one slide as self-contained HTML, for thumbnails.
+async fn handle_slide_html(
+    AxumState(state): AxumState<Arc<AppState>>,
+    AxumPath(name): AxumPath<String>,
+    Query(q): Query<SampleHtmlQuery>,
+) -> Result<Html<String>, (StatusCode, String)> {
+    let collection = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let slide = collection
+        .find(&name)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Slide '{name}' not found")))?;
+    let flavor_name = q
+        .flavor
+        .unwrap_or_else(|| state.config.config.default_flavor.clone());
+    let flavor = resolve_flavor(&state.config, &flavor_name)
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    Ok(Html(render_single_slide(&state, slide, flavor)?))
+}
+
+/// GET /layout/{name}?flavor=X — a preview of a layout, rendered from an
+/// example slide in the library that uses it (the reference deck installs one
+/// per layout). Defaults to the neutral `skeleton` flavor so the structure
+/// reads, independent of any brand — for a frontend's layout picker.
+async fn handle_layout_html(
+    AxumState(state): AxumState<Arc<AppState>>,
+    AxumPath(name): AxumPath<String>,
+    Query(q): Query<SampleHtmlQuery>,
+) -> Result<Html<String>, (StatusCode, String)> {
+    let collection = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let slide = collection
+        .slides
+        .iter()
+        .find(|s| s.metadata.layout.as_deref() == Some(name.as_str()))
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                format!(
+                    "No example slide uses layout '{name}'. Run `sldr init` to install the reference deck."
+                ),
+            )
+        })?;
+    let flavor_name = q.flavor.unwrap_or_else(|| "skeleton".to_string());
+    let flavor = resolve_flavor(&state.config, &flavor_name)
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    Ok(Html(render_single_slide(&state, slide, flavor)?))
 }
 
 // ============================================================================

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `sldr serve` thumbnail/preview endpoints for a slide-management frontend: `GET /slide/{name}?flavor=X` renders one library slide to self-contained HTML (embed in a scaled iframe for fast, vector, no-rasterization thumbnails), and `GET /layout/{name}?flavor=X` previews a layout from an example slide that uses it (defaults to the `skeleton` lens for a flavor-independent layout picker).
 - Layout categories. Every layout now declares a function group and register tags in its own file (`<!-- sldr:category body -->`, `<!-- sldr:tags classic -->`) — author-declared data, not a core heuristic. `sldr ls layouts` groups by category (Title & section / Body / Image / Branded) and shows the register tags (`classic` = predictable placement, `expressive` = dramatic, `branded` = framed chrome); `--json` carries `category` + `tags`. A custom layout self-categorizes the same way. Makes "which layout do I use?" navigable for humans and agents; categories never drive selection.
 
 ### Fixed
