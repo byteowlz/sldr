@@ -5,6 +5,7 @@
 <p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>Resolution-independent slides</a:t></a:r></a:p></p:txBody></p:sp>
 <p:sp><p:nvSpPr><p:cNvPr id="3" name="Body"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr>
 <p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>
-<a:p><a:r><a:rPr lang="en-US"/><a:t>First bullet from the sldr body</a:t></a:r></a:p>
-<a:p><a:r><a:rPr lang="en-US"/><a:t>Second bullet, editable in PowerPoint</a:t></a:r></a:p></p:txBody></p:sp>
+<a:p><a:pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="&#8226;"/></a:pPr><a:r><a:rPr lang="en-US"/><a:t>First bullet from the sldr body (- item -&gt; buChar)</a:t></a:r></a:p>
+<a:p><a:pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="&#8226;"/></a:pPr><a:r><a:rPr lang="en-US"/><a:t>Second bullet, editable in PowerPoint</a:t></a:r></a:p>
+<a:p><a:pPr marL="0" indent="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US"/><a:t>A plain paragraph (buNone) — no bullet, on purpose.</a:t></a:r></a:p></p:txBody></p:sp>
 </p:spTree></p:cSld></p:sld>

@@ -46,3 +46,6 @@ Generation risk is **low** — the structure is proven and deterministic. The
 remaining unknown is PowerPoint-specific strictness (mainly a complete
 `fmtScheme` and possibly `app.xml`/`docProps` fields); confirm with one open
 in real PowerPoint before Phase 1 builds on top.
+
+## Bullets (finding)
+OOXML bullets aren't automatic — a paragraph shows one only if its `<a:pPr>` defines it: `<a:buChar char="&#8226;"/>`+`<a:buFont>` (bulleted), `<a:buAutoNum/>` (numbered), or `<a:buNone/>` (none); `marL`/`indent` give the hanging indent, `lvl` the nesting. The markdown->OOXML converter (trx-4s9s.4) sets this per paragraph: `- item`->buChar, `1. item`->buAutoNum, indent->lvl, plain text/heading->buNone. Do it per-paragraph, not via master defaults, since a body mixes bullets and plain text. The spike now demonstrates all three.
