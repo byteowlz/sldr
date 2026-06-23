@@ -33,17 +33,17 @@ The canonical guide for driving sldr from a coding agent is the **[`use-sldr` sk
 +-------------------------------------------------------------+
 |                         Playlist                            |
 |  ~/sldr/playlists/my-talk.toml                              |
-|  +-----------------------------------------------------+   |
-|  | name = "my-talk"                                     |   |
-|  | slides = ["intro", "ai/transformers", "conclusion"]  |   |
-|  | flavor = "acme"                                      |   |
-|  +-----------------------------------------------------+   |
+|  +-----------------------------------------------------+    |
+|  | name = "my-talk"                                    |    |
+|  | slides = ["intro", "ai/transformers", "conclusion"] |    |
+|  | flavor = "acme"                                     |    |
+|  +-----------------------------------------------------+    |
 +-------------------------------------------------------------+
                               |
                               v
 +-------------------------------------------------------------+
-|            sldr build my-talk --flavor acme                  |
-|                              |                              |
+|            sldr build my-talk --flavor acme                 |
+|                             |                               |
 |  pulldown-cmark + syntect + flavor CSS + presenter.js       |
 +-------------------------------------------------------------+
                               |
@@ -172,6 +172,7 @@ The transformer architecture revolutionized NLP...
 ```
 
 Speaker notes:
+
 ```markdown
 # My Slide
 
