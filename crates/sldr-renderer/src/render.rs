@@ -162,6 +162,11 @@ impl HtmlRenderer {
         self.layouts.names()
     }
 
+    /// Per-layout navigation metadata `(name, category, tags)`, sorted by name.
+    pub fn layout_catalog(&self) -> Vec<(String, Option<String>, Vec<String>)> {
+        self.layouts.catalog()
+    }
+
     /// Add a single flavor. The first flavor added is the active default.
     #[must_use]
     pub fn add_flavor(mut self, flavor: Flavor) -> Self {

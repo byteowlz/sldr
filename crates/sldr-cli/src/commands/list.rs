@@ -431,25 +431,65 @@ fn list_layouts(config: &Config, json: bool) -> Result<()> {
     for dir in config.layout_dirs() {
         renderer.load_layouts(&dir)?;
     }
-    let names = renderer.layout_names();
+    let catalog = renderer.layout_catalog(); // (name, category, tags)
 
     if json {
+        let items: Vec<_> = catalog
+            .iter()
+            .map(|(name, cat, tags)| {
+                serde_json::json!({ "name": name, "category": cat, "tags": tags })
+            })
+            .collect();
         let payload = serde_json::json!({
             "list_type": "layouts",
             "layout_dir": config.layout_dir().display().to_string(),
-            "items": names,
+            "items": items,
         });
         println!("{}", serde_json::to_string_pretty(&payload)?);
         return Ok(());
     }
 
+    // Group by function category. Known categories print in this order with a
+    // friendly heading; any others (incl. uncategorized user layouts) follow.
+    const ORDER: &[(&str, &str)] = &[
+        ("title", "Title & section"),
+        ("body", "Body"),
+        ("image", "Image"),
+        ("framed", "Branded (framed chrome)"),
+    ];
     println!("{}", "Layouts".bold());
-    for name in &names {
-        println!("  {name}");
+    let mut printed: HashSet<String> = HashSet::new();
+    let print_group = |heading: &str, members: &[&(String, Option<String>, Vec<String>)]| {
+        if members.is_empty() {
+            return;
+        }
+        println!("\n  {}", heading.cyan().bold());
+        for (name, _, tags) in members {
+            let tagstr = if tags.is_empty() {
+                String::new()
+            } else {
+                format!("  {}", tags.join(" ")).dimmed().to_string()
+            };
+            println!("    {name}{tagstr}");
+        }
+    };
+    for (key, heading) in ORDER {
+        let members: Vec<_> = catalog
+            .iter()
+            .filter(|(_, c, _)| c.as_deref() == Some(key))
+            .collect();
+        for (n, _, _) in &members {
+            printed.insert(n.clone());
+        }
+        print_group(heading, &members);
     }
+    // Anything with a non-standard or missing category.
+    let other: Vec<_> = catalog.iter().filter(|(n, _, _)| !printed.contains(n)).collect();
+    print_group("Other", &other);
+
     println!(
-        "
-  {} user layouts in {} override built-ins by name",
+        "\n  {} categories/tags are author-declared per layout; classic = predictable placement, expressive = dramatic. \
+         user layouts in {} override built-ins by name",
         "i".blue(),
         config.layout_dir().display()
     );

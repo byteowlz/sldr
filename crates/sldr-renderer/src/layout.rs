@@ -83,6 +83,21 @@ pub struct LayoutDef {
     /// `<!-- sldr:transform collage -->` — promote image-only paragraphs
     /// to figures gathered in a `.sldr-collage` wrapper.
     collage: bool,
+    /// `<!-- sldr:category NAME -->` — the function group a layout belongs to
+    /// (title / body / image / framed …). A navigation label, author-declared
+    /// per layout; never drives selection.
+    pub category: Option<String>,
+    /// `<!-- sldr:tags a, b -->` — free tags (e.g. register: classic/expressive).
+    pub tags: Vec<String>,
+}
+
+/// Extract a single-line `<!-- sldr:KEY VALUE -->` directive's value.
+fn directive_value<'a>(source: &'a str, key: &str) -> Option<&'a str> {
+    let pat = format!("<!-- sldr:{key} ");
+    let start = source.find(&pat)? + pat.len();
+    let rest = &source[start..];
+    let end = rest.find("-->")?;
+    Some(rest[..end].trim())
 }
 
 /// Built-in layouts, embedded in the binary in the exact same file format
@@ -230,6 +245,18 @@ impl LayoutRegistry {
         names.sort();
         names
     }
+
+    /// Every layout's navigation metadata, sorted by name:
+    /// `(name, category, tags)`. Backs grouped `ls layouts` output.
+    pub fn catalog(&self) -> Vec<(String, Option<String>, Vec<String>)> {
+        let mut out: Vec<_> = self
+            .layouts
+            .values()
+            .map(|d| (d.name.clone(), d.category.clone(), d.tags.clone()))
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    }
 }
 
 impl Default for LayoutRegistry {
@@ -255,11 +282,23 @@ fn parse_layout(name: &str, source: &str) -> LayoutDef {
         _ => (None, source.to_string()),
     };
 
+    let category = directive_value(source, "category").map(str::to_string);
+    let tags = directive_value(source, "tags")
+        .map(|s| {
+            s.split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
     LayoutDef {
         name: name.to_string(),
         structure: strip_html_comments(&without_style).trim().to_string(),
         css,
         collage,
+        category,
+        tags,
     }
 }
 

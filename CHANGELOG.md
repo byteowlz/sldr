@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Layout categories. Every layout now declares a function group and register tags in its own file (`<!-- sldr:category body -->`, `<!-- sldr:tags classic -->`) — author-declared data, not a core heuristic. `sldr ls layouts` groups by category (Title & section / Body / Image / Branded) and shows the register tags (`classic` = predictable placement, `expressive` = dramatic, `branded` = framed chrome); `--json` carries `category` + `tags`. A custom layout self-categorizes the same way. Makes "which layout do I use?" navigable for humans and agents; categories never drive selection.
+
+### Fixed
+- The framed copyright footer is now left-aligned with the headline/body/source (it was indented at 7.4% while everything else sits at 4.4%).
+
 ## [0.7.0] - 2026-06-21
 
 ### Changed
