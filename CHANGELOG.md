@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.8.0] - 2026-06-23
 
 ### Added
 - `sldr serve` thumbnail/preview endpoints for a slide-management frontend: `GET /slide/{name}?flavor=X` renders one library slide to self-contained HTML (embed in a scaled iframe for fast, vector, no-rasterization thumbnails), and `GET /layout/{name}?flavor=X` previews a layout from an example slide that uses it (defaults to the `skeleton` lens for a flavor-independent layout picker).
