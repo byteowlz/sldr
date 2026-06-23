@@ -309,7 +309,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
  * They are independent so a slide can carry both. */
 .sldr-framed .sldr-footer {
   position: absolute;
-  left: 7.4%;
+  left: 4.4%;   /* aligned with the headline / body / source left edge */
   top: 92.5%;
   width: 80%;
   font-family: var(--sldr-body-font);
