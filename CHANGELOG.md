@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Studio** — a self-contained slide-management UI served at `sldr serve` → `/studio`. Browse the library as live thumbnails (scaled iframes of `/slide/{name}`, vector, no rasterization), search, switch flavor, compose an ordered deck (click to add, reorder, remove), and preview it in a new tab. Vanilla JS, no build step, no CDN, no external deps — a thin client over the existing serve API plus a new `POST /api/deck` (render an ad-hoc ordered slide set as a self-contained deck). For rapid dogfooding; the full curation platform stays a separate product.
+
 ## [0.8.0] - 2026-06-23
 
 ### Added

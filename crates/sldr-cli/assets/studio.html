@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>sldr · studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+:root{
+  --bg:#222624; --panel:#1a1e1c; --panel2:#0f1412; --card:#262a28; --card2:#2c312e;
+  --border:#2e3331; --border2:#3a3f3c; --fg:#e6e9e7; --muted:#9aa39e; --dim:#636b66;
+  --accent:#3ba77c; --accent-dim:#2a6d52;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px}
+body{overflow:hidden}
+button{font:inherit;color:inherit;background:transparent;border:1px solid var(--border2);
+  height:28px;padding:0 12px;border-radius:0;cursor:pointer;letter-spacing:.02em}
+button:hover{border-color:var(--accent-dim);color:var(--accent)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,select{font:inherit;color:inherit;background:var(--card);border:1px solid var(--border2);
+  height:28px;padding:0 8px;border-radius:0;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--border2)}
+
+.app{height:100vh;display:grid;grid-template-rows:46px 1fr;
+  grid-template-columns:1fr 380px;grid-template-areas:"bar bar" "lib deck"}
+.bar{grid-area:bar;display:flex;align-items:center;gap:12px;padding:0 14px;
+  background:var(--panel2);border-bottom:1px solid var(--border)}
+.logo{font-weight:700;letter-spacing:.06em}
+.sep{color:var(--dim)}
+.spacer{flex:1}
+.build{border-color:var(--accent);color:var(--accent);background:rgba(59,167,124,.08);font-weight:700}
+.build:hover{background:rgba(59,167,124,.18)}
+
+.lib{grid-area:lib;border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+.deck{grid-area:deck;background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.head{padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.title{color:var(--accent);font-size:10px;letter-spacing:.16em;font-weight:700}
+.count{color:var(--dim);font-size:11px;margin-left:auto}
+.scroll{flex:1;overflow-y:auto;padding:12px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;align-content:start}
+.card{border:1px solid var(--border);background:var(--card);cursor:pointer;transition:border-color .12s}
+.card:hover{border-color:var(--accent-dim)}
+.thumb{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#fff;border-bottom:1px solid var(--border)}
+.thumb iframe{position:absolute;top:0;left:0;width:1280px;height:720px;border:0;transform-origin:top left;pointer-events:none}
+.meta{padding:7px 9px}
+.name{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:10px;color:var(--dim);margin-top:2px;display:flex;gap:6px}
+.add{position:absolute;top:6px;right:6px;z-index:2;width:22px;height:22px;padding:0;
+  background:rgba(15,20,18,.8);border:1px solid var(--border2);display:none}
+.card:hover .add{display:block}
+
+/* deck rows */
+.row{display:grid;grid-template-columns:84px 1fr auto;gap:9px;align-items:center;
+  border:1px solid var(--border);background:var(--card);padding:6px;margin-bottom:8px}
+.row .thumb{width:84px;aspect-ratio:16/9;border:1px solid var(--border2)}
+.rowbody{min-width:0}
+.rowname{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rowops{display:flex;gap:3px}
+.rowops button{width:24px;height:22px;padding:0;font-size:11px}
+.empty{color:var(--dim);text-align:center;padding:40px 12px;font-size:12px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <span class="logo">sldr</span><span class="sep">/</span><span style="color:var(--muted)">studio</span>
+    <span class="spacer"></span>
+    <label style="color:var(--dim);font-size:11px">flavor</label>
+    <select id="flavor"></select>
+    <button class="build" id="preview">▶ preview deck</button>
+  </header>
+
+  <section class="lib">
+    <div class="head">
+      <span class="title">LIBRARY</span>
+      <input id="search" placeholder="search slides…" style="flex:1;max-width:240px" />
+      <span class="count" id="libcount"></span>
+    </div>
+    <div class="scroll"><div class="grid" id="libgrid"></div></div>
+  </section>
+
+  <aside class="deck">
+    <div class="head">
+      <span class="title">DECK</span>
+      <span class="count" id="deckcount">0 slides</span>
+    </div>
+    <div class="scroll" id="deckscroll"></div>
+  </aside>
+</div>
+
+<script>
+const API = "";                 // same origin as sldr serve
+let flavor = "default";
+let slides = [];                // library summaries
+let deck = [];                  // ordered relative_paths
+
+const $ = s => document.querySelector(s);
+const thumbSrc = rp => `${API}/slide/${rp}?flavor=${encodeURIComponent(flavor)}`;
+
+// A scaled-iframe thumbnail (live HTML, vector, no rasterization).
+function thumb(rp){
+  const box = document.createElement("div"); box.className = "thumb";
+  const f = document.createElement("iframe");
+  f.src = thumbSrc(rp); f.loading = "lazy"; f.setAttribute("scrolling","no");
+  box.appendChild(f);
+  const fit = () => { const s = box.clientWidth / 1280; f.style.transform = `scale(${s})`; };
+  requestAnimationFrame(fit); new ResizeObserver(fit).observe(box);
+  return box;
+}
+
+function renderLibrary(){
+  const q = $("#search").value.trim().toLowerCase();
+  const grid = $("#libgrid"); grid.innerHTML = "";
+  const list = slides.filter(s => !q ||
+    (s.relative_path + " " + (s.title||"") + " " + (s.tags||[]).join(" ")).toLowerCase().includes(q));
+  $("#libcount").textContent = `${list.length}/${slides.length}`;
+  for(const s of list){
+    const card = document.createElement("div"); card.className = "card";
+    card.title = "click to add to deck";
+    card.appendChild(thumb(s.relative_path));
+    const add = document.createElement("button"); add.className="add"; add.textContent="+";
+    card.querySelector(".thumb").appendChild(add);
+    const meta = document.createElement("div"); meta.className="meta";
+    meta.innerHTML = `<div class="name">${s.title || s.name}</div>
+      <div class="sub"><span>${s.relative_path}</span>${s.layout?`<span>· ${s.layout}</span>`:""}</div>`;
+    card.appendChild(meta);
+    card.onclick = () => { deck.push(s.relative_path); renderDeck(); };
+    grid.appendChild(card);
+  }
+}
+
+function renderDeck(){
+  const box = $("#deckscroll"); box.innerHTML = "";
+  $("#deckcount").textContent = `${deck.length} slide${deck.length===1?"":"s"}`;
+  $("#preview").disabled = deck.length === 0;
+  if(!deck.length){ box.innerHTML = `<div class="empty">Click slides on the left to add them.<br>Then preview the deck.</div>`; return; }
+  deck.forEach((rp,i) => {
+    const s = slides.find(x => x.relative_path === rp) || {title:rp};
+    const row = document.createElement("div"); row.className="row";
+    row.appendChild(thumb(rp));
+    const body = document.createElement("div"); body.className="rowbody";
+    body.innerHTML = `<div class="rowname">${i+1}. ${s.title || rp}</div>
+      <div class="sub">${rp}</div>`;
+    row.appendChild(body);
+    const ops = document.createElement("div"); ops.className="rowops";
+    const mk = (t,fn,dis) => { const b=document.createElement("button"); b.textContent=t; b.onclick=fn; b.disabled=dis; return b; };
+    ops.appendChild(mk("↑", ()=>{[deck[i-1],deck[i]]=[deck[i],deck[i-1]];renderDeck();}, i===0));
+    ops.appendChild(mk("↓", ()=>{[deck[i+1],deck[i]]=[deck[i],deck[i+1]];renderDeck();}, i===deck.length-1));
+    ops.appendChild(mk("✕", ()=>{deck.splice(i,1);renderDeck();}, false));
+    row.appendChild(ops);
+    box.appendChild(row);
+  });
+}
+
+async function preview(){
+  const res = await fetch(`${API}/api/deck`, {
+    method:"POST", headers:{"content-type":"application/json"},
+    body: JSON.stringify({ slides: deck, flavor })
+  });
+  if(!res.ok){ alert("preview failed: " + await res.text()); return; }
+  const html = await res.text();
+  const url = URL.createObjectURL(new Blob([html], {type:"text/html"}));
+  window.open(url, "_blank");
+}
+
+async function init(){
+  // flavors
+  const fl = await (await fetch(`${API}/api/flavors`)).json();
+  const sel = $("#flavor");
+  for(const f of fl.flavors){ const o=document.createElement("option"); o.value=f.name; o.textContent=f.display_name||f.name; sel.appendChild(o); }
+  if(fl.flavors.length) flavor = fl.flavors[0].name;
+  sel.value = flavor;
+  sel.onchange = () => { flavor = sel.value; renderLibrary(); renderDeck(); };
+  // slides
+  const sl = await (await fetch(`${API}/api/slides`)).json();
+  slides = sl.slides || [];
+  $("#search").oninput = renderLibrary;
+  $("#preview").onclick = preview;
+  renderLibrary(); renderDeck();
+}
+init();
+</script>
+</body>
+</html>

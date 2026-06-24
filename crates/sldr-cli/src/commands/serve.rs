@@ -72,6 +72,8 @@ async fn run_server(port: u16, open_browser: bool, host: &str) -> Result<()> {
         .route("/sample.html", get(handle_sample_html))
         .route("/slide/{*name}", get(handle_slide_html))
         .route("/layout/{name}", get(handle_layout_html))
+        .route("/studio", get(handle_studio))
+        .route("/api/deck", post(handle_deck))
         .route("/api/flavors", get(handle_list_flavors))
         .route("/api/flavors/{name}", get(handle_get_flavor))
         .route("/api/slides", get(handle_list_slides).post(handle_create_slides))
@@ -91,6 +93,11 @@ async fn run_server(port: u16, open_browser: bool, host: &str) -> Result<()> {
         "\n  {} sldr serve running at {}\n",
         ">>".green().bold(),
         url.cyan().bold()
+    );
+    println!(
+        "  {} {}",
+        "Studio:".green().bold(),
+        format!("{url}/studio").cyan().bold().underline()
     );
     println!("  {} {}", "Try:".dimmed(), format!("curl {url}/api/health").bold());
     println!("  {} {}", "    ".dimmed(), format!("curl {url}/api/sample").bold());
@@ -118,6 +125,7 @@ async fn handle_root() -> Html<&'static str> {
 <p>HTTP API for external agents. Boundary: sldr renders, agents bring content.</p>
 <h2>Discovery</h2>
 <ul>
+<li><code>GET /studio</code> — the Studio UI (browse the library, compose a deck, preview)</li>
 <li><code>GET /api/health</code></li>
 <li><code>GET /api/sample</code> — slide catalog (markdown sources)</li>
 <li><code>GET /sample.html?flavor=NAME</code> — rendered sample deck</li>
@@ -196,12 +204,12 @@ async fn handle_sample_html(
     Ok(Html(html))
 }
 
-/// Render a single slide to self-contained HTML — the per-item primitive a
-/// slide-management frontend embeds in a scaled iframe for fast, live,
-/// vector-crisp thumbnails (no rasterization). Media is inlined.
-fn render_single_slide(
+/// Render a set of slides to self-contained HTML. With one slide it's the
+/// per-item thumbnail primitive (embed in a scaled iframe — fast, live,
+/// vector, no rasterization); with many it's a preview deck. Media inlined.
+fn render_slides(
     state: &AppState,
-    slide: &Slide,
+    slides: &[Slide],
     flavor: Flavor,
 ) -> Result<String, (StatusCode, String)> {
     let ise = |e: anyhow::Error| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
@@ -213,9 +221,7 @@ fn render_single_slide(
     for dir in state.config.layout_dirs() {
         renderer.load_layouts(&dir).map_err(ise)?;
     }
-    renderer
-        .add_slides(std::slice::from_ref(slide))
-        .map_err(ise)?;
+    renderer.add_slides(slides).map_err(ise)?;
     renderer.render().map_err(ise)
 }
 
@@ -235,7 +241,7 @@ async fn handle_slide_html(
         .unwrap_or_else(|| state.config.config.default_flavor.clone());
     let flavor = resolve_flavor(&state.config, &flavor_name)
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
-    Ok(Html(render_single_slide(&state, slide, flavor)?))
+    Ok(Html(render_slides(&state, std::slice::from_ref(slide), flavor)?))
 }
 
 /// GET /layout/{name}?flavor=X — a preview of a layout, rendered from an
@@ -264,7 +270,47 @@ async fn handle_layout_html(
     let flavor_name = q.flavor.unwrap_or_else(|| "skeleton".to_string());
     let flavor = resolve_flavor(&state.config, &flavor_name)
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
-    Ok(Html(render_single_slide(&state, slide, flavor)?))
+    Ok(Html(render_slides(&state, std::slice::from_ref(slide), flavor)?))
+}
+
+/// The Studio frontend — a self-contained slide-management UI served at
+/// `/studio`. Talks to this same API; no build step, no external deps.
+const STUDIO_HTML: &str = include_str!("../../assets/studio.html");
+
+async fn handle_studio() -> Html<&'static str> {
+    Html(STUDIO_HTML)
+}
+
+#[derive(Deserialize)]
+struct DeckRequest {
+    /// Slide names/paths in order.
+    slides: Vec<String>,
+    #[serde(default)]
+    flavor: Option<String>,
+}
+
+/// POST /api/deck — render an ad-hoc ordered slide set as a self-contained
+/// deck (the Studio "preview" action). Unknown slide names are skipped.
+async fn handle_deck(
+    AxumState(state): AxumState<Arc<AppState>>,
+    Json(req): Json<DeckRequest>,
+) -> Result<Html<String>, (StatusCode, String)> {
+    let collection = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let slides: Vec<Slide> = req
+        .slides
+        .iter()
+        .filter_map(|n| collection.find(n).cloned())
+        .collect();
+    if slides.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "No known slides in the deck".into()));
+    }
+    let flavor_name = req
+        .flavor
+        .unwrap_or_else(|| state.config.config.default_flavor.clone());
+    let flavor = resolve_flavor(&state.config, &flavor_name)
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    Ok(Html(render_slides(&state, &slides, flavor)?))
 }
 
 // ============================================================================
