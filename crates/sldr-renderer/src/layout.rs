@@ -89,6 +89,83 @@ pub struct LayoutDef {
     pub category: Option<String>,
     /// `<!-- sldr:tags a, b -->` — free tags (e.g. register: classic/expressive).
     pub tags: Vec<String>,
+    /// `<!-- sldr:zone … -->` directives — the PPTX export contract for this
+    /// layout (ADR-0008, trx-4s9s). Each zone declares how one region maps to
+    /// native PowerPoint: an editable text placeholder, a positioned picture,
+    /// an autoshape, or (last resort) a baked raster. Empty for layouts that
+    /// have not opted into PPTX export — they fall back to the screenshot path.
+    pub zones: Vec<Zone>,
+}
+
+/// How a single layout region is represented when exporting to native
+/// PowerPoint OOXML (trx-4s9s.2). The bitter-lesson "honest wall" at the
+/// finest grain: derive everything representable into native PPTX, carry
+/// (rasterize) only the truly irreducible bits — per region, not per slide.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ZoneRep {
+    /// Editable text placeholder (headline/body/footer/columns). Chrome and
+    /// body text stay editable on every slide regardless of layout.
+    PlaceholderText,
+    /// One or more individually positioned, editable/movable `<p:pic>`
+    /// elements (any image arrangement: single, grid, row, scatter).
+    Picture,
+    /// A PPTX autoshape — geometric decoration (e.g. a diagonal accent band).
+    Shape,
+    /// Last resort: rasterize JUST this region's bounding box and place it as
+    /// a positioned picture. For genuinely un-representable visuals (CSS
+    /// vector scenes, gradient/filter effects, decorative SVG).
+    Bake,
+}
+
+impl ZoneRep {
+    /// Parse a `rep=` token. `text` is an alias for `placeholder-text`,
+    /// `pic` for `picture`.
+    fn from_token(s: &str) -> Option<Self> {
+        Some(match s {
+            "placeholder-text" | "text" => Self::PlaceholderText,
+            "picture" | "pic" => Self::Picture,
+            "shape" => Self::Shape,
+            "bake" => Self::Bake,
+            _ => return None,
+        })
+    }
+
+    /// Canonical token form, for inspection output and round-tripping.
+    pub fn as_token(self) -> &'static str {
+        match self {
+            Self::PlaceholderText => "placeholder-text",
+            Self::Picture => "picture",
+            Self::Shape => "shape",
+            Self::Bake => "bake",
+        }
+    }
+}
+
+/// One declared region of a layout and its native-PowerPoint mapping
+/// (trx-4s9s.2). Authored as a `<!-- sldr:zone … -->` directive; consumed by
+/// the PPTX template/deck generator to position placeholders, pictures, and
+/// shapes in EMU. Coordinates are percent of the slide box (0–100), the same
+/// unit the layouts already think in (`--sldr-u`), converted to EMU at export.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Zone {
+    /// Slot or chrome name this zone fills — must match a layout slot
+    /// (`content`, `left`, `right`, `image`, `heading`) or chrome field
+    /// (`headline`, `subheadline`, `footer`, `source`). The key the deck
+    /// generator (and round-trip import) uses to bind content ↔ placeholder.
+    pub name: String,
+    /// PPTX placeholder type token (`title`, `body`, `pic`, …) for
+    /// `placeholder-text`/`picture` zones; `None` for `shape`/`bake`.
+    pub ph: Option<String>,
+    /// PPTX placeholder index. Distinct body placeholders on one layout need
+    /// distinct `idx` values; `None` for a `title` (which takes no idx).
+    pub idx: Option<u32>,
+    /// Representation policy for this region.
+    pub rep: ZoneRep,
+    /// Position/size as percent of the slide box (0–100); EMU at export.
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
 }
 
 /// Extract a single-line `<!-- sldr:KEY VALUE -->` directive's value.
@@ -98,6 +175,62 @@ fn directive_value<'a>(source: &'a str, key: &str) -> Option<&'a str> {
     let rest = &source[start..];
     let end = rest.find("-->")?;
     Some(rest[..end].trim())
+}
+
+/// Parse every `<!-- sldr:zone name=… ph=… idx=… rep=… x=… y=… w=… h=… -->`
+/// directive in a layout file, in source order. Tokens are space-separated
+/// `key=value` pairs; unknown keys are ignored, a malformed/incomplete zone
+/// (missing `name`, or an unparseable number/rep) is skipped (fail-soft:
+/// annotation never breaks a layout that still renders fine to HTML).
+fn parse_zones(source: &str) -> Vec<Zone> {
+    const PAT: &str = "<!-- sldr:zone ";
+    let mut zones = Vec::new();
+    let mut rest = source;
+    while let Some(start) = rest.find(PAT) {
+        let after = &rest[start + PAT.len()..];
+        let Some(end) = after.find("-->") else { break };
+        if let Some(zone) = parse_zone_attrs(after[..end].trim()) {
+            zones.push(zone);
+        }
+        rest = &after[end + "-->".len()..];
+    }
+    zones
+}
+
+/// Parse the `key=value …` body of one zone directive. Returns `None` if a
+/// required field is missing or a value fails to parse.
+fn parse_zone_attrs(body: &str) -> Option<Zone> {
+    let mut name: Option<String> = None;
+    let mut ph: Option<String> = None;
+    let mut idx: Option<u32> = None;
+    let mut rep = ZoneRep::PlaceholderText;
+    let (mut x, mut y, mut w, mut h) = (0.0_f64, 0.0_f64, 100.0_f64, 100.0_f64);
+    for tok in body.split_whitespace() {
+        let Some((key, val)) = tok.split_once('=') else {
+            continue;
+        };
+        match key {
+            "name" => name = Some(val.to_string()),
+            "ph" => ph = (val != "none" && val != "-").then(|| val.to_string()),
+            "idx" => idx = val.parse().ok(),
+            "rep" => rep = ZoneRep::from_token(val)?,
+            "x" => x = val.parse().ok()?,
+            "y" => y = val.parse().ok()?,
+            "w" => w = val.parse().ok()?,
+            "h" => h = val.parse().ok()?,
+            _ => {}
+        }
+    }
+    Some(Zone {
+        name: name?,
+        ph,
+        idx,
+        rep,
+        x,
+        y,
+        w,
+        h,
+    })
 }
 
 /// Built-in layouts, embedded in the binary in the exact same file format
@@ -299,6 +432,7 @@ fn parse_layout(name: &str, source: &str) -> LayoutDef {
         collage,
         category,
         tags,
+        zones: parse_zones(source),
     }
 }
 
@@ -892,6 +1026,72 @@ mod tests {
         assert!(!html.contains("<style>"));
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_parse_zones_from_framed_builtin() {
+        let reg = registry();
+        let def = reg.resolve("framed").unwrap();
+        assert_eq!(def.zones.len(), 3);
+
+        let head = &def.zones[0];
+        assert_eq!(head.name, "headline");
+        assert_eq!(head.ph.as_deref(), Some("title"));
+        assert_eq!(head.idx, None);
+        assert_eq!(head.rep, ZoneRep::PlaceholderText);
+        assert_eq!(head.x, 4.4);
+        assert_eq!(head.w, 70.0);
+
+        let body = &def.zones[1];
+        assert_eq!(body.name, "content");
+        assert_eq!(body.ph.as_deref(), Some("body"));
+        assert_eq!(body.idx, Some(1));
+        assert_eq!(body.w, 91.1);
+
+        assert_eq!(def.zones[2].name, "footer");
+        assert_eq!(def.zones[2].idx, Some(2));
+    }
+
+    #[test]
+    fn test_layouts_without_zones_are_empty_not_error() {
+        let reg = registry();
+        // default has no zone directives → empty, falls back to screenshot path.
+        assert!(reg.resolve("default").unwrap().zones.is_empty());
+    }
+
+    #[test]
+    fn test_parse_zone_attrs_variants() {
+        // rep aliases, ph=none, missing optional fields default sanely.
+        let z = parse_zone_attrs("name=art rep=bake x=10 y=20 w=30 h=40").unwrap();
+        assert_eq!(z.name, "art");
+        assert_eq!(z.rep, ZoneRep::Bake);
+        assert_eq!(z.ph, None);
+        assert_eq!(z.idx, None);
+        assert_eq!((z.x, z.y, z.w, z.h), (10.0, 20.0, 30.0, 40.0));
+
+        let z = parse_zone_attrs("name=pics ph=pic rep=pic x=0 y=0 w=100 h=100").unwrap();
+        assert_eq!(z.rep, ZoneRep::Picture);
+        assert_eq!(z.ph.as_deref(), Some("pic"));
+
+        let z = parse_zone_attrs("name=band ph=none rep=shape x=0 y=0 w=50 h=100").unwrap();
+        assert_eq!(z.rep, ZoneRep::Shape);
+        assert_eq!(z.ph, None);
+
+        // missing name → skipped.
+        assert!(parse_zone_attrs("ph=title rep=text x=0 y=0 w=10 h=10").is_none());
+        // unparseable rep → skipped.
+        assert!(parse_zone_attrs("name=x rep=bogus").is_none());
+    }
+
+    #[test]
+    fn test_zone_directives_do_not_leak_into_rendered_html() {
+        let html = wrap(
+            "framed",
+            MarkdownOutput::Single("<h1>Hi</h1>".to_string()),
+            None,
+        );
+        assert!(!html.contains("sldr:zone"));
+        assert!(!html.contains("placeholder-text"));
     }
 
     #[test]
