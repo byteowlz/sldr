@@ -99,6 +99,23 @@ async fn run_server(port: u16, open_browser: bool, host: &str) -> Result<()> {
         "Studio:".green().bold(),
         format!("{url}/studio").cyan().bold().underline()
     );
+    if host == "0.0.0.0" {
+        // Bound to all interfaces — print the LAN-reachable Studio URLs so a
+        // phone or second machine has something to actually type.
+        for ip in crate::commands::watch::lan_ips() {
+            println!(
+                "  {} {}",
+                "  LAN:".dimmed(),
+                format!("http://{ip}:{port}/studio").cyan().bold()
+            );
+        }
+    } else {
+        println!(
+            "  {} bind all interfaces with {}",
+            "  ".dimmed(),
+            "sldr serve --host 0.0.0.0".dimmed()
+        );
+    }
     println!("  {} {}", "Try:".dimmed(), format!("curl {url}/api/health").bold());
     println!("  {} {}", "    ".dimmed(), format!("curl {url}/api/sample").bold());
     println!("  {} {}", "    ".dimmed(), format!("curl {url}/sample.html?flavor=editorial-serif").bold());

@@ -372,7 +372,7 @@ fn spawn_file_watcher(
 /// Non-loopback IPv4 addresses of this machine, for printing reachable
 /// URLs when bound to 0.0.0.0. Best-effort: parses `ip -4 addr` /
 /// `ifconfig` output; returns empty when neither tool exists.
-fn lan_ips() -> Vec<String> {
+pub(crate) fn lan_ips() -> Vec<String> {
     let output = std::process::Command::new("ip")
         .args(["-4", "addr"])
         .output()
