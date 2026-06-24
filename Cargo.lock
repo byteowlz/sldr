@@ -1666,6 +1666,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sldr-core",
+ "sldr-pptx",
  "sldr-renderer",
  "tempfile",
  "time",
@@ -1692,6 +1693,16 @@ dependencies = [
  "toml",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "sldr-pptx"
+version = "0.8.0"
+dependencies = [
+ "anyhow",
+ "sldr-core",
+ "sldr-renderer",
+ "zip",
 ]
 
 [[package]]

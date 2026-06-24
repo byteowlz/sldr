@@ -28,9 +28,11 @@ pub mod pptx;
 mod render;
 pub mod fonts;
 pub mod sample;
-mod layout;
+pub mod layout;
 
-pub use layout::{builtin_layout_names, builtin_layout_source};
+pub use layout::{
+    builtin_layout_names, builtin_layout_source, LayoutDef, LayoutRegistry, Zone, ZoneRep,
+};
 pub use media::ImageMode;
 pub use render::{HtmlRenderer, RenderConfig};
 pub use sample::{render_sample, SampleSlide, SAMPLE_SLIDES};

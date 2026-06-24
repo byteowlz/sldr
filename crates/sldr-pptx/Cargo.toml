@@ -1,0 +1,20 @@
+[package]
+name = "sldr-pptx"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Native OOXML PowerPoint export/import for sldr — derives editable .pptx templates and decks from sldr layouts and flavors (a satellite, not core)"
+
+[lints]
+workspace = true
+
+[dependencies]
+sldr-core.workspace = true
+sldr-renderer.workspace = true
+anyhow.workspace = true
+
+# OOXML package = a ZIP of XML parts
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]

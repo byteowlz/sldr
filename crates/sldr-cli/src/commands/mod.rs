@@ -11,6 +11,7 @@ pub mod json_output;
 pub mod list;
 pub mod new;
 pub mod open;
+pub mod pptx;
 pub mod preview;
 pub mod rm;
 pub mod sample;

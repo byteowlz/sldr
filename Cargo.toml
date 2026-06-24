@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/sldr-core",
     "crates/sldr-renderer",
+    "crates/sldr-pptx",
     "crates/sldr-cli",
     "crates/sldr-server",
     "crates/schema-gen",
@@ -70,6 +71,7 @@ syntect = { version = "5.2", default-features = false, features = ["default-fanc
 # Internal crates
 sldr-core = { path = "crates/sldr-core" }
 sldr-renderer = { path = "crates/sldr-renderer" }
+sldr-pptx = { path = "crates/sldr-pptx" }
 
 # ============================================
 # STANDARD PRESET - rust-magic-linter

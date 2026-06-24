@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 sldr-core = { workspace = true }
 sldr-renderer = { workspace = true }
+sldr-pptx = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
 dialoguer = { workspace = true }

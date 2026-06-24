@@ -127,6 +127,12 @@ enum Commands {
         format: String,
     },
 
+    /// Native PowerPoint (OOXML) export — editable templates and decks
+    Pptx {
+        #[command(subcommand)]
+        command: PptxCommands,
+    },
+
     /// Watch a presentation for changes and live-reload in browser
     Watch {
         /// Name of the playlist to watch
@@ -341,6 +347,25 @@ enum Commands {
 }
 
 #[derive(Subcommand)]
+enum PptxCommands {
+    /// Export an editable PowerPoint *template* (theme + masters + layouts,
+    /// no slides) for a flavor — author new branded slides directly in PPT.
+    Template {
+        /// Flavor whose colors/fonts become the PPTX theme
+        #[arg(short, long)]
+        flavor: Option<String>,
+
+        /// Output .pptx path (default: <output_dir>/<flavor>-template.pptx)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Limit to specific layouts (comma list); default: all with zones
+        #[arg(short, long)]
+        layouts: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
 enum SlidesCommands {
     /// Create empty slides for all missing slides referenced in a playlist
     Derive {
@@ -475,6 +500,14 @@ fn main() -> anyhow::Result<()> {
             lang,
             format,
         } => commands::export::run(&playlist, flavor, output, lang, &format),
+
+        Commands::Pptx { command } => match command {
+            PptxCommands::Template {
+                flavor,
+                output,
+                layouts,
+            } => commands::pptx::template(flavor, output, layouts),
+        },
 
         Commands::Watch {
             playlist,
