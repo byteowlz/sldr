@@ -6,6 +6,7 @@ pub mod bundle;
 pub mod config;
 pub mod export;
 pub mod flavor_builder;
+pub mod import;
 pub mod init;
 pub mod json_output;
 pub mod list;

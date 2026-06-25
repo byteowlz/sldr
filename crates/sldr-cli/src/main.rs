@@ -138,6 +138,16 @@ enum Commands {
         flatten: bool,
     },
 
+    /// Import a sldr-generated .pptx back into slide markdown (round-trip)
+    Import {
+        /// Path to the .pptx file to import
+        file: String,
+
+        /// Output directory for slides (default: <slide_dir>/imported)
+        #[arg(short, long)]
+        out: Option<String>,
+    },
+
     /// Watch a presentation for changes and live-reload in browser
     Watch {
         /// Name of the playlist to watch
@@ -496,6 +506,8 @@ fn main() -> anyhow::Result<()> {
             template,
             flatten,
         ),
+
+        Commands::Import { file, out } => commands::import::run(&file, out),
 
         Commands::Watch {
             playlist,

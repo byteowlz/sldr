@@ -38,9 +38,11 @@ use anyhow::{bail, Result};
 use sldr_renderer::{LayoutDef, Zone, ZoneRep};
 
 mod deck;
+mod import;
 mod mdooxml;
 
 pub use deck::{build_deck, SlideInput, ZoneContent};
+pub use import::{import, ImportedImage, ImportedSlide};
 
 /// 16:9 slide box in EMU (English Metric Units). `screen16x9`.
 pub(crate) const SLIDE_W_EMU: i64 = 12_192_000;
@@ -686,18 +688,19 @@ mod tests {
     }
 
     #[test]
-    fn test_framed_layout_has_three_placeholders_in_emu() {
+    fn test_framed_layout_placeholders_in_emu() {
         let bytes = build_template(
             &theme(),
             &[LayoutRegistry::builtin().get("framed").unwrap()],
         )
         .unwrap();
         let l = read_part(&bytes, "ppt/slideLayouts/slideLayout1.xml");
-        // title + two body placeholders.
-        assert_eq!(l.matches("<p:ph ").count(), 3);
+        // title + body placeholders (headline, subheadline, content, footer).
+        assert_eq!(l.matches("<p:ph ").count(), 4);
         assert!(l.contains(r#"type="title""#));
         assert!(l.contains(r#"type="body" idx="1""#));
         assert!(l.contains(r#"type="body" idx="2""#));
+        assert!(l.contains(r#"type="body" idx="3""#));
         // headline x = 4.4% of 12192000 = 536448 EMU.
         assert!(l.contains(&format!("x=\"{}\"", emu_x(4.4))));
     }

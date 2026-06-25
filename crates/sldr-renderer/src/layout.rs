@@ -1032,7 +1032,7 @@ mod tests {
     fn test_parse_zones_from_framed_builtin() {
         let reg = registry();
         let def = reg.resolve("framed").unwrap();
-        assert_eq!(def.zones.len(), 3);
+        assert_eq!(def.zones.len(), 4);
 
         let head = &def.zones[0];
         assert_eq!(head.name, "headline");
@@ -1042,14 +1042,17 @@ mod tests {
         assert_eq!(head.x, 4.4);
         assert_eq!(head.w, 70.0);
 
-        let body = &def.zones[1];
+        assert_eq!(def.zones[1].name, "subheadline");
+        assert_eq!(def.zones[1].idx, Some(3));
+
+        let body = &def.zones[2];
         assert_eq!(body.name, "content");
         assert_eq!(body.ph.as_deref(), Some("body"));
         assert_eq!(body.idx, Some(1));
         assert_eq!(body.w, 91.1);
 
-        assert_eq!(def.zones[2].name, "footer");
-        assert_eq!(def.zones[2].idx, Some(2));
+        assert_eq!(def.zones[3].name, "footer");
+        assert_eq!(def.zones[3].idx, Some(2));
     }
 
     #[test]
