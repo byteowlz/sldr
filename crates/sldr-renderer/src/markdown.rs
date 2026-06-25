@@ -118,6 +118,58 @@ pub fn split_segments(content: &str) -> MarkdownSegments {
     }
 }
 
+/// Remove split-marker lines that `render_markdown` won't consume — a lone
+/// `::content::` with no `::image::`, markers on a single-block slide, a
+/// `::right::` before its `::left::`. Such markers would otherwise render as
+/// literal `::content::` text on the slide (the #1 authoring footgun). Returns
+/// the cleaned content plus the distinct stray marker names found, so the build
+/// can warn loudly. Active markers (part of a recognized pair) are kept —
+/// `render_markdown` consumes them by position. Fence-aware, like `scan_markers`.
+pub fn strip_stray_markers(content: &str) -> (String, Vec<String>) {
+    let markers = scan_markers(content);
+
+    // Mirror render_markdown's precedence: left+right (in order) wins, else
+    // content+image. Only those markers are consumed; the rest are stray.
+    let mut active: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    if markers.contains_key("left")
+        && markers.contains_key("right")
+        && markers["left"].0 <= markers["right"].0
+    {
+        active.insert("left");
+        active.insert("right");
+    } else if markers.contains_key("content") && markers.contains_key("image") {
+        active.insert("content");
+        active.insert("image");
+    }
+
+    let mut out = String::with_capacity(content.len());
+    let mut stray: Vec<String> = Vec::new();
+    let mut in_fence = false;
+    for line in content.split_inclusive('\n') {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+            out.push_str(line);
+            continue;
+        }
+        if !in_fence {
+            if let Some(name) = ["left", "right", "content", "image"]
+                .into_iter()
+                .find(|n| trimmed == format!("::{n}::"))
+            {
+                if !active.contains(name) {
+                    if !stray.iter().any(|s| s == name) {
+                        stray.push(name.to_string());
+                    }
+                    continue; // drop the stray marker line
+                }
+            }
+        }
+        out.push_str(line);
+    }
+    (out, stray)
+}
+
 /// Byte offsets of split markers: lines that are exactly `::name::`
 /// (whitespace-tolerant), skipping fenced code blocks (``` or ~~~).
 /// Only the first occurrence of each marker is recorded.
@@ -565,6 +617,32 @@ mod tests {
         let seg = split_segments("::content::\n# Hi\n::image::\n![](p.png)");
         assert_eq!(seg.content.as_deref(), Some("# Hi"));
         assert_eq!(seg.image.as_deref(), Some("![](p.png)"));
+    }
+
+    #[test]
+    fn test_strip_stray_lone_content_marker() {
+        // A lone ::content:: (no ::image::) is stray → removed + reported.
+        let (out, stray) = strip_stray_markers("::content::\n\nSome body text.");
+        assert!(!out.contains("::content::"));
+        assert!(out.contains("Some body text."));
+        assert_eq!(stray, vec!["content".to_string()]);
+    }
+
+    #[test]
+    fn test_strip_keeps_active_pair() {
+        // A real content+image pair is kept (render_markdown consumes it).
+        let (out, stray) = strip_stray_markers("::content::\nText\n::image::\n![](x.png)");
+        assert!(out.contains("::content::"));
+        assert!(out.contains("::image::"));
+        assert!(stray.is_empty());
+    }
+
+    #[test]
+    fn test_strip_ignores_markers_in_code_fences() {
+        let md = "::content::\n```\n::content::\n```";
+        let (_out, stray) = strip_stray_markers(md);
+        // Only the real lone marker (outside the fence) is stray, counted once.
+        assert_eq!(stray, vec!["content".to_string()]);
     }
 
     #[test]

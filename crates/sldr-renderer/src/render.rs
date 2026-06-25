@@ -248,7 +248,24 @@ impl HtmlRenderer {
                 available.join(", ")
             ));
         }
-        let content = lang_sel.content;
+        // Strip split markers that won't form a recognized pair (a lone
+        // ::content::, markers on a single-block layout). They would otherwise
+        // render as literal "::content::" text — the most common authoring
+        // mistake. Remove them and warn loudly rather than ship visible junk.
+        let (content, stray_markers) = crate::markdown::strip_stray_markers(&lang_sel.content);
+        if !stray_markers.is_empty() {
+            let list = stray_markers
+                .iter()
+                .map(|m| format!("::{m}::"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.warnings.push(format!(
+                "Slide '{}' has stray marker(s) {list} that don't form a recognized \
+                 pair (::content::+::image:: or ::left::+::right::) — removed from \
+                 output. Use a layout/markers that match, or delete them.",
+                slide.name
+            ));
+        }
 
         // Parse speaker notes from content (<!-- notes: ... --> convention)
         let notes = extract_speaker_notes(&content);
@@ -930,6 +947,27 @@ mod tests {
         let html = renderer.render().unwrap();
         assert!(html.contains("<title>My Talk</title>"));
         assert!(html.contains("data-transition=\"slide-left\""));
+    }
+
+    #[test]
+    fn test_stray_marker_stripped_and_warned() {
+        // The session's #1 bug: a lone ::content:: on a plain framed layout
+        // leaked as literal text. Now it's removed and warned.
+        let slide = sldr_core::slide::Slide::from_str(
+            "leak",
+            "leak.md",
+            "---\nlayout: framed\n---\n::content::\n\nReal body here.\n",
+        );
+        let mut renderer = HtmlRenderer::new(RenderConfig::default());
+        renderer.add_slide(&slide).unwrap();
+        let html = renderer.render().unwrap();
+        assert!(!html.contains("::content::"), "stray marker leaked into output");
+        assert!(html.contains("Real body here."));
+        assert!(
+            renderer.warnings().iter().any(|w| w.contains("leak") && w.contains("stray")),
+            "expected a stray-marker warning: {:?}",
+            renderer.warnings()
+        );
     }
 
     #[test]
