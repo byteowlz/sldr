@@ -556,11 +556,10 @@ impl HtmlRenderer {
         if self.slides.iter().any(|s| s.html.contains("sldr-mermaid")) {
             html.push_str("  <script>\n");
             html.push_str(MERMAID_JS);
-            html.push_str("\n  </script>\n  <script>\n");
-            html.push_str(
-                "if(window.mermaid){mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:'neutral'});}\n",
-            );
-            html.push_str("  </script>\n");
+            html.push_str("\n  </script>\n");
+            // presenter.js initializes mermaid with theme:'base' + themeVariables
+            // pulled from the flavor's CSS tokens, and re-themes on dark/flavor
+            // switch — so diagrams match the deck instead of a fixed palette.
         }
 
         // Presenter JS (inlined)

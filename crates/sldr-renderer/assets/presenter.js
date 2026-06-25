@@ -239,6 +239,7 @@
 
     activeFlavor = name;
     updateToolbarFlavor();
+    reThemeMermaid(); // diagrams follow the new flavor's colors
 
     // Persist choice in sessionStorage
     try { sessionStorage.setItem("sldr-flavor", name); } catch (e) { /* noop */ }
@@ -260,6 +261,7 @@
     isDark = !isDark;
     document.documentElement.classList.toggle("dark", isDark);
     updateToolbarDark();
+    reThemeMermaid(); // diagrams follow the mode swap
 
     // Persist choice
     try { sessionStorage.setItem("sldr-dark", isDark ? "1" : "0"); } catch (e) { /* noop */ }
@@ -415,6 +417,9 @@
     initFlavors();
     restoreFlavor();
     restoreDarkMode();
+    // Theme mermaid from the now-resolved flavor/dark state, before the first
+    // slide renders its diagrams.
+    initMermaid();
 
     // Read initial slide from URL hash
     var hash = parseHash();
@@ -538,6 +543,47 @@
     slide.setAttribute("aria-hidden", "true");
   }
 
+  // --- Mermaid theming -------------------------------------------------------
+  // Diagrams take their colors from the flavor's CSS tokens, so they match the
+  // active flavor AND light/dark (the tokens swap under html.dark). Re-themed
+  // on dark/flavor switch by restoring each diagram's source and re-running.
+
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  function mermaidThemeVars() {
+    var text = cssVar("--sldr-text", "#f1f5f9");
+    var surface = cssVar("--sldr-surface", "#1e293b");
+    return {
+      background: "transparent",
+      mainBkg: surface,
+      primaryColor: surface,
+      primaryTextColor: text,
+      primaryBorderColor: cssVar("--sldr-border-bright", cssVar("--sldr-accent", text)),
+      secondaryColor: cssVar("--sldr-surface2", surface),
+      tertiaryColor: cssVar("--sldr-muted", surface),
+      secondaryTextColor: text,
+      tertiaryTextColor: text,
+      lineColor: cssVar("--sldr-text-dim", text),
+      textColor: text,
+      nodeTextColor: text,
+      titleColor: text,
+      fontFamily: cssVar("--sldr-body-font", "inherit")
+    };
+  }
+
+  function initMermaid() {
+    if (!window.mermaid) return;
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "loose",
+      theme: "base",
+      themeVariables: mermaidThemeVars()
+    });
+  }
+
   // Render any not-yet-processed mermaid diagrams in `slide`. Lazy by design:
   // mermaid measures text, so it must run on a visible (laid-out) element, not
   // a display:none one — hence per-slide on show, not all at load. The bundled
@@ -546,6 +592,13 @@
     if (!window.mermaid) return;
     var nodes = slide.querySelectorAll(".sldr-mermaid:not([data-processed])");
     if (!nodes.length) return;
+    // Stash each diagram's source before mermaid replaces it with an SVG, so a
+    // later re-theme can restore and re-render it.
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute("data-mmd-src") === null) {
+        nodes[i].setAttribute("data-mmd-src", nodes[i].textContent);
+      }
+    }
     try {
       var p = mermaid.run({ nodes: Array.prototype.slice.call(nodes) });
       // The diagram changes the slide's height — re-fit once it resolves.
@@ -555,6 +608,21 @@
     } catch (e) {
       /* leave the diagram source visible if mermaid throws */
     }
+  }
+
+  // Re-theme every diagram after a dark/flavor switch: re-init mermaid with the
+  // now-current CSS tokens, reset each diagram to its source, and re-render the
+  // visible slide (others re-render lazily when shown).
+  function reThemeMermaid() {
+    if (!window.mermaid) return;
+    var all = document.querySelectorAll(".sldr-mermaid[data-mmd-src]");
+    if (!all.length) return;
+    initMermaid();
+    for (var i = 0; i < all.length; i++) {
+      all[i].textContent = all[i].getAttribute("data-mmd-src");
+      all[i].removeAttribute("data-processed");
+    }
+    renderMermaid(slides[current]);
   }
 
   // Persistent deck-level logos: show those whose data-logo-layouts list
