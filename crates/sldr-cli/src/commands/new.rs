@@ -68,6 +68,13 @@ pub fn run(name: &str, scaffold: Option<String>, dir: Option<&String>) -> Result
         "$EDITOR".dimmed(),
         path.display()
     );
+    // Point agents at the structured paths so they don't hand-write markers.
+    println!(
+        "  {} Batch/multilingual? {}. Diagrams: a ```mermaid fence renders; vector art via {}.",
+        "i".blue(),
+        "sldr slides create (JSON)".dimmed(),
+        "![](x.svg)".dimmed()
+    );
 
     Ok(())
 }
