@@ -11,7 +11,7 @@ use sldr_core::flavor::Flavor;
 use sldr_core::slide::Slide;
 use tracing::info;
 
-use crate::markdown::{render_markdown, MediaConfig};
+use crate::markdown::{render_markdown, MarkdownOutput, MediaConfig};
 use crate::media::{self, ImageMode, MediaEmbed};
 use crate::layout::{wrap_slide, Chrome, LayoutRegistry, SlideOpts};
 
@@ -317,6 +317,37 @@ impl HtmlRenderer {
             .layouts
             .resolve(layout)
             .with_context(|| format!("Slide '{}'", slide.name))?;
+
+        // Marker/layout mismatch is a silent trap otherwise: a layout with an
+        // image or column slot whose body lacks the matching markers degrades
+        // to plain content (image lands in the text area, columns vanish). Warn
+        // loudly and actionably instead — the body shape is known here, and so
+        // is what the layout expects.
+        let expected_markers = match &rendered {
+            MarkdownOutput::Single(_) if def.expects_image() => {
+                Some("::content:: / ::image::")
+            }
+            MarkdownOutput::Single(_) if def.expects_columns() => {
+                Some("::left:: / ::right::")
+            }
+            MarkdownOutput::TwoCols { .. } if def.expects_image() => {
+                Some("::content:: / ::image::")
+            }
+            MarkdownOutput::ContentImage { .. } if def.expects_columns() => {
+                Some("::left:: / ::right::")
+            }
+            _ => None,
+        };
+        if let Some(markers) = expected_markers {
+            self.warnings.push(format!(
+                "Slide '{}' uses layout '{layout}', which expects {markers} \
+                 markers, but the body has none (or the wrong ones) — it \
+                 rendered as plain content. Add the markers or pick a layout \
+                 that matches the body.",
+                slide.name
+            ));
+        }
+
         let html = wrap_slide(
             SlideOpts {
                 index,
@@ -879,6 +910,53 @@ mod tests {
         let html = renderer.render().unwrap();
         assert!(html.contains("<title>My Talk</title>"));
         assert!(html.contains("data-transition=\"slide-left\""));
+    }
+
+    #[test]
+    fn test_marker_layout_mismatch_warns() {
+        // image-left expects ::content::/::image:: but the body has neither →
+        // it degrades to plain content. That must warn, not happen silently.
+        let slide = sldr_core::slide::Slide::from_str(
+            "broken",
+            "broken.md",
+            "---\nlayout: image-left\n---\nJust some text and an image.\n\n![x](pic.png)\n",
+        );
+        let mut renderer = HtmlRenderer::new(RenderConfig::default());
+        renderer.add_slide(&slide).unwrap();
+        let warned = renderer.warnings().iter().any(|w| {
+            w.contains("broken") && w.contains("image-left") && w.contains("::content::")
+        });
+        assert!(warned, "expected a marker/layout mismatch warning: {:?}", renderer.warnings());
+    }
+
+    #[test]
+    fn test_correct_markers_no_warning() {
+        let slide = sldr_core::slide::Slide::from_str(
+            "ok",
+            "ok.md",
+            "---\nlayout: image-left\n---\n::content::\nText here.\n::image::\n![x](pic.png)\n",
+        );
+        let mut renderer = HtmlRenderer::new(RenderConfig::default());
+        renderer.add_slide(&slide).unwrap();
+        assert!(
+            !renderer.warnings().iter().any(|w| w.contains("expects")),
+            "unexpected mismatch warning: {:?}",
+            renderer.warnings()
+        );
+    }
+
+    #[test]
+    fn test_plain_layout_split_body_no_warning() {
+        // A plain layout (default) receiving split markers is intentional
+        // graceful degradation — it must NOT warn.
+        let slide = sldr_core::slide::Slide::from_str(
+            "deg",
+            "deg.md",
+            "---\nlayout: default\n---\n::content::\nText.\n::image::\n![x](pic.png)\n",
+        );
+        let mut renderer = HtmlRenderer::new(RenderConfig::default());
+        renderer.add_slide(&slide).unwrap();
+        assert!(!renderer.warnings().iter().any(|w| w.contains("expects")));
     }
 
     #[test]

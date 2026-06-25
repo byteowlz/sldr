@@ -168,6 +168,20 @@ pub struct Zone {
     pub h: f64,
 }
 
+impl LayoutDef {
+    /// Whether the layout places a dedicated image slot (`{{image}}`) — i.e.
+    /// it expects the body to split via `::content::` / `::image::` markers.
+    pub fn expects_image(&self) -> bool {
+        self.structure.contains("{{image}}")
+    }
+
+    /// Whether the layout places two column slots (`{{left}}` / `{{right}}`) —
+    /// i.e. it expects the body to split via `::left::` / `::right::` markers.
+    pub fn expects_columns(&self) -> bool {
+        self.structure.contains("{{left}}") || self.structure.contains("{{right}}")
+    }
+}
+
 /// Extract a single-line `<!-- sldr:KEY VALUE -->` directive's value.
 fn directive_value<'a>(source: &'a str, key: &str) -> Option<&'a str> {
     let pat = format!("<!-- sldr:{key} ");
