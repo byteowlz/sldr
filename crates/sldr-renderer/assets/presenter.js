@@ -538,6 +538,25 @@
     slide.setAttribute("aria-hidden", "true");
   }
 
+  // Render any not-yet-processed mermaid diagrams in `slide`. Lazy by design:
+  // mermaid measures text, so it must run on a visible (laid-out) element, not
+  // a display:none one — hence per-slide on show, not all at load. The bundled
+  // mermaid.js is only present in decks that use it, so guard on window.mermaid.
+  function renderMermaid(slide) {
+    if (!window.mermaid) return;
+    var nodes = slide.querySelectorAll(".sldr-mermaid:not([data-processed])");
+    if (!nodes.length) return;
+    try {
+      var p = mermaid.run({ nodes: Array.prototype.slice.call(nodes) });
+      // The diagram changes the slide's height — re-fit once it resolves.
+      if (p && p.then) {
+        p.then(function () { setUnit(slide); fitSlide(slide); }).catch(function () {});
+      }
+    } catch (e) {
+      /* leave the diagram source visible if mermaid throws */
+    }
+  }
+
   // Persistent deck-level logos: show those whose data-logo-layouts list
   // includes the active layout (or "all"). Idempotent — a logo already on
   // for the previous slide simply stays on, so there is no flicker.
@@ -595,7 +614,11 @@
   // Fit every slide — used by the PDF export path, where all slides are shown
   // at once (the per-slide showSlide hook never fires for the inactive ones).
   window.__sldrFitAll = function () {
-    for (var i = 0; i < total; i++) { setUnit(slides[i]); fitSlide(slides[i]); }
+    for (var i = 0; i < total; i++) {
+      renderMermaid(slides[i]);
+      setUnit(slides[i]);
+      fitSlide(slides[i]);
+    }
   };
 
   function showSlide(index, dir, prevIndex) {
@@ -625,6 +648,10 @@
     // Resolution-independent unit, then shrink the body to fit if it overflows.
     setUnit(enterSlide);
     fitSlide(enterSlide);
+
+    // Diagrams render lazily, only once the slide is visible (mermaid must
+    // measure a laid-out element, not a display:none one).
+    renderMermaid(enterSlide);
 
     if (dir !== "none") {
       var enterClass = getTransitionClass(dir, "enter");

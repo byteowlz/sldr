@@ -41,6 +41,12 @@ const BASE_CSS: &str = include_str!("../assets/base.css");
 /// Presenter JS embedded at compile time from assets/presenter.js
 const PRESENTER_JS: &str = include_str!("../assets/presenter.js");
 
+/// Mermaid v10.9.3 (UMD build, MIT) embedded at compile time. ~3 MB, so it is
+/// only inlined into decks that actually contain a ```mermaid block — see
+/// `render`. Keeps the deck self-contained: diagrams render client-side at
+/// present time with no network.
+const MERMAID_JS: &str = include_str!("../assets/mermaid.min.js");
+
 /// Animated background effects (pure CSS, deterministic, baked particle
 /// positions). Emitted inside the owning flavor's <style data-flavor>
 /// block so effects switch with the flavor at runtime, exactly like
@@ -525,6 +531,20 @@ impl HtmlRenderer {
             self.slides.len()
         );
         html.push_str("  </div>\n\n");
+
+        // Mermaid (inlined only when the deck uses it — it's large). The
+        // presenter renders each diagram lazily when its slide is shown, so
+        // hidden-slide measurement bugs don't bite. Loaded before the presenter
+        // so `window.mermaid` exists when slides are shown.
+        if self.slides.iter().any(|s| s.html.contains("sldr-mermaid")) {
+            html.push_str("  <script>\n");
+            html.push_str(MERMAID_JS);
+            html.push_str("\n  </script>\n  <script>\n");
+            html.push_str(
+                "if(window.mermaid){mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:'neutral'});}\n",
+            );
+            html.push_str("  </script>\n");
+        }
 
         // Presenter JS (inlined)
         html.push_str("  <script>\n");

@@ -256,6 +256,24 @@ fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
             Event::End(TagEnd::CodeBlock) => {
                 in_code_block = false;
 
+                // ```mermaid → a diagram div the bundled mermaid.js renders
+                // client-side when the slide is shown. The source is the div's
+                // text content (escaped; the browser decodes it for mermaid).
+                if code_lang == "mermaid" {
+                    output.push_str("<div class=\"sldr-mermaid mermaid\">");
+                    output.push_str(&html_escape(code_content.trim()));
+                    output.push_str("</div>\n");
+                    continue;
+                }
+                // ```svg / ```html → raw passthrough: render the markup instead
+                // of highlighting it, so a hand-written SVG/HTML figure in a
+                // fence works (the natural agent instinct).
+                if code_lang == "svg" || code_lang == "html" {
+                    output.push_str(code_content.trim());
+                    output.push('\n');
+                    continue;
+                }
+
                 // Class-based syntax highlighting: spans carry syn-*
                 // classes; the colors live in the flavor's style block.
                 let highlighted = if code_lang.is_empty() {
@@ -505,6 +523,31 @@ mod tests {
         let html = markdown_to_html(md, &default_config());
         assert!(html.contains("sldr-code"));
         assert!(html.contains("main"));
+    }
+
+    #[test]
+    fn test_mermaid_block_becomes_diagram_div() {
+        let md = "```mermaid\nflowchart LR\n  A --> B\n```";
+        let html = markdown_to_html(md, &default_config());
+        assert!(html.contains("<div class=\"sldr-mermaid mermaid\">"));
+        assert!(html.contains("flowchart LR"));
+        // Not a syntax-highlighted code block.
+        assert!(!html.contains("sldr-code"));
+        // Arrow source preserved (escaped) for mermaid to read.
+        assert!(html.contains("A --&gt; B"));
+    }
+
+    #[test]
+    fn test_svg_and_html_fences_pass_through_raw() {
+        let svg = "```svg\n<svg><circle r=\"5\"/></svg>\n```";
+        let html = markdown_to_html(svg, &default_config());
+        assert!(html.contains("<svg><circle r=\"5\"/></svg>"));
+        assert!(!html.contains("sldr-code"));
+
+        let raw = "```html\n<b>bold</b>\n```";
+        let html = markdown_to_html(raw, &default_config());
+        assert!(html.contains("<b>bold</b>"));
+        assert!(!html.contains("&lt;b&gt;"));
     }
 
     #[test]

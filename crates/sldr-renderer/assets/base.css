@@ -1115,6 +1115,28 @@ pre.sldr-code {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* Mermaid diagrams: a light card so the rendered SVG stays legible on any
+   flavor (including dark backgrounds). Before rendering, the raw source is
+   hidden so a flash of diagram text never shows. */
+.sldr-mermaid {
+  display: inline-block;
+  max-width: 100%;
+  background: #ffffff;
+  border-radius: var(--sldr-radius);
+  padding: calc(var(--sldr-uh) * 2) calc(var(--sldr-u) * 2);
+  margin: calc(var(--sldr-uh) * 1.5) 0;
+  box-shadow: var(--sldr-shadow-md);
+  color: transparent;
+  line-height: 0;
+}
+.sldr-mermaid[data-processed] {
+  color: inherit;
+}
+.sldr-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
 code {
   font-family: var(--sldr-code-font);
 }
