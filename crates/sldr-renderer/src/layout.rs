@@ -258,6 +258,7 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("default", include_str!("../layouts/default.html")),
     ("end", include_str!("../layouts/end.html")),
     ("feature-image", include_str!("../layouts/feature-image.html")),
+    ("figure", include_str!("../layouts/figure.html")),
     ("framed", include_str!("../layouts/framed.html")),
     ("framed-cols", include_str!("../layouts/framed-cols.html")),
     ("framed-cover", include_str!("../layouts/framed-cover.html")),

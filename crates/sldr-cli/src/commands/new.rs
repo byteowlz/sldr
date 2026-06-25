@@ -40,9 +40,13 @@ pub fn run(name: &str, scaffold: Option<String>, dir: Option<&String>) -> Result
         std::fs::create_dir_all(parent)?;
     }
 
-    // Get scaffold content
+    // Get scaffold content. A named scaffold's `{{title}}` / `{{name}}`
+    // tokens are substituted here so the created slide is ready to use (the
+    // default no-scaffold path already fills them in) — agents shouldn't have
+    // to hand-edit placeholders left in image paths and frontmatter.
     let content = if let Some(scaffold_name) = scaffold {
-        load_scaffold(&config, &scaffold_name)?
+        let raw = load_scaffold(&config, &scaffold_name)?;
+        apply_tokens(&raw, name)
     } else {
         default_slide_scaffold(name)
     };
@@ -66,6 +70,14 @@ pub fn run(name: &str, scaffold: Option<String>, dir: Option<&String>) -> Result
     );
 
     Ok(())
+}
+
+/// Substitute scaffold placeholder tokens. `{{name}}` → the slide's file stem
+/// (handy for `media/{{name}}.png`), `{{title}}` → a humanized version of it.
+fn apply_tokens(content: &str, name: &str) -> String {
+    let stem = name.trim_end_matches(".md");
+    let title = stem.replace(['_', '-'], " ");
+    content.replace("{{title}}", &title).replace("{{name}}", stem)
 }
 
 fn default_slide_scaffold(name: &str) -> String {

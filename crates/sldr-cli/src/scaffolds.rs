@@ -74,6 +74,10 @@ pub const SCAFFOLDS: &[Scaffold] = &[
         name: "figure.md",
         content: include_str!("../../../examples/scaffolds/figure.md"),
     },
+    Scaffold {
+        name: "translated-figure.md",
+        content: include_str!("../../../examples/scaffolds/translated-figure.md"),
+    },
     // Code/Technical
     Scaffold {
         name: "code.md",
