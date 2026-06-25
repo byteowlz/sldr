@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use sldr_core::config::Config;
+use sldr_core::slide::Slide;
+use sldr_pptx::ZoneContent;
 
 /// A tiny JS snippet injected into the page that expands all slides
 /// for printing (shows all slides, no transitions, no toolbar).
@@ -64,14 +66,30 @@ if (window.location.search.includes('print')) {
 </script>
 ";
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
-    playlist_name: &str,
+    playlist_name: Option<&str>,
     flavor: Option<String>,
     output: Option<String>,
     lang: Option<String>,
     format: &str,
+    template: bool,
+    flatten: bool,
 ) -> Result<()> {
     let config = Config::load()?;
+
+    // Template mode is flavor-scoped, not playlist-scoped: it emits masters +
+    // theme + layouts and no slides, so it short-circuits before any slide
+    // resolution. (trx-4s9s.3, now folded into one export channel.)
+    if template {
+        if format != "pptx" {
+            anyhow::bail!("--template is only valid with --format pptx");
+        }
+        return export_template(&config, playlist_name, flavor, output);
+    }
+
+    let playlist_name = playlist_name
+        .context("a playlist name is required (or pass --template for a flavor's masters)")?;
 
     println!(
         "{} presentation '{}' to {}",
@@ -158,49 +176,67 @@ pub fn run(
         output_dir.join(format!("{}.{ext}", playlist.name))
     };
 
+    // The native PPTX path (default for --format pptx) maps slides to editable
+    // OOXML and never renders HTML/screenshots. `--flatten` opts back into the
+    // lossy screenshot writer; PDF and screenshot both still need the HTML.
+    let native_pptx = format == "pptx" && !flatten;
+
     for lang_opt in export_langs {
-        let render_config = sldr_renderer::RenderConfig {
-            title: title.clone(),
-            transition: transition.clone(),
-            aspect_ratio: aspect_ratio.clone(),
-            speaker_notes: false, // No notes in PDF
-            // One concrete language per file → single (untagged) variant.
-            languages: lang_opt.clone().map(|l| vec![l]).unwrap_or_default(),
-            default_language: default_language.clone(),
-            aspect_lock: playlist.render.aspect_lock.unwrap_or(false),
-            ..Default::default()
-        };
-
-        let mut renderer =
-            sldr_renderer::HtmlRenderer::new(render_config).add_flavor(flavor.clone());
-        for dir in config.layout_dirs() {
-            renderer.load_layouts(&dir)?;
-        }
-        renderer.add_slides(&resolved_slides)?;
-        let html = inject_print_prep(&renderer.render()?);
-
         // Suffix the filename with the language when emitting one per lang.
         let out_path = match (&lang_opt, multi) {
             (Some(l), true) => insert_lang_suffix(&base_path, l),
             _ => base_path.clone(),
         };
 
-        let final_path = match format {
-            "pdf" => {
-                export_pdf(&html, &out_path)?;
-                out_path
+        let final_path = if native_pptx {
+            let pptx_path = ensure_ext(&out_path, "pptx");
+            let bytes = build_native_deck(
+                &config,
+                &resolved_slides,
+                &flavor,
+                &title,
+                lang_opt.as_deref(),
+                &default_language,
+            )?;
+            std::fs::write(&pptx_path, &bytes)
+                .with_context(|| format!("Failed to write {}", pptx_path.display()))?;
+            if !pptx_path.exists() {
+                anyhow::bail!("PPTX write reported success but no file at {}", pptx_path.display());
             }
-            "pptx" => {
-                let pptx_path = if out_path.extension().is_some_and(|e| e == "pdf") {
-                    out_path.with_extension("pptx")
-                } else {
-                    out_path.clone()
-                };
-                export_pptx(&html, resolved_slides.len(), &pptx_path)?;
-                pptx_path
+            pptx_path
+        } else {
+            // PDF or screenshot-PPTX: render the HTML deck first.
+            let render_config = sldr_renderer::RenderConfig {
+                title: title.clone(),
+                transition: transition.clone(),
+                aspect_ratio: aspect_ratio.clone(),
+                speaker_notes: false,
+                languages: lang_opt.clone().map(|l| vec![l]).unwrap_or_default(),
+                default_language: default_language.clone(),
+                aspect_lock: playlist.render.aspect_lock.unwrap_or(false),
+                ..Default::default()
+            };
+            let mut renderer =
+                sldr_renderer::HtmlRenderer::new(render_config).add_flavor(flavor.clone());
+            for dir in config.layout_dirs() {
+                renderer.load_layouts(&dir)?;
             }
-            other => {
-                anyhow::bail!("Unsupported export format: {other}. Supported: pdf, pptx")
+            renderer.add_slides(&resolved_slides)?;
+            let html = inject_print_prep(&renderer.render()?);
+
+            match format {
+                "pdf" => {
+                    export_pdf(&html, &out_path)?;
+                    out_path
+                }
+                "pptx" => {
+                    let pptx_path = ensure_ext(&out_path, "pptx");
+                    export_pptx(&html, resolved_slides.len(), &pptx_path)?;
+                    pptx_path
+                }
+                other => {
+                    anyhow::bail!("Unsupported export format: {other}. Supported: pdf, pptx")
+                }
             }
         };
 
@@ -212,6 +248,201 @@ pub fn run(
     }
 
     Ok(())
+}
+
+/// Force a path's extension (`foo.pdf` → `foo.pptx`).
+fn ensure_ext(path: &Path, ext: &str) -> PathBuf {
+    if path.extension().and_then(|e| e.to_str()) == Some(ext) {
+        path.to_path_buf()
+    } else {
+        path.with_extension(ext)
+    }
+}
+
+/// `--template`: emit a flavor's masters + theme + layouts (no slides) so a
+/// user can author branded slides directly in PowerPoint (trx-4s9s.3).
+fn export_template(
+    config: &Config,
+    playlist_name: Option<&str>,
+    flavor: Option<String>,
+    output: Option<String>,
+) -> Result<()> {
+    // Flavor: --flavor, else the named playlist's flavor, else config default.
+    let flavor_name = match flavor {
+        Some(f) => f,
+        None => match playlist_name {
+            Some(p) => super::build::load_playlist(config, p)?
+                .flavor
+                .unwrap_or_else(|| config.config.default_flavor.clone()),
+            None => config.config.default_flavor.clone(),
+        },
+    };
+    let flavor = super::build::load_flavor(config, &flavor_name)?;
+
+    println!(
+        "{} PowerPoint template for flavor '{}'",
+        "Generating".green().bold(),
+        flavor.name.cyan()
+    );
+
+    let mut registry = sldr_renderer::LayoutRegistry::builtin();
+    for dir in config.layout_dirs() {
+        registry.load_dir(&dir)?;
+    }
+    let names = registry.names();
+    let defs: Vec<&sldr_renderer::LayoutDef> =
+        names.iter().filter_map(|n| registry.get(n)).collect();
+    let (eligible, skipped) = sldr_pptx::select_layouts(defs);
+
+    if eligible.is_empty() {
+        anyhow::bail!(
+            "No layouts with PPTX placeholder zones. Annotate a layout with \
+             `<!-- sldr:zone … rep=placeholder-text … -->` directives."
+        );
+    }
+    if !skipped.is_empty() {
+        println!(
+            "  {} {} (no placeholder-text zones — filled-deck only)",
+            "skipped:".yellow(),
+            skipped.join(", ")
+        );
+    }
+
+    let theme = sldr_pptx::Theme::from_flavor(&flavor);
+    let bytes = sldr_pptx::build_template(&theme, &eligible)
+        .context("Failed to generate PPTX template OOXML")?;
+
+    let out_path = match output {
+        Some(o) => PathBuf::from(o),
+        None => {
+            let dir = config.output_dir();
+            std::fs::create_dir_all(&dir)?;
+            dir.join(format!("{}-template.pptx", flavor.name))
+        }
+    };
+    if let Some(parent) = out_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(&out_path, &bytes)
+        .with_context(|| format!("Failed to write {}", out_path.display()))?;
+
+    let included: Vec<&str> = eligible.iter().map(|d| d.name.as_str()).collect();
+    println!(
+        "\n{} {} layout(s): {}\n{} Wrote {}",
+        "Included".green(),
+        eligible.len(),
+        included.join(", ").cyan(),
+        "Success!".green().bold(),
+        out_path.display().to_string().cyan()
+    );
+    Ok(())
+}
+
+/// Build a native, editable deck `.pptx` for one language: resolve each
+/// slide's layout and chrome, map them onto the layout's placeholder zones,
+/// and hand off to the OOXML generator (trx-4s9s.4).
+fn build_native_deck(
+    config: &Config,
+    slides: &[Slide],
+    flavor: &sldr_core::flavor::Flavor,
+    title: &str,
+    lang: Option<&str>,
+    default_lang: &str,
+) -> Result<Vec<u8>> {
+    let mut registry = sldr_renderer::LayoutRegistry::builtin();
+    for dir in config.layout_dirs() {
+        registry.load_dir(&dir)?;
+    }
+
+    let mut inputs: Vec<sldr_pptx::SlideInput> = Vec::new();
+    for slide in slides {
+        let layout_name = slide
+            .metadata
+            .layout
+            .clone()
+            .unwrap_or_else(|| "default".to_string());
+        let layout = registry.resolve(&layout_name)?;
+
+        let chrome = slide.metadata.chrome_for(lang, default_lang);
+        let footer = chrome.footer.clone().or_else(|| flavor.footer.clone());
+
+        // Resolve in-file `::lang:xx::` blocks for this language before
+        // splitting columns — otherwise the markers leak into the body. A
+        // language gap surfaces loudly, never silently (mirrors the HTML path).
+        let lang_sel = sldr_core::lang::select_language(&slide.content, lang, default_lang);
+        if let sldr_core::lang::LanguageOutcome::Fallback {
+            requested, used, ..
+        } = &lang_sel.outcome
+        {
+            println!(
+                "  {} slide '{}' has no '{}' body — used '{}'",
+                "warning:".yellow(),
+                slide.name,
+                requested,
+                used
+            );
+        }
+        let segments = sldr_renderer::split_segments(&lang_sel.content);
+
+        let mut fields: Vec<(String, ZoneContent)> = Vec::new();
+        if let Some(t) = chrome.title {
+            fields.push(("headline".into(), ZoneContent::Text(t)));
+        }
+        if let Some(s) = chrome.subtitle {
+            fields.push(("subheadline".into(), ZoneContent::Text(s)));
+        }
+        if let Some(f) = footer {
+            fields.push(("footer".into(), ZoneContent::Text(f)));
+        }
+        if let Some(src) = chrome.source {
+            let label = source_label(lang, default_lang);
+            let text = match chrome.source_url {
+                Some(u) => format!("{label} {src} ({u})"),
+                None => format!("{label} {src}"),
+            };
+            fields.push(("source".into(), ZoneContent::Text(text)));
+        }
+        if let Some(h) = segments.heading {
+            fields.push(("heading".into(), ZoneContent::Markdown(h)));
+        }
+        if let Some(c) = segments.content {
+            fields.push(("content".into(), ZoneContent::Markdown(c)));
+        }
+        if let Some(l) = segments.left {
+            fields.push(("left".into(), ZoneContent::Markdown(l)));
+        }
+        if let Some(r) = segments.right {
+            fields.push(("right".into(), ZoneContent::Markdown(r)));
+        }
+
+        inputs.push(sldr_pptx::SlideInput { layout, fields });
+    }
+
+    let theme = sldr_pptx::Theme::from_flavor(flavor);
+    sldr_pptx::build_deck(&theme, title, &inputs)
+}
+
+/// Localized "Source:" label, mirroring the HTML renderer's set.
+fn source_label(requested: Option<&str>, default_lang: &str) -> &'static str {
+    const LABELS: &[(&str, &str)] = &[
+        ("en", "Source:"),
+        ("de", "Quelle:"),
+        ("fr", "Source :"),
+        ("es", "Fuente:"),
+        ("it", "Fonte:"),
+        ("pt", "Fonte:"),
+        ("nl", "Bron:"),
+    ];
+    let lookup = |code: &str| {
+        LABELS
+            .iter()
+            .find(|(c, _)| *c == code)
+            .map(|(_, l)| *l)
+    };
+    let target = requested.unwrap_or(default_lang).to_lowercase();
+    lookup(&target)
+        .or_else(|| lookup(&default_lang.to_lowercase()))
+        .unwrap_or("Source:")
 }
 
 /// Insert `.<lang>` before a path's extension: `foo.pdf` + `de` → `foo.de.pdf`.

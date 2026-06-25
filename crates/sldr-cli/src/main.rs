@@ -103,34 +103,39 @@ enum Commands {
         rebuild: bool,
     },
 
-    /// Export a presentation to PDF
+    /// Export a presentation to PDF or PowerPoint
     Export {
-        /// Name of the playlist to export
-        playlist: String,
+        /// Playlist to export (omit only with --template, which is
+        /// flavor-scoped)
+        playlist: Option<String>,
 
         /// Flavor to apply
         #[arg(short, long)]
         flavor: Option<String>,
 
-        /// Output file path (default: <output_dir>/<playlist>.pdf)
+        /// Output file path (default: <output_dir>/<playlist>.<ext>)
         #[arg(short, long)]
         output: Option<String>,
 
-        /// Language(s) to render (comma list). A PDF can't toggle language,
+        /// Language(s) to render (comma list). PDF/PPTX can't toggle language,
         /// so multiple languages export one file per language
         /// (deck.de.pdf, deck.en.pdf).
         #[arg(short, long)]
         lang: Option<String>,
 
-        /// Export format (currently: pdf)
+        /// Export format: pdf or pptx
         #[arg(long, default_value = "pdf")]
         format: String,
-    },
 
-    /// Native PowerPoint (OOXML) export — editable templates and decks
-    Pptx {
-        #[command(subcommand)]
-        command: PptxCommands,
+        /// PPTX only: emit an editable *template* (theme + masters + layouts,
+        /// no slides) for the flavor, instead of the deck
+        #[arg(long)]
+        template: bool,
+
+        /// PPTX only: use the lossy screenshot-per-slide path instead of the
+        /// native editable export (fallback for un-annotated layouts)
+        #[arg(long)]
+        flatten: bool,
     },
 
     /// Watch a presentation for changes and live-reload in browser
@@ -347,25 +352,6 @@ enum Commands {
 }
 
 #[derive(Subcommand)]
-enum PptxCommands {
-    /// Export an editable PowerPoint *template* (theme + masters + layouts,
-    /// no slides) for a flavor — author new branded slides directly in PPT.
-    Template {
-        /// Flavor whose colors/fonts become the PPTX theme
-        #[arg(short, long)]
-        flavor: Option<String>,
-
-        /// Output .pptx path (default: <output_dir>/<flavor>-template.pptx)
-        #[arg(short, long)]
-        output: Option<String>,
-
-        /// Limit to specific layouts (comma list); default: all with zones
-        #[arg(short, long)]
-        layouts: Option<String>,
-    },
-}
-
-#[derive(Subcommand)]
 enum SlidesCommands {
     /// Create empty slides for all missing slides referenced in a playlist
     Derive {
@@ -499,15 +485,17 @@ fn main() -> anyhow::Result<()> {
             output,
             lang,
             format,
-        } => commands::export::run(&playlist, flavor, output, lang, &format),
-
-        Commands::Pptx { command } => match command {
-            PptxCommands::Template {
-                flavor,
-                output,
-                layouts,
-            } => commands::pptx::template(flavor, output, layouts),
-        },
+            template,
+            flatten,
+        } => commands::export::run(
+            playlist.as_deref(),
+            flavor,
+            output,
+            lang,
+            &format,
+            template,
+            flatten,
+        ),
 
         Commands::Watch {
             playlist,

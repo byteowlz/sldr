@@ -1700,6 +1700,7 @@ name = "sldr-pptx"
 version = "0.8.0"
 dependencies = [
  "anyhow",
+ "pulldown-cmark",
  "sldr-core",
  "sldr-renderer",
  "zip",

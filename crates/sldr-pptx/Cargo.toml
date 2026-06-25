@@ -14,6 +14,9 @@ sldr-core.workspace = true
 sldr-renderer.workspace = true
 anyhow.workspace = true
 
+# Markdown body → OOXML paragraphs/runs
+pulldown-cmark = { version = "0.12", default-features = false }
+
 # OOXML package = a ZIP of XML parts
 zip = { version = "2", default-features = false, features = ["deflate"] }
 

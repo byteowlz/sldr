@@ -37,15 +37,20 @@ use anyhow::{bail, Result};
 
 use sldr_renderer::{LayoutDef, Zone, ZoneRep};
 
+mod deck;
+mod mdooxml;
+
+pub use deck::{build_deck, SlideInput, ZoneContent};
+
 /// 16:9 slide box in EMU (English Metric Units). `screen16x9`.
-const SLIDE_W_EMU: i64 = 12_192_000;
-const SLIDE_H_EMU: i64 = 6_858_000;
+pub(crate) const SLIDE_W_EMU: i64 = 12_192_000;
+pub(crate) const SLIDE_H_EMU: i64 = 6_858_000;
 
 /// Percent of the slide box → EMU on each axis.
-fn emu_x(pct: f64) -> i64 {
+pub(crate) fn emu_x(pct: f64) -> i64 {
     (SLIDE_W_EMU as f64 * pct / 100.0).round() as i64
 }
-fn emu_y(pct: f64) -> i64 {
+pub(crate) fn emu_y(pct: f64) -> i64 {
     (SLIDE_H_EMU as f64 * pct / 100.0).round() as i64
 }
 
@@ -142,13 +147,34 @@ impl OrRef for Option<String> {
     }
 }
 
-/// A layout selected for the template: its name, the PPTX layout `type`
-/// token, and the placeholder zones it contributes. Built by [`select_layouts`].
-struct TemplateLayout<'a> {
-    name: &'a str,
-    typ: &'static str,
-    /// Only `PlaceholderText` zones — already filtered.
-    placeholders: Vec<&'a Zone>,
+/// A layout selected for a slideLayout: its name, the PPTX layout `type`
+/// token, and the placeholder-text zones it contributes (already filtered).
+/// Shared by template and deck generation.
+pub(crate) struct TemplateLayout<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) typ: &'static str,
+    pub(crate) placeholders: Vec<&'a Zone>,
+}
+
+/// Turn resolved layout defs into [`TemplateLayout`]s, keeping only their
+/// placeholder-text zones and dropping any layout left with none.
+pub(crate) fn to_template_layouts<'a>(layouts: &[&'a LayoutDef]) -> Vec<TemplateLayout<'a>> {
+    layouts
+        .iter()
+        .map(|def| {
+            let placeholders: Vec<&Zone> = def
+                .zones
+                .iter()
+                .filter(|z| z.rep == ZoneRep::PlaceholderText && z.ph.is_some())
+                .collect();
+            TemplateLayout {
+                name: def.name.as_str(),
+                typ: layout_type(&placeholders),
+                placeholders,
+            }
+        })
+        .filter(|t| !t.placeholders.is_empty())
+        .collect()
 }
 
 /// Pick the layouts that can become template slideLayouts: those declaring at
@@ -190,22 +216,7 @@ pub fn build_template(theme: &Theme, layouts: &[&LayoutDef]) -> Result<Vec<u8>> 
         bail!("PPTX template needs at least one layout with placeholder zones");
     }
 
-    let selected: Vec<TemplateLayout> = layouts
-        .iter()
-        .map(|def| {
-            let placeholders: Vec<&Zone> = def
-                .zones
-                .iter()
-                .filter(|z| z.rep == ZoneRep::PlaceholderText && z.ph.is_some())
-                .collect();
-            TemplateLayout {
-                name: def.name.as_str(),
-                typ: layout_type(&placeholders),
-                placeholders,
-            }
-        })
-        .filter(|t| !t.placeholders.is_empty())
-        .collect();
+    let selected = to_template_layouts(layouts);
 
     if selected.is_empty() {
         bail!("none of the given layouts declare placeholder-text zones");
@@ -214,15 +225,18 @@ pub fn build_template(theme: &Theme, layouts: &[&LayoutDef]) -> Result<Vec<u8>> 
     let mut parts: Vec<(String, String)> = Vec::new();
     let n = selected.len();
 
-    parts.push(("[Content_Types].xml".into(), content_types(n)));
+    parts.push(("[Content_Types].xml".into(), content_types(n, 0)));
     parts.push(("_rels/.rels".into(), root_rels()));
-    parts.push(("docProps/core.xml".into(), core_props(&theme.name)));
+    parts.push((
+        "docProps/core.xml".into(),
+        core_props(&format!("{} template", theme.name)),
+    ));
     parts.push(("docProps/app.xml".into(), app_props()));
     parts.push((
         "ppt/_rels/presentation.xml.rels".into(),
-        presentation_rels(),
+        presentation_rels(0),
     ));
-    parts.push(("ppt/presentation.xml".into(), presentation_xml()));
+    parts.push(("ppt/presentation.xml".into(), presentation_xml(0)));
     parts.push(("ppt/presProps.xml".into(), pres_props()));
     parts.push(("ppt/theme/theme1.xml".into(), theme_xml(theme)));
     parts.push((
@@ -251,7 +265,7 @@ pub fn build_template(theme: &Theme, layouts: &[&LayoutDef]) -> Result<Vec<u8>> 
 
 /// PPTX slideLayout `type` token: `twoObj` when ≥2 body placeholders sit
 /// beside the title, else the generic `obj`.
-fn layout_type(placeholders: &[&Zone]) -> &'static str {
+pub(crate) fn layout_type(placeholders: &[&Zone]) -> &'static str {
     let body_count = placeholders
         .iter()
         .filter(|z| z.ph.as_deref() == Some("body"))
@@ -265,11 +279,16 @@ fn layout_type(placeholders: &[&Zone]) -> &'static str {
 
 // ---- part builders (ported from docs/pptx-spike/gen.py) ----------------
 
-fn content_types(layout_count: usize) -> String {
-    let mut layouts = String::new();
+pub(crate) fn content_types(layout_count: usize, slide_count: usize) -> String {
+    let mut overrides = String::new();
     for n in 1..=layout_count {
-        layouts.push_str(&format!(
+        overrides.push_str(&format!(
             "<Override PartName=\"/ppt/slideLayouts/slideLayout{n}.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml\"/>"
+        ));
+    }
+    for n in 1..=slide_count {
+        overrides.push_str(&format!(
+            "<Override PartName=\"/ppt/slides/slide{n}.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slide+xml\"/>"
         ));
     }
     format!(
@@ -277,18 +296,21 @@ fn content_types(layout_count: usize) -> String {
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
+<Default Extension="png" ContentType="image/png"/>
+<Default Extension="jpeg" ContentType="image/jpeg"/>
+<Default Extension="jpg" ContentType="image/jpeg"/>
 <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
 <Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/>
 <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
 <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
-{layouts}
+{overrides}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>"#
     )
 }
 
-fn root_rels() -> String {
+pub(crate) fn root_rels() -> String {
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
@@ -298,48 +320,72 @@ fn root_rels() -> String {
         .into()
 }
 
-fn core_props(title: &str) -> String {
+pub(crate) fn core_props(title: &str) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>{} template</dc:title><dc:creator>sldr</dc:creator></cp:coreProperties>"#,
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>{}</dc:title><dc:creator>sldr</dc:creator></cp:coreProperties>"#,
         xml_escape(title)
     )
 }
 
-fn app_props() -> String {
+pub(crate) fn app_props() -> String {
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>sldr</Application></Properties>"#
         .into()
 }
 
-fn presentation_rels() -> String {
-    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+/// Presentation relationships. `rId1`=master, `rId2`=theme, `rId3`=presProps,
+/// then `rId(4+i)`=slide{i+1}. `slide_count` 0 → a template (no slides).
+pub(crate) fn presentation_rels(slide_count: usize) -> String {
+    let mut slides = String::new();
+    for i in 0..slide_count {
+        let rid = 4 + i;
+        let n = i + 1;
+        slides.push_str(&format!(
+            "<Relationship Id=\"rId{rid}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide\" Target=\"slides/slide{n}.xml\"/>"
+        ));
+    }
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
-<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
-<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps" Target="presProps.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps" Target="presProps.xml"/>
+{slides}
 </Relationships>"#
-        .into()
+    )
 }
 
-fn presentation_xml() -> String {
+pub(crate) fn presentation_xml(slide_count: usize) -> String {
+    let mut sld_ids = String::new();
+    for i in 0..slide_count {
+        let id = 256 + i;
+        let rid = 4 + i;
+        sld_ids.push_str(&format!("<p:sldId id=\"{id}\" r:id=\"rId{rid}\"/>"));
+    }
+    let sld_id_lst = if slide_count == 0 {
+        String::new()
+    } else {
+        format!("<p:sldIdLst>{sld_ids}</p:sldIdLst>")
+    };
     format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
 <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>
+{sld_id_lst}
 <p:sldSz cx="{SLIDE_W_EMU}" cy="{SLIDE_H_EMU}" type="screen16x9"/>
 <p:notesSz cx="6858000" cy="9144000"/>
 </p:presentation>"#
     )
 }
 
-fn pres_props() -> String {
+pub(crate) fn pres_props() -> String {
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:presentationPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>"#
         .into()
 }
 
-fn theme_xml(t: &Theme) -> String {
+pub(crate) fn theme_xml(t: &Theme) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="{name}">
@@ -392,7 +438,7 @@ fn theme_xml(t: &Theme) -> String {
     )
 }
 
-fn slide_master_rels(layout_count: usize) -> String {
+pub(crate) fn slide_master_rels(layout_count: usize) -> String {
     let mut rels = String::new();
     for n in 1..=layout_count {
         rels.push_str(&format!(
@@ -409,7 +455,7 @@ fn slide_master_rels(layout_count: usize) -> String {
     )
 }
 
-fn slide_master_xml(layout_count: usize) -> String {
+pub(crate) fn slide_master_xml(layout_count: usize) -> String {
     let mut layout_ids = String::new();
     for n in 1..=layout_count {
         let id = 2147483648u64 + n as u64;
@@ -441,7 +487,7 @@ fn slide_master_xml(layout_count: usize) -> String {
     )
 }
 
-fn slide_layout_xml(layout: &TemplateLayout) -> String {
+pub(crate) fn slide_layout_xml(layout: &TemplateLayout) -> String {
     let mut sps = String::new();
     for (i, zone) in layout.placeholders.iter().enumerate() {
         let id = i + 2; // id 1 is the group shape
@@ -474,7 +520,7 @@ fn slide_layout_xml(layout: &TemplateLayout) -> String {
     )
 }
 
-fn slide_layout_rels() -> String {
+pub(crate) fn slide_layout_rels() -> String {
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
@@ -483,7 +529,7 @@ fn slide_layout_rels() -> String {
 }
 
 /// Pack the named XML parts into a deflated zip — a `.pptx` package.
-fn zip_parts(parts: &[(String, String)]) -> Result<Vec<u8>> {
+pub(crate) fn zip_parts(parts: &[(String, String)]) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
     {
         let cursor = std::io::Cursor::new(&mut buf);
@@ -528,7 +574,7 @@ fn clean_font(font: Option<&str>) -> String {
 }
 
 /// `headline` → `Headline`, `two-cols` → `Two-cols`. For placeholder labels.
-fn title_case(s: &str) -> String {
+pub(crate) fn title_case(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {
         Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
@@ -536,7 +582,7 @@ fn title_case(s: &str) -> String {
     }
 }
 
-fn xml_escape(s: &str) -> String {
+pub(crate) fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")

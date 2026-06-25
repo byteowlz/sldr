@@ -62,6 +62,62 @@ pub fn render_markdown(content: &str, media_config: &MediaConfig) -> MarkdownOut
     MarkdownOutput::Single(html)
 }
 
+/// Raw-markdown halves of a slide body, split by `::` markers but **not**
+/// converted to HTML — for consumers that map markdown to a non-HTML target
+/// (the PPTX exporter turns each into OOXML paragraphs). Keys mirror layout
+/// slot names. A plain slide yields only `content`; the others stay `None`.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct MarkdownSegments {
+    pub heading: Option<String>,
+    pub left: Option<String>,
+    pub right: Option<String>,
+    pub content: Option<String>,
+    pub image: Option<String>,
+}
+
+/// Split a slide body into raw-markdown segments by the same `::left::` /
+/// `::right::` / `::content::` / `::image::` markers `render_markdown` uses —
+/// but without rendering to HTML. The marker shape is detected identically
+/// (fenced code skipped, either order accepted), so a slide splits the same
+/// way for HTML and PPTX.
+pub fn split_segments(content: &str) -> MarkdownSegments {
+    let markers = scan_markers(content);
+
+    if markers.contains_key("left") && markers.contains_key("right") {
+        let (l_start, l_end) = markers["left"];
+        let (r_start, r_end) = markers["right"];
+        if r_start >= l_start {
+            let before = content[..l_start].trim();
+            return MarkdownSegments {
+                heading: (!before.is_empty()).then(|| before.to_string()),
+                left: Some(content[l_end..r_start].trim().to_string()),
+                right: Some(content[r_end..].trim().to_string()),
+                ..Default::default()
+            };
+        }
+    }
+
+    if markers.contains_key("content") && markers.contains_key("image") {
+        let (c_start, c_end) = markers["content"];
+        let (i_start, i_end) = markers["image"];
+        let (content_md, image_md) = if c_start < i_start {
+            (&content[c_end..i_start], &content[i_end..])
+        } else {
+            (&content[c_end..], &content[i_end..c_start])
+        };
+        return MarkdownSegments {
+            content: Some(content_md.trim().to_string()),
+            image: Some(image_md.trim().to_string()),
+            ..Default::default()
+        };
+    }
+
+    MarkdownSegments {
+        content: Some(content.trim().to_string()),
+        ..Default::default()
+    }
+}
+
 /// Byte offsets of split markers: lines that are exactly `::name::`
 /// (whitespace-tolerant), skipping fenced code blocks (``` or ~~~).
 /// Only the first occurrence of each marker is recorded.
@@ -449,6 +505,30 @@ mod tests {
         let html = markdown_to_html(md, &default_config());
         assert!(html.contains("sldr-code"));
         assert!(html.contains("main"));
+    }
+
+    #[test]
+    fn test_split_segments_two_cols_raw() {
+        let seg = split_segments("# Heading\n\n::left::\nLeft md\n::right::\nRight md");
+        assert_eq!(seg.heading.as_deref(), Some("# Heading"));
+        assert_eq!(seg.left.as_deref(), Some("Left md"));
+        assert_eq!(seg.right.as_deref(), Some("Right md"));
+        // Raw markdown, not HTML.
+        assert!(seg.left.unwrap().starts_with("Left"));
+    }
+
+    #[test]
+    fn test_split_segments_content_image() {
+        let seg = split_segments("::content::\n# Hi\n::image::\n![](p.png)");
+        assert_eq!(seg.content.as_deref(), Some("# Hi"));
+        assert_eq!(seg.image.as_deref(), Some("![](p.png)"));
+    }
+
+    #[test]
+    fn test_split_segments_plain() {
+        let seg = split_segments("Just body text.");
+        assert_eq!(seg.content.as_deref(), Some("Just body text."));
+        assert!(seg.left.is_none() && seg.right.is_none());
     }
 
     #[test]
