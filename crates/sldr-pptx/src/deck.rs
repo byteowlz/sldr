@@ -25,6 +25,10 @@ pub enum ZoneContent {
     /// A markdown body segment (content / left / right / heading) — converted
     /// to bulleted/plain OOXML paragraphs.
     Markdown(String),
+    /// A raster image for a `picture` zone — embedded as a positioned,
+    /// editable `<p:pic>`. The caller resolves the path and reads the bytes;
+    /// `ext` is the media extension (`png` / `jpeg` / `gif`).
+    Picture { bytes: Vec<u8>, ext: String },
 }
 
 /// One slide to export: the layout it uses and the content for each zone.
@@ -125,67 +129,110 @@ pub fn build_deck(theme: &crate::Theme, title: &str, slides: &[SlideInput]) -> R
         ));
     }
 
+    // Binary media (pictures), collected across all slides → ppt/media/.
+    let mut media: Vec<(String, Vec<u8>)> = Vec::new();
     for (i, slide) in slides.iter().enumerate() {
         let n1 = i + 1;
         let li = layout_index[slide.layout.name.as_str()];
-        let tl = &layouts[li - 1];
-        parts.push((format!("ppt/slides/slide{n1}.xml"), slide_xml(tl, slide)));
-        parts.push((
-            format!("ppt/slides/_rels/slide{n1}.xml.rels"),
-            slide_rels(li),
-        ));
+        let (xml, rels) = build_slide(slide, li, &mut media);
+        parts.push((format!("ppt/slides/slide{n1}.xml"), xml));
+        parts.push((format!("ppt/slides/_rels/slide{n1}.xml.rels"), rels));
     }
 
-    crate::zip_parts(&parts)
+    crate::zip_mixed(&parts, &media)
 }
 
-/// One slide: a `<p:sp>` per placeholder zone of its layout, geometry
-/// inherited from the layout (empty `<p:spPr/>`), text filled from `fields`.
-fn slide_xml(layout: &crate::TemplateLayout, slide: &SlideInput) -> String {
+/// Build one slide's XML + rels. Iterates the layout's zones: `placeholder-text`
+/// zones become filled `<p:sp>` placeholders (geometry inherited from the
+/// layout); `picture` zones whose content is a [`ZoneContent::Picture`] become
+/// positioned, embedded `<p:pic>` (geometry from the zone). `media` accumulates
+/// the image parts across the whole deck; the returned rels reference them.
+fn build_slide(
+    slide: &SlideInput,
+    layout_index: usize,
+    media: &mut Vec<(String, Vec<u8>)>,
+) -> (String, String) {
     let lookup: HashMap<&str, &ZoneContent> = slide
         .fields
         .iter()
         .map(|(k, v)| (k.as_str(), v))
         .collect();
 
-    let mut sps = String::new();
-    for (i, zone) in layout.placeholders.iter().enumerate() {
-        let id = i + 2; // id 1 is the group shape
-        let ph = zone.ph.as_deref().unwrap_or("body");
-        let idx_attr = match zone.idx {
-            Some(idx) => format!(" idx=\"{idx}\""),
-            None => String::new(),
-        };
-        let label = crate::xml_escape(&crate::title_case(&zone.name));
+    let mut shapes = String::new();
+    let mut image_rels = String::new();
+    let mut next_id = 2; // id 1 is the group shape
+    let mut next_rel = 2; // rId1 is the slideLayout
 
-        let paragraphs = match lookup.get(zone.name.as_str()) {
-            Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t),
-            Some(ZoneContent::Markdown(m)) => mdooxml::to_paragraphs(m).join(""),
-            None => mdooxml::plain_paragraph(""),
-        };
-
-        sps.push_str(&format!(
-            r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
+    for zone in &slide.layout.zones {
+        match zone.rep {
+            crate::ZoneRep::PlaceholderText if zone.ph.is_some() => {
+                let id = next_id;
+                next_id += 1;
+                let ph = zone.ph.as_deref().unwrap_or("body");
+                let idx_attr = match zone.idx {
+                    Some(idx) => format!(" idx=\"{idx}\""),
+                    None => String::new(),
+                };
+                let label = crate::xml_escape(&crate::title_case(&zone.name));
+                let paragraphs = match lookup.get(zone.name.as_str()) {
+                    Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t),
+                    Some(ZoneContent::Markdown(m)) => mdooxml::to_paragraphs(m).join(""),
+                    _ => mdooxml::plain_paragraph(""),
+                };
+                shapes.push_str(&format!(
+                    r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
 <p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>{paragraphs}</p:txBody></p:sp>"#
-        ));
+                ));
+            }
+            crate::ZoneRep::Picture => {
+                let Some(ZoneContent::Picture { bytes, ext }) = lookup.get(zone.name.as_str())
+                else {
+                    continue; // no resolvable image for this zone → leave empty
+                };
+                let media_n = media.len() + 1;
+                let media_path = format!("ppt/media/image{media_n}.{ext}");
+                media.push((media_path, bytes.clone()));
+
+                let rel = next_rel;
+                next_rel += 1;
+                image_rels.push_str(&format!(
+                    "<Relationship Id=\"rId{rel}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/image{media_n}.{ext}\"/>"
+                ));
+
+                let id = next_id;
+                next_id += 1;
+                let label = crate::xml_escape(&crate::title_case(&zone.name));
+                shapes.push_str(&format!(
+                    r#"<p:pic><p:nvPicPr><p:cNvPr id="{id}" name="{label}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>
+<p:blipFill><a:blip r:embed="rId{rel}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>
+<p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>"#,
+                    x = crate::emu_x(zone.x),
+                    y = crate::emu_y(zone.y),
+                    cx = crate::emu_x(zone.w),
+                    cy = crate::emu_y(zone.h),
+                ));
+            }
+            _ => {} // shape/bake handled elsewhere
+        }
     }
 
-    format!(
+    let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
 <p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
-{sps}
+{shapes}
 </p:spTree></p:cSld></p:sld>"#
-    )
-}
+    );
 
-fn slide_rels(layout_index: usize) -> String {
-    format!(
+    let rels = format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout{layout_index}.xml"/>
+{image_rels}
 </Relationships>"#
-    )
+    );
+
+    (xml, rels)
 }
 
 #[cfg(test)]
@@ -267,6 +314,41 @@ mod tests {
         assert!(names.contains(&"ppt/slides/slide2.xml".to_string()));
         assert!(names.contains(&"ppt/slideLayouts/slideLayout1.xml".to_string()));
         assert!(!names.contains(&"ppt/slideLayouts/slideLayout2.xml".to_string()));
+    }
+
+    #[test]
+    fn test_picture_zone_embeds_media_and_pic() {
+        let reg = LayoutRegistry::builtin();
+        let image_left = reg.get("image-left").unwrap();
+        let slides = vec![SlideInput {
+            layout: image_left,
+            fields: vec![
+                ("content".into(), ZoneContent::Markdown("- a point".into())),
+                (
+                    "image".into(),
+                    ZoneContent::Picture {
+                        bytes: b"\x89PNG\r\n\x1a\n fake".to_vec(),
+                        ext: "png".into(),
+                    },
+                ),
+            ],
+        }];
+        let bytes = build_deck(&theme(), "Deck", &slides).unwrap();
+
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(&bytes)).unwrap();
+        let names: Vec<String> = (0..zip.len())
+            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .collect();
+        assert!(names.contains(&"ppt/media/image1.png".to_string()));
+
+        let slide = read_part(&bytes, "ppt/slides/slide1.xml");
+        assert!(slide.contains("<p:pic>"));
+        assert!(slide.contains("r:embed=\"rId2\""));
+        assert!(slide.contains("<a:t>a point</a:t>")); // text placeholder too
+
+        let rels = read_part(&bytes, "ppt/slides/_rels/slide1.xml.rels");
+        assert!(rels.contains("../media/image1.png"));
+        assert!(rels.contains("relationships/image"));
     }
 
     #[test]

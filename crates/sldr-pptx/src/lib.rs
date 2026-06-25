@@ -530,15 +530,27 @@ pub(crate) fn slide_layout_rels() -> String {
 
 /// Pack the named XML parts into a deflated zip — a `.pptx` package.
 pub(crate) fn zip_parts(parts: &[(String, String)]) -> Result<Vec<u8>> {
+    zip_mixed(parts, &[])
+}
+
+/// Pack XML parts (deflated) plus binary media parts (stored — images are
+/// already compressed) into a `.pptx` package.
+pub(crate) fn zip_mixed(text: &[(String, String)], media: &[(String, Vec<u8>)]) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
     {
         let cursor = std::io::Cursor::new(&mut buf);
         let mut zip = zip::ZipWriter::new(cursor);
-        let opts = zip::write::FileOptions::<()>::default()
+        let deflate = zip::write::FileOptions::<()>::default()
             .compression_method(zip::CompressionMethod::Deflated);
-        for (path, content) in parts {
-            zip.start_file(path, opts)?;
+        for (path, content) in text {
+            zip.start_file(path, deflate)?;
             zip.write_all(content.as_bytes())?;
+        }
+        let stored = zip::write::FileOptions::<()>::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        for (path, bytes) in media {
+            zip.start_file(path, stored)?;
+            zip.write_all(bytes)?;
         }
         zip.finish()?;
     }

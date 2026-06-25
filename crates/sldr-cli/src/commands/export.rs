@@ -414,12 +414,61 @@ fn build_native_deck(
         if let Some(r) = segments.right {
             fields.push(("right".into(), ZoneContent::Markdown(r)));
         }
+        // Image segment → an embedded picture for a `picture` zone. Only
+        // raster formats PowerPoint reads natively; anything else (svg, remote)
+        // is left out and reported, never silently mangled.
+        if let Some(img_md) = segments.image {
+            match resolve_picture(&img_md, &slide.path) {
+                Some((bytes, ext)) => {
+                    fields.push(("image".into(), ZoneContent::Picture { bytes, ext }));
+                }
+                None => println!(
+                    "  {} slide '{}': image not embeddable as native PPTX (left empty)",
+                    "note:".yellow(),
+                    slide.name
+                ),
+            }
+        }
 
         inputs.push(sldr_pptx::SlideInput { layout, fields });
     }
 
     let theme = sldr_pptx::Theme::from_flavor(flavor);
     sldr_pptx::build_deck(&theme, title, &inputs)
+}
+
+/// Resolve the first image in an `::image::` segment to raw bytes + a PPTX
+/// media extension, or `None` if it isn't a local raster PowerPoint reads
+/// natively (remote URLs, data URIs, svg → caller reports and skips).
+fn resolve_picture(image_md: &str, slide_path: &Path) -> Option<(Vec<u8>, String)> {
+    let src = extract_img_src(image_md)?;
+    if src.starts_with("http://") || src.starts_with("https://") || src.starts_with("data:") {
+        return None;
+    }
+    let ext = Path::new(&src)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)?;
+    // Normalize jpg→jpeg; only formats declared in [Content_Types].
+    let ext = match ext.as_str() {
+        "png" | "gif" | "jpeg" => ext,
+        "jpg" => "jpeg".to_string(),
+        _ => return None,
+    };
+    let dir = slide_path.parent()?;
+    let bytes = std::fs::read(dir.join(&src)).ok()?;
+    Some((bytes, ext))
+}
+
+/// Extract the `src` of the first `![alt](src)` image in a markdown fragment.
+fn extract_img_src(md: &str) -> Option<String> {
+    let start = md.find("![")?;
+    let open = md[start..].find("](")? + start + 2;
+    let close = md[open..].find(')')? + open;
+    let src = md[open..close].trim();
+    // Strip an optional "title" after the URL: ](src "title").
+    let src = src.split_whitespace().next().unwrap_or(src);
+    (!src.is_empty()).then(|| src.to_string())
 }
 
 /// Localized "Source:" label, mirroring the HTML renderer's set.
