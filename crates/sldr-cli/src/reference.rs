@@ -170,6 +170,10 @@ pub const REFERENCE_SLIDES: &[ReferenceFile] = &[
         name: "36-image-center.md",
         content: include_str!("../../../examples/reference/slides/36-image-center.md"),
     },
+    ReferenceFile {
+        name: "37-figure.md",
+        content: include_str!("../../../examples/reference/slides/37-figure.md"),
+    },
 ];
 
 /// The playlist, installed to `<playlist_dir>/reference.toml`.

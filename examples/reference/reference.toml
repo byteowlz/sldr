@@ -42,6 +42,7 @@ slides = [
   "reference/34-framed-section",
   "reference/35-framed-full",
   "reference/36-image-center",
+  "reference/37-figure",
 ]
 
 [render]

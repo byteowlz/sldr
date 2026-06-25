@@ -58,6 +58,14 @@
       "description": "Presentation rendering configuration\n\nSerialized as the `[render]` table of a playlist (the legacy\n`[slidev_config]` key is still read for older playlist.toml files).\nControls transition style, aspect ratio, and other rendering options for\nthe self-contained HTML output.",
       "type": "object",
       "properties": {
+        "aspect_lock": {
+          "description": "Aspect-lock the deck to a centered, letterboxed 16:9 box instead of\nfilling the browser window. Off by default. On makes the on-screen\nslide the exact shape that exports (browser == projector == PDF).",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
         "aspect_ratio": {
           "description": "Aspect ratio hint for PDF/PPTX export viewport (e.g., \"16/9\", \"4/3\").\nThe HTML output is fully responsive and fills the browser viewport.",
           "type": [

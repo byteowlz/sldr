@@ -36,7 +36,7 @@
           ]
         },
         "content": {
-          "description": "The markdown content of the slide (without frontmatter)",
+          "description": "The markdown content of the slide (without frontmatter). With\n`translations`, this is the language-neutral *shared* body (e.g. an\n`::image::` block declared once); per-language text goes in each\ntranslation's `content`.",
           "type": "string"
         },
         "description": {
@@ -55,6 +55,13 @@
           ],
           "default": null
         },
+        "footer": {
+          "description": "Footer line (slide override of the flavor default).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "layout": {
           "description": "Layout to use (default, two-cols, cover, center, image-right, etc.)",
           "type": "string",
@@ -63,6 +70,27 @@
         "name": {
           "description": "Filename for the slide (without .md extension)",
           "type": "string"
+        },
+        "source": {
+          "description": "Web-clipping / attribution source text (framed layouts).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_url": {
+          "description": "URL the source line links to.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subtitle": {
+          "description": "Subtitle / second-line chrome (framed layouts). Default-language value.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "tags": {
           "description": "Tags for categorization and search",
@@ -75,6 +103,13 @@
         "title": {
           "description": "Slide title (shown in frontmatter and as H1 if content doesn't start with heading)",
           "type": "string"
+        },
+        "translations": {
+          "description": "Per-language overrides. The tool emits `translations.<lang>` chrome\nfrontmatter and, when a translation provides `content`, the matching\n`::lang:<lang>::` body blocks — so agents never hand-write language\nmarkers. Key is a language code (`en`, `de`, …).",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SlideTranslation"
+          }
         },
         "valign": {
           "description": "Vertical alignment override: \"top\" | \"center\" | \"bottom\".\nOptional — when omitted, the layout's default applies.",
@@ -89,6 +124,49 @@
         "title",
         "content"
       ]
+    },
+    "SlideTranslation": {
+      "description": "Per-language chrome + body for one slide, used by `slides create` JSON.\nEvery field is optional — provide only what differs from the default.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "description": "This language's body text. When present, the tool wraps it in a\n`::lang:<lang>::` block after the shared `content`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "footer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subtitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   }
 }

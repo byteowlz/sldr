@@ -3,7 +3,7 @@
 use crate::error::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -54,16 +54,68 @@ pub struct SlideInput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub valign: Option<String>,
 
-    /// The markdown content of the slide (without frontmatter)
+    /// Subtitle / second-line chrome (framed layouts). Default-language value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+
+    /// Web-clipping / attribution source text (framed layouts).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+
+    /// URL the source line links to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+
+    /// Footer line (slide override of the flavor default).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub footer: Option<String>,
+
+    /// The markdown content of the slide (without frontmatter). With
+    /// `translations`, this is the language-neutral *shared* body (e.g. an
+    /// `::image::` block declared once); per-language text goes in each
+    /// translation's `content`.
     pub content: String,
+
+    /// Per-language overrides. The tool emits `translations.<lang>` chrome
+    /// frontmatter and, when a translation provides `content`, the matching
+    /// `::lang:<lang>::` body blocks — so agents never hand-write language
+    /// markers. Key is a language code (`en`, `de`, …).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub translations: BTreeMap<String, SlideTranslation>,
 
     /// Optional subdirectory (overrides batch-level directory)
     #[serde(default)]
     pub directory: Option<String>,
 }
 
+/// Per-language chrome + body for one slide, used by `slides create` JSON.
+/// Every field is optional — provide only what differs from the default.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct SlideTranslation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub footer: Option<String>,
+    /// This language's body text. When present, the tool wraps it in a
+    /// `::lang:<lang>::` block after the shared `content`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+}
+
 fn default_layout() -> String {
     "default".to_string()
+}
+
+/// Double-quote a YAML scalar, escaping backslashes and inner quotes — so a
+/// title/source containing a colon or quote can't break the frontmatter.
+fn yaml_quote(s: &str) -> String {
+    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 impl SlideInput {
@@ -88,6 +140,18 @@ impl SlideInput {
 
         let _ = writeln!(output, "layout: {}", self.layout);
 
+        if let Some(ref s) = self.subtitle {
+            let _ = writeln!(output, "subtitle: {}", yaml_quote(s));
+        }
+        if let Some(ref s) = self.source {
+            let _ = writeln!(output, "source: {}", yaml_quote(s));
+        }
+        if let Some(ref u) = self.source_url {
+            let _ = writeln!(output, "source_url: {}", yaml_quote(u));
+        }
+        if let Some(ref f) = self.footer {
+            let _ = writeln!(output, "footer: {}", yaml_quote(f));
+        }
         if let Some(ref a) = self.align {
             let _ = writeln!(output, "align: {a}");
         }
@@ -95,10 +159,67 @@ impl SlideInput {
             let _ = writeln!(output, "valign: {v}");
         }
 
-        output.push_str("---\n\n");
-        output.push_str(&self.content);
+        // Per-language chrome → translations.<lang> frontmatter (body text is
+        // emitted as ::lang:: blocks below, not here).
+        let chrome_langs: Vec<(&String, &SlideTranslation)> = self
+            .translations
+            .iter()
+            .filter(|(_, t)| {
+                t.title.is_some()
+                    || t.subtitle.is_some()
+                    || t.source.is_some()
+                    || t.source_url.is_some()
+                    || t.footer.is_some()
+            })
+            .collect();
+        if !chrome_langs.is_empty() {
+            output.push_str("translations:\n");
+            for (lang, t) in chrome_langs {
+                let _ = writeln!(output, "  {lang}:");
+                for (key, val) in [
+                    ("title", &t.title),
+                    ("subtitle", &t.subtitle),
+                    ("source", &t.source),
+                    ("source_url", &t.source_url),
+                    ("footer", &t.footer),
+                ] {
+                    if let Some(v) = val {
+                        let _ = writeln!(output, "    {key}: {}", yaml_quote(v));
+                    }
+                }
+            }
+        }
 
-        if !self.content.ends_with('\n') {
+        output.push_str("---\n\n");
+
+        // Body: shared content first, then a ::lang:<lang>:: block per
+        // translation that provides body text. The exporter/presenter select
+        // the active language from these blocks.
+        output.push_str(self.content.trim_end());
+
+        // When the shared body carries an `::image::` (content+image layout),
+        // the per-language text is the *content* half — pair it with a
+        // `::content::` marker so the layout splits correctly (otherwise the
+        // image + text collapse into one column and trip the marker/layout
+        // warning). The agent supplies plain text; the tool adds the marker.
+        let shared_has_image = self.content.contains("::image::");
+        let lang_bodies: Vec<(&String, &String)> = self
+            .translations
+            .iter()
+            .filter_map(|(lang, t)| t.content.as_ref().map(|c| (lang, c)))
+            .collect();
+        for (lang, body) in lang_bodies {
+            let body = body.trim();
+            let needs_content_marker =
+                shared_has_image && !body.contains("::content::") && !body.contains("::image::");
+            let _ = write!(output, "\n\n::lang:{lang}::\n");
+            if needs_content_marker {
+                output.push_str("::content::\n");
+            }
+            output.push_str(body);
+        }
+
+        if !output.ends_with('\n') {
             output.push('\n');
         }
 
@@ -461,6 +582,69 @@ This is the content.
         assert_eq!(metadata.title, Some("Test Slide".to_string()));
         assert_eq!(metadata.tags, vec!["test", "example"]);
         assert!(content.contains("# Hello World"));
+    }
+
+    #[test]
+    fn slide_input_translations_compose_and_round_trip() {
+        let mut translations = BTreeMap::new();
+        translations.insert(
+            "en".to_string(),
+            SlideTranslation {
+                content: Some("English text.".into()),
+                ..Default::default()
+            },
+        );
+        translations.insert(
+            "de".to_string(),
+            SlideTranslation {
+                title: Some("Hallo".into()),
+                subtitle: Some("Welt".into()),
+                source: Some("Quelle".into()),
+                content: Some("Deutscher Text.".into()),
+                ..Default::default()
+            },
+        );
+        let input = SlideInput {
+            name: "clip".into(),
+            title: "Hello".into(),
+            description: None,
+            tags: vec![],
+            layout: "framed-image".into(),
+            align: None,
+            valign: None,
+            subtitle: Some("World".into()),
+            source: Some("Source".into()),
+            source_url: Some("https://example.com".into()),
+            footer: None,
+            content: "::image::\n\n![x](media/clip.png)".into(),
+            translations,
+            directory: None,
+        };
+
+        let md = input.to_markdown();
+        // Shared image is declared once, not per-language; per-language text
+        // is auto-paired with ::content:: so framed-image splits correctly.
+        assert_eq!(md.matches("![x](media/clip.png)").count(), 1);
+        assert!(md.contains("::lang:en::\n::content::\nEnglish text."));
+        assert!(md.contains("::lang:de::\n::content::\nDeutscher Text."));
+
+        // Frontmatter round-trips: default + de chrome both resolve.
+        let (meta, _) = parse_frontmatter(&md, "clip");
+        let en = meta.chrome_for(Some("en"), "en");
+        assert_eq!(en.title.as_deref(), Some("Hello"));
+        assert_eq!(en.subtitle.as_deref(), Some("World"));
+        let de = meta.chrome_for(Some("de"), "en");
+        assert_eq!(de.title.as_deref(), Some("Hallo"));
+        assert_eq!(de.subtitle.as_deref(), Some("Welt"));
+        assert_eq!(de.source.as_deref(), Some("Quelle"));
+        assert!(de.untranslated_to.is_none());
+
+        // Body language selection picks the right block.
+        let (_, body) = parse_frontmatter(&md, "clip");
+        let sel = crate::lang::select_language(&body, Some("de"), "en");
+        assert!(sel.content.contains("Deutscher Text."));
+        assert!(sel.content.contains("media/clip.png")); // shared image present
+        assert!(!sel.content.contains("English text."));
     }
 
     #[test]
