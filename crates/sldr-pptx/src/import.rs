@@ -568,6 +568,7 @@ mod tests {
                     ZoneContent::Picture {
                         bytes: b"\x89PNG fake".to_vec(),
                         ext: "png".into(),
+                        fit: None,
                     },
                 ),
             ],

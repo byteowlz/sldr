@@ -354,6 +354,26 @@ fn build_native_deck(
         registry.load_dir(&dir)?;
     }
 
+    // Diagrams are baked to images via a headless browser (the same one the
+    // screenshot path uses). Only look for it if the deck actually has any —
+    // and if it's missing, fall back to the diagram source as text, loudly.
+    let has_diagrams = slides.iter().any(|s| s.content.contains("```mermaid"));
+    let browser = if has_diagrams {
+        match find_browser() {
+            Ok(b) => Some(b),
+            Err(_) => {
+                println!(
+                    "  {} no browser found — mermaid diagrams export as code text. \
+                     Install Chrome/Chromium, or use --flatten.",
+                    "note:".yellow()
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let mut inputs: Vec<sldr_pptx::SlideInput> = Vec::new();
     for slide in slides {
         let layout_name = slide
@@ -393,6 +413,32 @@ fn build_native_deck(
             }
         });
 
+        // A body segment that is a mermaid block bakes to a flavor-themed PNG
+        // (rendered in the browser); otherwise it's markdown. Falls back to the
+        // raw source as markdown if there's no browser or the bake fails.
+        let bake = |seg: Option<&String>| -> Option<ZoneContent> {
+            let s = seg?;
+            if let Some(src) = mermaid_source(s) {
+                if let Some(br) = browser.as_deref() {
+                    match bake_mermaid(src, flavor, br) {
+                        Ok((bytes, w, h)) => {
+                            return Some(ZoneContent::Picture {
+                                bytes,
+                                ext: "png".into(),
+                                fit: Some((w, h)),
+                            })
+                        }
+                        Err(e) => println!(
+                            "  {} slide '{}': diagram bake failed ({e}) — left as text",
+                            "warning:".yellow(),
+                            slide.name
+                        ),
+                    }
+                }
+            }
+            Some(ZoneContent::Markdown(s.clone()))
+        };
+
         // Provide content for each zone the layout declares, honoring its
         // representation: placeholder-text zones get chrome/body text; picture
         // zones resolve their matching segment to embedded image bytes — so a
@@ -414,7 +460,7 @@ fn build_native_deck(
                     if let Some(md) = md {
                         match resolve_picture(md, &slide.path) {
                             Some((bytes, ext)) => fields
-                                .push((name.to_string(), ZoneContent::Picture { bytes, ext })),
+                                .push((name.to_string(), ZoneContent::Picture { bytes, ext, fit: None })),
                             None => println!(
                                 "  {} slide '{}': image for zone '{name}' not embeddable as native PPTX (left empty)",
                                 "note:".yellow(),
@@ -429,10 +475,10 @@ fn build_native_deck(
                         "subheadline" => chrome.subtitle.clone().map(ZoneContent::Text),
                         "footer" => footer.clone().map(ZoneContent::Text),
                         "source" => source_text.clone().map(ZoneContent::Text),
-                        "heading" => segments.heading.clone().map(ZoneContent::Markdown),
-                        "content" => segments.content.clone().map(ZoneContent::Markdown),
-                        "left" => segments.left.clone().map(ZoneContent::Markdown),
-                        "right" => segments.right.clone().map(ZoneContent::Markdown),
+                        "heading" => bake(segments.heading.as_ref()),
+                        "content" => bake(segments.content.as_ref()),
+                        "left" => bake(segments.left.as_ref()),
+                        "right" => bake(segments.right.as_ref()),
                         _ => None,
                     };
                     if let Some(c) = content {
@@ -448,6 +494,130 @@ fn build_native_deck(
 
     let theme = sldr_pptx::Theme::from_flavor(flavor);
     sldr_pptx::build_deck(&theme, title, &inputs)
+}
+
+/// A body segment that is exactly one ` ```mermaid ` fence → its source.
+fn mermaid_source(segment: &str) -> Option<&str> {
+    let t = segment.trim();
+    let body = t.strip_prefix("```mermaid")?;
+    let body = body.strip_suffix("```")?;
+    Some(body.trim())
+}
+
+/// Render a mermaid diagram to a tight, flavor-themed PNG by driving a headless
+/// browser: a transparent harness renders the diagram, we screenshot it and
+/// trim the transparent margins. Returns `(png_bytes, width_px, height_px)`.
+fn bake_mermaid(
+    source: &str,
+    flavor: &sldr_core::flavor::Flavor,
+    browser: &Path,
+) -> Result<(Vec<u8>, u32, u32)> {
+    let harness = format!(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><style>html,body{{margin:0;background:transparent}}body{{display:inline-block}}.mermaid{{background:transparent}}</style></head><body>\
+         <div class=\"mermaid\" id=\"d\">{src}</div>\
+         <script>{js}</script>\
+         <script>mermaid.initialize({{startOnLoad:false,securityLevel:'loose',theme:'base',themeVariables:{tv}}});mermaid.run({{nodes:[document.getElementById('d')]}});</script>\
+         </body></html>",
+        src = html_escape_text(source.trim()),
+        js = sldr_renderer::mermaid_js(),
+        tv = mermaid_theme_vars(flavor),
+    );
+
+    let dir = tempfile::tempdir()?;
+    let html_path = dir.path().join("diagram.html");
+    let png_path = dir.path().join("diagram.png");
+    std::fs::write(&html_path, harness)?;
+
+    let status = std::process::Command::new(browser)
+        .args([
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-gpu",
+            "--hide-scrollbars",
+            "--default-background-color=00000000",
+            "--force-device-scale-factor=2",
+            "--window-size=2400,1600",
+            "--virtual-time-budget=8000",
+        ])
+        .arg(format!("--screenshot={}", png_path.display()))
+        .arg(format!("file://{}", html_path.display()))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .context("failed to launch browser for diagram render")?;
+    if !status.success() || !png_path.exists() {
+        anyhow::bail!("browser did not produce a diagram image");
+    }
+
+    let img = image::open(&png_path)
+        .context("diagram screenshot unreadable")?
+        .to_rgba8();
+    let (cropped, w, h) = trim_transparent(&img);
+    let mut buf = Vec::new();
+    image::DynamicImage::ImageRgba8(cropped)
+        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+        .context("re-encoding cropped diagram failed")?;
+    Ok((buf, w, h))
+}
+
+/// Crop the fully-transparent margins off a screenshot, leaving the diagram.
+fn trim_transparent(img: &image::RgbaImage) -> (image::RgbaImage, u32, u32) {
+    let (w, h) = img.dimensions();
+    let (mut x0, mut y0, mut x1, mut y1) = (w, h, 0u32, 0u32);
+    let mut any = false;
+    for y in 0..h {
+        for x in 0..w {
+            if img.get_pixel(x, y)[3] > 8 {
+                any = true;
+                x0 = x0.min(x);
+                y0 = y0.min(y);
+                x1 = x1.max(x);
+                y1 = y1.max(y);
+            }
+        }
+    }
+    if !any {
+        return (img.clone(), w, h);
+    }
+    let (cw, ch) = (x1 - x0 + 1, y1 - y0 + 1);
+    let cropped = image::imageops::crop_imm(img, x0, y0, cw, ch).to_image();
+    (cropped, cw, ch)
+}
+
+/// Mermaid `themeVariables` JS object literal built from the flavor's colors,
+/// so a baked diagram matches the deck. Transparent background → croppable.
+fn mermaid_theme_vars(flavor: &sldr_core::flavor::Flavor) -> String {
+    let c = &flavor.colors;
+    let pick = |o: &Option<String>, d: &str| o.as_deref().unwrap_or(d).to_string();
+    let text = pick(&c.text, "#1f2937");
+    let surface = pick(&c.surface, "#f1f5f9");
+    let border = c
+        .border_bright
+        .as_deref()
+        .or(c.accent.as_deref())
+        .unwrap_or(&text)
+        .to_string();
+    let font = flavor
+        .typography
+        .body_font
+        .as_deref()
+        .unwrap_or("sans-serif")
+        .replace(['\'', '"'], "");
+    format!(
+        "{{background:'transparent',mainBkg:'{surface}',primaryColor:'{surface}',\
+         primaryTextColor:'{text}',primaryBorderColor:'{border}',\
+         secondaryColor:'{s2}',tertiaryColor:'{muted}',lineColor:'{line}',\
+         textColor:'{text}',nodeTextColor:'{text}',titleColor:'{text}',\
+         fontFamily:'{font}, sans-serif'}}",
+        s2 = pick(&c.surface2, &surface),
+        muted = pick(&c.muted, &surface),
+        line = pick(&c.text_dim, &text),
+    )
+}
+
+/// Minimal HTML-text escape (for the diagram source as a div's text content).
+fn html_escape_text(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
 /// Resolve the first image in an `::image::` segment to raw bytes + a PPTX

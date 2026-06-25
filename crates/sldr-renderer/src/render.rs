@@ -47,6 +47,12 @@ const PRESENTER_JS: &str = include_str!("../assets/presenter.js");
 /// present time with no network.
 const MERMAID_JS: &str = include_str!("../assets/mermaid.min.js");
 
+/// The bundled mermaid.js source — for rendering diagrams outside the presenter
+/// (e.g. baking a diagram to an image for PPTX export).
+pub fn mermaid_js() -> &'static str {
+    MERMAID_JS
+}
+
 /// Animated background effects (pure CSS, deterministic, baked particle
 /// positions). Emitted inside the owning flavor's <style data-flavor>
 /// block so effects switch with the flavor at runtime, exactly like

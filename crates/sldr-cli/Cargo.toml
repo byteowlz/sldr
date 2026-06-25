@@ -31,6 +31,7 @@ axum = { workspace = true }
 async-stream = "0.3"
 notify = "8.2"
 tempfile = "3"
+image = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.22"

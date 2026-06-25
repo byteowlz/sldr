@@ -1671,6 +1671,7 @@ dependencies = [
  "colored",
  "console",
  "dialoguer",
+ "image",
  "notify",
  "serde",
  "serde_json",

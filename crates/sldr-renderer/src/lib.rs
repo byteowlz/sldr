@@ -35,5 +35,5 @@ pub use layout::{
 };
 pub use markdown::{split_segments, strip_stray_markers, MarkdownSegments};
 pub use media::ImageMode;
-pub use render::{HtmlRenderer, RenderConfig};
+pub use render::{mermaid_js, HtmlRenderer, RenderConfig};
 pub use sample::{render_sample, SampleSlide, SAMPLE_SLIDES};

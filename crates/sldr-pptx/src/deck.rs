@@ -25,10 +25,17 @@ pub enum ZoneContent {
     /// A markdown body segment (content / left / right / heading) — converted
     /// to bulleted/plain OOXML paragraphs.
     Markdown(String),
-    /// A raster image for a `picture` zone — embedded as a positioned,
-    /// editable `<p:pic>`. The caller resolves the path and reads the bytes;
-    /// `ext` is the media extension (`png` / `jpeg` / `gif`).
-    Picture { bytes: Vec<u8>, ext: String },
+    /// A raster image embedded as a positioned `<p:pic>`. The caller resolves
+    /// the bytes; `ext` is the media extension (`png` / `jpeg` / `gif`).
+    /// `fit` carries the image's intrinsic `(width, height)` in pixels when the
+    /// picture should be aspect-fit (centered) inside its zone — used for baked
+    /// diagrams, which must not stretch. `None` fills the zone box (the column
+    /// images in image-left/right, which are meant to fill).
+    Picture {
+        bytes: Vec<u8>,
+        ext: String,
+        fit: Option<(u32, u32)>,
+    },
 }
 
 /// One slide to export: the layout it uses and the content for each zone.
@@ -164,56 +171,72 @@ fn build_slide(
     let mut next_rel = 2; // rId1 is the slideLayout
 
     for zone in &slide.layout.zones {
-        match zone.rep {
-            crate::ZoneRep::PlaceholderText if zone.ph.is_some() => {
-                let id = next_id;
-                next_id += 1;
-                let ph = zone.ph.as_deref().unwrap_or("body");
-                let idx_attr = match zone.idx {
-                    Some(idx) => format!(" idx=\"{idx}\""),
-                    None => String::new(),
-                };
-                let label = crate::xml_escape(&crate::title_case(&zone.name));
-                let paragraphs = match lookup.get(zone.name.as_str()) {
-                    Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t),
-                    Some(ZoneContent::Markdown(m)) => mdooxml::to_paragraphs(m).join(""),
-                    _ => mdooxml::plain_paragraph(""),
-                };
-                shapes.push_str(&format!(
-                    r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
-<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>{paragraphs}</p:txBody></p:sp>"#
-                ));
-            }
-            crate::ZoneRep::Picture => {
-                let Some(ZoneContent::Picture { bytes, ext }) = lookup.get(zone.name.as_str())
-                else {
-                    continue; // no resolvable image for this zone → leave empty
-                };
-                let media_n = media.len() + 1;
-                let media_path = format!("ppt/media/image{media_n}.{ext}");
-                media.push((media_path, bytes.clone()));
+        let content = lookup.get(zone.name.as_str()).copied();
 
-                let rel = next_rel;
-                next_rel += 1;
-                image_rels.push_str(&format!(
-                    "<Relationship Id=\"rId{rel}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/image{media_n}.{ext}\"/>"
-                ));
+        // A picture (an `image` zone, or a baked diagram landing in a text
+        // zone) wins regardless of the zone's declared rep — it becomes a
+        // positioned <p:pic> at the zone's box.
+        if let Some(ZoneContent::Picture { bytes, ext, fit }) = content {
+            let media_n = media.len() + 1;
+            let media_path = format!("ppt/media/image{media_n}.{ext}");
+            media.push((media_path, bytes.clone()));
 
-                let id = next_id;
-                next_id += 1;
-                let label = crate::xml_escape(&crate::title_case(&zone.name));
-                shapes.push_str(&format!(
-                    r#"<p:pic><p:nvPicPr><p:cNvPr id="{id}" name="{label}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>
+            let rel = next_rel;
+            next_rel += 1;
+            image_rels.push_str(&format!(
+                "<Relationship Id=\"rId{rel}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/image{media_n}.{ext}\"/>"
+            ));
+
+            // Zone box in EMU; aspect-fit (centered) when intrinsic dims are
+            // given so a diagram isn't stretched, else fill the box.
+            let (zx, zy, zw, zh) = (
+                crate::emu_x(zone.x),
+                crate::emu_y(zone.y),
+                crate::emu_x(zone.w),
+                crate::emu_y(zone.h),
+            );
+            let (x, y, cx, cy) = match fit {
+                Some((iw, ih)) if *iw > 0 && *ih > 0 => {
+                    let scale = (zw as f64 / *iw as f64).min(zh as f64 / *ih as f64);
+                    let cx = (*iw as f64 * scale).round() as i64;
+                    let cy = (*ih as f64 * scale).round() as i64;
+                    (zx + (zw - cx) / 2, zy + (zh - cy) / 2, cx, cy)
+                }
+                _ => (zx, zy, zw, zh),
+            };
+
+            let id = next_id;
+            next_id += 1;
+            let label = crate::xml_escape(&crate::title_case(&zone.name));
+            shapes.push_str(&format!(
+                r#"<p:pic><p:nvPicPr><p:cNvPr id="{id}" name="{label}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>
 <p:blipFill><a:blip r:embed="rId{rel}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>
-<p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>"#,
-                    x = crate::emu_x(zone.x),
-                    y = crate::emu_y(zone.y),
-                    cx = crate::emu_x(zone.w),
-                    cy = crate::emu_y(zone.h),
-                ));
-            }
-            _ => {} // shape/bake handled elsewhere
+<p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>"#
+            ));
+            continue;
         }
+
+        // Otherwise: a placeholder-text zone becomes a filled text placeholder.
+        if zone.rep == crate::ZoneRep::PlaceholderText && zone.ph.is_some() {
+            let id = next_id;
+            next_id += 1;
+            let ph = zone.ph.as_deref().unwrap_or("body");
+            let idx_attr = match zone.idx {
+                Some(idx) => format!(" idx=\"{idx}\""),
+                None => String::new(),
+            };
+            let label = crate::xml_escape(&crate::title_case(&zone.name));
+            let paragraphs = match content {
+                Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t),
+                Some(ZoneContent::Markdown(m)) => mdooxml::to_paragraphs(m).join(""),
+                _ => mdooxml::plain_paragraph(""),
+            };
+            shapes.push_str(&format!(
+                r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
+<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>{paragraphs}</p:txBody></p:sp>"#
+            ));
+        }
+        // (picture zone with no picture content → nothing emitted)
     }
 
     let xml = format!(
@@ -329,6 +352,7 @@ mod tests {
                     ZoneContent::Picture {
                         bytes: b"\x89PNG\r\n\x1a\n fake".to_vec(),
                         ext: "png".into(),
+                        fit: None,
                     },
                 ),
             ],
@@ -349,6 +373,40 @@ mod tests {
         let rels = read_part(&bytes, "ppt/slides/_rels/slide1.xml.rels");
         assert!(rels.contains("../media/image1.png"));
         assert!(rels.contains("relationships/image"));
+    }
+
+    #[test]
+    fn test_baked_picture_in_text_zone_emits_aspect_fit_pic() {
+        // A diagram baked into the `content` (placeholder-text) zone of framed
+        // should emit a positioned, aspect-fit <p:pic> — not a text placeholder.
+        let reg = LayoutRegistry::builtin();
+        let framed = reg.get("framed").unwrap();
+        let slides = vec![SlideInput {
+            layout: framed,
+            fields: vec![
+                ("headline".into(), ZoneContent::Text("Title".into())),
+                (
+                    "content".into(),
+                    ZoneContent::Picture {
+                        bytes: b"\x89PNG fake".to_vec(),
+                        ext: "png".into(),
+                        fit: Some((400, 100)), // wide → fit by width, centered vertically
+                    },
+                ),
+            ],
+        }];
+        let bytes = build_deck(&theme(), "Deck", &slides).unwrap();
+        let slide = read_part(&bytes, "ppt/slides/slide1.xml");
+        assert!(slide.contains("<p:pic>"));
+        assert!(slide.contains("<a:t>Title</a:t>")); // chrome still a placeholder
+        // The content zone has no body idx=1 text placeholder (it's the pic now).
+        assert!(!slide.contains(r#"type="body" idx="1""#));
+        // Media embedded.
+        let names: Vec<String> = {
+            let mut z = zip::ZipArchive::new(std::io::Cursor::new(&bytes)).unwrap();
+            (0..z.len()).map(|i| z.by_index(i).unwrap().name().to_string()).collect()
+        };
+        assert!(names.contains(&"ppt/media/image1.png".to_string()));
     }
 
     #[test]
