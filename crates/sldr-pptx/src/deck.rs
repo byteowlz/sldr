@@ -55,11 +55,11 @@ pub fn build_deck(theme: &crate::Theme, title: &str, slides: &[SlideInput]) -> R
     let mut distinct: Vec<&LayoutDef> = Vec::new();
     let mut not_eligible: Vec<&str> = Vec::new();
     for slide in slides {
-        let eligible = slide
-            .layout
-            .zones
-            .iter()
-            .any(|z| z.rep == ZoneRep::PlaceholderText && z.ph.is_some());
+        // Exportable if it declares any representable zone — an editable text
+        // placeholder OR a picture (a picture-only image layout is fine).
+        let eligible = slide.layout.zones.iter().any(|z| {
+            (z.rep == ZoneRep::PlaceholderText && z.ph.is_some()) || z.rep == ZoneRep::Picture
+        });
         if !eligible {
             if !not_eligible.contains(&slide.layout.name.as_str()) {
                 not_eligible.push(slide.layout.name.as_str());
@@ -354,13 +354,13 @@ mod tests {
     #[test]
     fn test_layout_without_zones_fails_loud() {
         let reg = LayoutRegistry::builtin();
-        let default = reg.get("default").unwrap(); // no zones
+        let collage = reg.get("image-grid").unwrap(); // multi-image, no zones yet
         let slides = vec![SlideInput {
-            layout: default,
+            layout: collage,
             fields: vec![("content".into(), ZoneContent::Markdown("hi".into()))],
         }];
         let err = build_deck(&theme(), "Deck", &slides).unwrap_err().to_string();
-        assert!(err.contains("default"));
+        assert!(err.contains("image-grid"));
         assert!(err.contains("--flatten"));
     }
 }

@@ -1073,8 +1073,9 @@ mod tests {
     #[test]
     fn test_layouts_without_zones_are_empty_not_error() {
         let reg = registry();
-        // default has no zone directives → empty, falls back to screenshot path.
-        assert!(reg.resolve("default").unwrap().zones.is_empty());
+        // Collage layouts (multi-image) aren't zone-annotated yet → empty,
+        // falls back to the screenshot path.
+        assert!(reg.resolve("image-grid").unwrap().zones.is_empty());
     }
 
     #[test]

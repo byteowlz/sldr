@@ -158,8 +158,11 @@ pub(crate) struct TemplateLayout<'a> {
     pub(crate) placeholders: Vec<&'a Zone>,
 }
 
-/// Turn resolved layout defs into [`TemplateLayout`]s, keeping only their
-/// placeholder-text zones and dropping any layout left with none.
+/// Turn resolved layout defs into [`TemplateLayout`]s carrying their
+/// placeholder-text zones. A layout with none (e.g. a picture-only image
+/// layout) yields an empty placeholder list — valid as a deck slideLayout
+/// (the picture is concrete on the slide). Callers that need text frames
+/// (templates) pre-filter with [`select_layouts`].
 pub(crate) fn to_template_layouts<'a>(layouts: &[&'a LayoutDef]) -> Vec<TemplateLayout<'a>> {
     layouts
         .iter()
@@ -175,7 +178,6 @@ pub(crate) fn to_template_layouts<'a>(layouts: &[&'a LayoutDef]) -> Vec<Template
                 placeholders,
             }
         })
-        .filter(|t| !t.placeholders.is_empty())
         .collect()
 }
 
@@ -220,7 +222,7 @@ pub fn build_template(theme: &Theme, layouts: &[&LayoutDef]) -> Result<Vec<u8>> 
 
     let selected = to_template_layouts(layouts);
 
-    if selected.is_empty() {
+    if selected.iter().all(|t| t.placeholders.is_empty()) {
         bail!("none of the given layouts declare placeholder-text zones");
     }
 
@@ -642,8 +644,8 @@ mod tests {
         let names: Vec<&str> = eligible.iter().map(|d| d.name.as_str()).collect();
         assert!(names.contains(&"framed"));
         assert!(names.contains(&"two-cols"));
-        // default has no zones → not eligible.
-        assert!(!names.contains(&"default"));
+        // image-grid (collage) has no zones → not eligible.
+        assert!(!names.contains(&"image-grid"));
     }
 
     #[test]

@@ -384,49 +384,62 @@ fn build_native_deck(
         }
         let segments = sldr_renderer::split_segments(&lang_sel.content);
 
-        let mut fields: Vec<(String, ZoneContent)> = Vec::new();
-        if let Some(t) = chrome.title {
-            fields.push(("headline".into(), ZoneContent::Text(t)));
-        }
-        if let Some(s) = chrome.subtitle {
-            fields.push(("subheadline".into(), ZoneContent::Text(s)));
-        }
-        if let Some(f) = footer {
-            fields.push(("footer".into(), ZoneContent::Text(f)));
-        }
-        if let Some(src) = chrome.source {
+        // The rendered "Source: …" chrome line (+ optional URL), built once.
+        let source_text = chrome.source.as_ref().map(|src| {
             let label = source_label(lang, default_lang);
-            let text = match chrome.source_url {
+            match chrome.source_url.as_ref() {
                 Some(u) => format!("{label} {src} ({u})"),
                 None => format!("{label} {src}"),
-            };
-            fields.push(("source".into(), ZoneContent::Text(text)));
-        }
-        if let Some(h) = segments.heading {
-            fields.push(("heading".into(), ZoneContent::Markdown(h)));
-        }
-        if let Some(c) = segments.content {
-            fields.push(("content".into(), ZoneContent::Markdown(c)));
-        }
-        if let Some(l) = segments.left {
-            fields.push(("left".into(), ZoneContent::Markdown(l)));
-        }
-        if let Some(r) = segments.right {
-            fields.push(("right".into(), ZoneContent::Markdown(r)));
-        }
-        // Image segment → an embedded picture for a `picture` zone. Only
-        // raster formats PowerPoint reads natively; anything else (svg, remote)
-        // is left out and reported, never silently mangled.
-        if let Some(img_md) = segments.image {
-            match resolve_picture(&img_md, &slide.path) {
-                Some((bytes, ext)) => {
-                    fields.push(("image".into(), ZoneContent::Picture { bytes, ext }));
+            }
+        });
+
+        // Provide content for each zone the layout declares, honoring its
+        // representation: placeholder-text zones get chrome/body text; picture
+        // zones resolve their matching segment to embedded image bytes — so a
+        // single image sitting in the `content` slot exports as a picture, not
+        // as literal `![](…)` text. Only formats PowerPoint reads natively are
+        // embedded; svg/remote are reported and skipped, never mangled.
+        let mut fields: Vec<(String, ZoneContent)> = Vec::new();
+        for zone in &layout.zones {
+            let name = zone.name.as_str();
+            match zone.rep {
+                sldr_renderer::ZoneRep::Picture => {
+                    let md = match name {
+                        "image" => segments.image.as_deref(),
+                        "content" => segments.content.as_deref(),
+                        "left" => segments.left.as_deref(),
+                        "right" => segments.right.as_deref(),
+                        _ => None,
+                    };
+                    if let Some(md) = md {
+                        match resolve_picture(md, &slide.path) {
+                            Some((bytes, ext)) => fields
+                                .push((name.to_string(), ZoneContent::Picture { bytes, ext })),
+                            None => println!(
+                                "  {} slide '{}': image for zone '{name}' not embeddable as native PPTX (left empty)",
+                                "note:".yellow(),
+                                slide.name
+                            ),
+                        }
+                    }
                 }
-                None => println!(
-                    "  {} slide '{}': image not embeddable as native PPTX (left empty)",
-                    "note:".yellow(),
-                    slide.name
-                ),
+                sldr_renderer::ZoneRep::PlaceholderText => {
+                    let content = match name {
+                        "headline" => chrome.title.clone().map(ZoneContent::Text),
+                        "subheadline" => chrome.subtitle.clone().map(ZoneContent::Text),
+                        "footer" => footer.clone().map(ZoneContent::Text),
+                        "source" => source_text.clone().map(ZoneContent::Text),
+                        "heading" => segments.heading.clone().map(ZoneContent::Markdown),
+                        "content" => segments.content.clone().map(ZoneContent::Markdown),
+                        "left" => segments.left.clone().map(ZoneContent::Markdown),
+                        "right" => segments.right.clone().map(ZoneContent::Markdown),
+                        _ => None,
+                    };
+                    if let Some(c) = content {
+                        fields.push((name.to_string(), c));
+                    }
+                }
+                _ => {}
             }
         }
 
