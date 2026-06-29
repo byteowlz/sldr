@@ -299,8 +299,9 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-framed .sldr-frame-imgsplit > * { min-width: 0; }
 .sldr-framed .sldr-frame-cols .sldr-col {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
+  gap: calc(var(--sldr-uh) * 1.1);
   min-height: 0;
 }
 .sldr-framed .sldr-frame-foot { display: contents; }
