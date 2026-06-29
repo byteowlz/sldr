@@ -96,3 +96,5 @@
 {"id":"evt_4ys8yznr","issue_id":"trx-3f4w.15","action":"dep_added","timestamp":"2026-06-29T21:46:50.485252155Z","note":"trx-3f4w.14"}
 {"id":"evt_4m41vn9e","issue_id":"trx-3f4w.11","action":"updated","timestamp":"2026-06-29T21:56:21.638185600Z","changes":[{"field":"status","from":"open","to":"in_progress"}]}
 {"id":"evt_6wts6d9g","issue_id":"trx-3f4w.11","action":"closed","timestamp":"2026-06-29T22:04:30.210089925Z"}
+{"id":"evt_wqcshxfd","issue_id":"trx-3f4w.12","action":"updated","timestamp":"2026-06-29T22:46:06.253736758Z","changes":[{"field":"status","from":"open","to":"in_progress"}]}
+{"id":"evt_jz6apexe","issue_id":"trx-3f4w.12","action":"closed","timestamp":"2026-06-29T22:48:27.317763055Z"}
