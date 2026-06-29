@@ -673,7 +673,15 @@
       var needH = el.scrollHeight, needW = el.scrollWidth;
       var scale = Math.min(1, availH / needH, availW / needW);
       if (scale < 0.999) {
-        el.style.transformOrigin = "center center";
+        // Anchor the shrink to the region's own vertical alignment, so scaled
+        // content stays where the layout puts it instead of floating to the
+        // box centre. A top-anchored body (e.g. framed, default) keeps its top
+        // edge — otherwise a shrunk table drifts down, gapping the top and
+        // spilling toward the footer.
+        var jc = getComputedStyle(el).justifyContent;
+        var originY = jc === "center" ? "center"
+          : (jc === "flex-end" || jc === "end" ? "bottom" : "top");
+        el.style.transformOrigin = "center " + originY;
         el.style.transform = "scale(" + scale + ")";
       }
     }
