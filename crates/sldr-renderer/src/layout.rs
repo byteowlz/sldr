@@ -106,7 +106,8 @@ pub struct LayoutDef {
 /// PowerPoint OOXML (trx-4s9s.2). The bitter-lesson "honest wall" at the
 /// finest grain: derive everything representable into native PPTX, carry
 /// (rasterize) only the truly irreducible bits — per region, not per slide.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ZoneRep {
     /// Editable text placeholder (headline/body/footer/columns). Chrome and
     /// body text stay editable on every slide regardless of layout.
@@ -151,7 +152,7 @@ impl ZoneRep {
 /// the PPTX template/deck generator to position placeholders, pictures, and
 /// shapes in EMU. Coordinates are percent of the slide box (0–100), the same
 /// unit the layouts already think in (`--sldr-u`), converted to EMU at export.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Zone {
     /// Slot or chrome name this zone fills — must match a layout slot
     /// (`content`, `left`, `right`, `image`, `heading`) or chrome field
@@ -201,7 +202,7 @@ fn directive_value<'a>(source: &'a str, key: &str) -> Option<&'a str> {
 /// `key=value` pairs; unknown keys are ignored, a malformed/incomplete zone
 /// (missing `name`, or an unparseable number/rep) is skipped (fail-soft:
 /// annotation never breaks a layout that still renders fine to HTML).
-fn parse_zones(source: &str) -> Vec<Zone> {
+pub fn parse_zones(source: &str) -> Vec<Zone> {
     const PAT: &str = "<!-- sldr:zone ";
     let mut zones = Vec::new();
     let mut rest = source;
@@ -214,6 +215,88 @@ fn parse_zones(source: &str) -> Vec<Zone> {
         rest = &after[end + "-->".len()..];
     }
     zones
+}
+
+/// Serialize one zone back to its canonical `<!-- sldr:zone … -->` directive —
+/// the exact inverse of `parse_zone_attrs`. Attribute order matches how the
+/// built-in layouts are authored (name, ph?, idx?, rep, x, y, w, h); `ph`/`idx`
+/// are omitted when absent. f64s print without trailing zeros (`64`, not `64.0`).
+pub fn emit_zone(z: &Zone) -> String {
+    use std::fmt::Write as _;
+    let mut s = format!("<!-- sldr:zone name={}", z.name);
+    if let Some(ph) = &z.ph {
+        let _ = write!(s, " ph={ph}");
+    }
+    if let Some(idx) = z.idx {
+        let _ = write!(s, " idx={idx}");
+    }
+    let _ = write!(
+        s,
+        " rep={} x={} y={} w={} h={} -->",
+        z.rep.as_token(),
+        z.x,
+        z.y,
+        z.w,
+        z.h
+    );
+    s
+}
+
+/// Replace a layout's zone-directive block with `zones`, preserving the rest of
+/// the file. Existing `<!-- sldr:zone … -->` lines are removed and the new block
+/// is written where the first one was; if the layout had none, the block is
+/// inserted after the leading `<!-- sldr:… -->` comments (category/tags/notes).
+/// This is the deterministic write-back for the visual zone editor — it only
+/// ever touches zone directives, never the layout's markup or CSS.
+pub fn replace_zone_block(source: &str, zones: &[Zone]) -> String {
+    let is_zone = |l: &str| {
+        let t = l.trim();
+        t.starts_with("<!-- sldr:zone ") && t.ends_with("-->")
+    };
+    let is_leading_comment = |l: &str| {
+        let t = l.trim();
+        t.is_empty() || t.starts_with("<!--")
+    };
+    let block: Vec<String> = zones.iter().map(emit_zone).collect();
+
+    let mut out: Vec<String> = Vec::new();
+    let mut inserted = false;
+    let has_zones = source.lines().any(is_zone);
+
+    if has_zones {
+        for line in source.lines() {
+            if is_zone(line) {
+                if !inserted {
+                    out.extend(block.iter().cloned());
+                    inserted = true;
+                }
+            } else {
+                out.push(line.to_string());
+            }
+        }
+    } else {
+        // No existing zones: insert after the run of leading comment lines.
+        let lines: Vec<&str> = source.lines().collect();
+        let insert_at = lines
+            .iter()
+            .position(|l| !is_leading_comment(l))
+            .unwrap_or(lines.len());
+        for (i, line) in lines.iter().enumerate() {
+            if i == insert_at && !block.is_empty() {
+                out.extend(block.iter().cloned());
+            }
+            out.push(line.to_string());
+        }
+        if insert_at >= lines.len() && !block.is_empty() {
+            out.extend(block.iter().cloned());
+        }
+    }
+
+    let mut joined = out.join("\n");
+    if source.ends_with('\n') {
+        joined.push('\n');
+    }
+    joined
 }
 
 /// Parse the `key=value …` body of one zone directive. Returns `None` if a
@@ -1092,6 +1175,36 @@ mod tests {
 
         assert_eq!(def.zones[3].name, "footer");
         assert_eq!(def.zones[3].idx, Some(2));
+    }
+
+    #[test]
+    fn test_zone_emit_parse_roundtrip() {
+        let src = builtin_layout_source("framed-image").unwrap();
+        let zones = parse_zones(src);
+        assert!(zones.len() >= 4);
+        // emit → re-parse yields identical zones (stable canonical form).
+        let emitted = zones.iter().map(emit_zone).collect::<Vec<_>>().join("\n");
+        assert_eq!(parse_zones(&emitted), zones);
+        // A picture zone with no ph/idx omits those attrs but round-trips.
+        let img = zones.iter().find(|z| z.rep == ZoneRep::Picture).unwrap();
+        let line = emit_zone(img);
+        assert!(!line.contains("ph="));
+        assert!(line.contains("rep=picture"));
+    }
+
+    #[test]
+    fn test_replace_zone_block_swaps_only_zones() {
+        let src = builtin_layout_source("framed").unwrap();
+        let mut zones = parse_zones(src);
+        zones[0].x = 8.0; // move the headline
+        let out = replace_zone_block(src, &zones);
+        // The markup is untouched; only the zone directive changed.
+        assert!(out.contains("<div class=\"sldr-framed\">"));
+        assert!(out.contains("name=headline ph=title rep=placeholder-text x=8"));
+        // Re-parsing the rewritten source reflects the edit, same zone count.
+        let reparsed = parse_zones(&out);
+        assert_eq!(reparsed.len(), zones.len());
+        assert_eq!(reparsed[0].x, 8.0);
     }
 
     #[test]

@@ -48,6 +48,44 @@ pub struct SlidesResponse {
 }
 
 #[derive(Debug, Serialize)]
+pub struct LayoutSummary {
+    pub name: String,
+    pub category: Option<String>,
+    /// True for a shipped layout, false for one in the user's library.
+    pub builtin: bool,
+    pub zone_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LayoutsResponse {
+    pub layouts: Vec<LayoutSummary>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LayoutDetail {
+    pub name: String,
+    pub category: Option<String>,
+    pub builtin: bool,
+    /// The layout's HTML source (markup + scoped `<style>` + directives).
+    pub source: String,
+    /// Parsed PPTX-export zones (for the visual zone editor).
+    pub zones: Vec<sldr_renderer::Zone>,
+}
+
+/// Overwrite a layout's whole source (the HTML/CSS editor save path).
+#[derive(Debug, Deserialize)]
+pub struct UpdateLayoutRequest {
+    pub source: String,
+}
+
+/// Rewrite only a layout's zone directives, leaving markup/CSS untouched
+/// (the visual zone editor save path).
+#[derive(Debug, Deserialize)]
+pub struct UpdateZonesRequest {
+    pub zones: Vec<sldr_renderer::Zone>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct PlaylistsResponse {
     pub playlists: Vec<Playlist>,
 }

@@ -31,7 +31,8 @@ pub mod sample;
 pub mod layout;
 
 pub use layout::{
-    builtin_layout_names, builtin_layout_source, LayoutDef, LayoutRegistry, Zone, ZoneRep,
+    builtin_layout_names, builtin_layout_source, emit_zone, parse_zones, replace_zone_block,
+    LayoutDef, LayoutRegistry, Zone, ZoneRep,
 };
 pub use markdown::{split_segments, strip_stray_markers, MarkdownSegments};
 pub use media::ImageMode;

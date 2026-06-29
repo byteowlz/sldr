@@ -23,7 +23,8 @@ use sldr_renderer::{HtmlRenderer, RenderConfig};
 use crate::models::{
     BuildRequest, BuildResponse, CreatePlaylistRequest, CreateSlideRequest, FlavorsResponse,
     PreviewResponse, PlaylistsResponse, SlideDetail, SlideSummary, SlidesResponse,
-    ScaffoldEditResponse, UpdateSlideRequest,
+    LayoutDetail, LayoutSummary, LayoutsResponse, ScaffoldEditResponse, UpdateLayoutRequest,
+    UpdateSlideRequest, UpdateZonesRequest,
 };
 use crate::state::SldrState;
 
@@ -69,6 +70,9 @@ pub fn router(state: SldrState) -> Router {
         .route("/playlists", get(list_playlists).post(create_playlist))
         .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
+        .route("/layouts", get(list_layouts))
+        .route("/layouts/{name}", get(get_layout).put(update_layout))
+        .route("/layouts/{name}/zones", put(update_layout_zones))
         .route("/build", post(build_presentation))
         .route("/preview/{playlist}", get(preview_playlist))
         .route("/scaffolds/{name}/edit", post(edit_scaffold))
@@ -544,6 +548,136 @@ fn resolve_scaffold_path(config: &Config, name: &str) -> Result<PathBuf> {
     }
 
     anyhow::bail!("Scaffold not found: {name}");
+}
+
+// --- Layouts (trx-3f4w.11): canonical layout .html CRUD + zone parse/emit. ---
+
+/// Extract a layout's `<!-- sldr:category NAME -->` value.
+fn layout_category(source: &str) -> Option<String> {
+    let pat = "<!-- sldr:category ";
+    let start = source.find(pat)? + pat.len();
+    let rest = &source[start..];
+    let end = rest.find("-->")?;
+    Some(rest[..end].trim().to_string())
+}
+
+/// Resolve a layout's source: a library file overrides the built-in. Returns
+/// `(source, is_builtin)`.
+fn resolve_layout_source(state: &SldrState, name: &str) -> Option<(String, bool)> {
+    for dir in state.config.layout_dirs() {
+        let path = dir.join(format!("{name}.html"));
+        if path.is_file() {
+            if let Ok(src) = fs::read_to_string(&path) {
+                return Some((src, false));
+            }
+        }
+    }
+    sldr_renderer::builtin_layout_source(name).map(|s| (s.to_string(), true))
+}
+
+/// A layout name must be a bare file stem — no path traversal.
+fn validate_layout_name(name: &str) -> Result<(), ApiError> {
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err(ApiError::new(StatusCode::BAD_REQUEST, "Invalid layout name"));
+    }
+    Ok(())
+}
+
+/// Write a layout's source into the (writable) library layout dir.
+fn write_layout(state: &SldrState, name: &str, source: &str) -> Result<PathBuf, ApiError> {
+    validate_layout_name(name)?;
+    let dir = state.config.layout_dir();
+    fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create layout dir {}", dir.display()))
+        .map_err(to_api_error("Failed to write layout"))?;
+    let path = dir.join(format!("{name}.html"));
+    fs::write(&path, source)
+        .with_context(|| format!("Failed to write layout {}", path.display()))
+        .map_err(to_api_error("Failed to write layout"))?;
+    Ok(path)
+}
+
+fn layout_detail(name: String, source: String, builtin: bool) -> LayoutDetail {
+    let zones = sldr_renderer::parse_zones(&source);
+    let category = layout_category(&source);
+    LayoutDetail {
+        name,
+        category,
+        builtin,
+        source,
+        zones,
+    }
+}
+
+async fn list_layouts(State(state): State<SldrState>) -> ApiResult<LayoutsResponse> {
+    use std::collections::BTreeMap;
+    // name -> is_builtin (a library file flips it to false / editable).
+    let mut names: BTreeMap<String, bool> = BTreeMap::new();
+    for n in sldr_renderer::builtin_layout_names() {
+        names.insert(n.to_string(), true);
+    }
+    for dir in state.config.layout_dirs() {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("html") {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    names.insert(stem.to_string(), false);
+                }
+            }
+        }
+    }
+
+    let layouts = names
+        .into_iter()
+        .map(|(name, builtin)| {
+            let (source, _) =
+                resolve_layout_source(&state, &name).unwrap_or_else(|| (String::new(), builtin));
+            LayoutSummary {
+                category: layout_category(&source),
+                zone_count: sldr_renderer::parse_zones(&source).len(),
+                name,
+                builtin,
+            }
+        })
+        .collect();
+    Ok(Json(LayoutsResponse { layouts }))
+}
+
+async fn get_layout(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+) -> ApiResult<LayoutDetail> {
+    let (source, builtin) = resolve_layout_source(&state, &name)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Layout not found"))?;
+    Ok(Json(layout_detail(name, source, builtin)))
+}
+
+async fn update_layout(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+    Json(payload): Json<UpdateLayoutRequest>,
+) -> ApiResult<LayoutDetail> {
+    write_layout(&state, &name, &payload.source)?;
+    info!("Updated layout source: {name}");
+    Ok(Json(layout_detail(name, payload.source, false)))
+}
+
+/// Rewrite only the zone directives (the visual zone editor). Editing a
+/// built-in's zones writes a library override; markup and CSS are untouched.
+async fn update_layout_zones(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+    Json(payload): Json<UpdateZonesRequest>,
+) -> ApiResult<LayoutDetail> {
+    let (source, _) = resolve_layout_source(&state, &name)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Layout not found"))?;
+    let new_source = sldr_renderer::replace_zone_block(&source, &payload.zones);
+    write_layout(&state, &name, &new_source)?;
+    info!("Updated {} zone(s) on layout: {name}", payload.zones.len());
+    Ok(Json(layout_detail(name, new_source, false)))
 }
 
 fn to_api_error<E>(context: &'static str) -> impl FnOnce(E) -> ApiError
