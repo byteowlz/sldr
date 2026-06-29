@@ -23,8 +23,8 @@ use sldr_renderer::{HtmlRenderer, RenderConfig};
 use crate::models::{
     BuildRequest, BuildResponse, CreatePlaylistRequest, CreateSlideRequest, FlavorsResponse,
     PreviewResponse, PlaylistsResponse, SlideDetail, SlideSummary, SlidesResponse,
-    LayoutDetail, LayoutSummary, LayoutsResponse, ScaffoldEditResponse, UpdateLayoutRequest,
-    UpdateSlideRequest, UpdateZonesRequest,
+    FlavorDetail, LayoutDetail, LayoutSummary, LayoutsResponse, ScaffoldEditResponse,
+    UpdateFlavorRequest, UpdateLayoutRequest, UpdateSlideRequest, UpdateZonesRequest,
 };
 use crate::state::SldrState;
 
@@ -70,6 +70,7 @@ pub fn router(state: SldrState) -> Router {
         .route("/playlists", get(list_playlists).post(create_playlist))
         .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
+        .route("/flavors/{name}", get(get_flavor).put(update_flavor))
         .route("/layouts", get(list_layouts))
         .route("/layouts/{name}", get(get_layout).put(update_layout))
         .route("/layouts/{name}/zones", put(update_layout_zones))
@@ -550,6 +551,69 @@ fn resolve_scaffold_path(config: &Config, name: &str) -> Result<PathBuf> {
     anyhow::bail!("Scaffold not found: {name}");
 }
 
+// --- Flavors: get-one + save (trx-3f4w, for the studio flavor editor). ---
+
+/// A name must be a bare directory stem — no path traversal.
+fn validate_name(name: &str, kind: &str) -> Result<(), ApiError> {
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            format!("Invalid {kind} name"),
+        ));
+    }
+    Ok(())
+}
+
+async fn get_flavor(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+) -> ApiResult<FlavorDetail> {
+    let flavors = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
+        .map_err(to_api_error("Failed to load flavors"))?;
+    let flavor = flavors
+        .find(&name)
+        .cloned()
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Flavor not found"))?;
+    // `custom_css` is `#[serde(skip)]`, so lift the css into its own field.
+    let css = flavor.custom_css.clone();
+    Ok(Json(FlavorDetail { flavor, css }))
+}
+
+/// Save a flavor: typed tokens → `flavor.toml`, css → `flavor.css` (removed when
+/// empty). Writes into the library flavor dir; only canonical files (ADR-0009).
+async fn update_flavor(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+    Json(payload): Json<UpdateFlavorRequest>,
+) -> ApiResult<FlavorDetail> {
+    validate_name(&name, "flavor")?;
+    let dir = state.config.flavor_dir().join(&name);
+    fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create flavor dir {}", dir.display()))
+        .map_err(to_api_error("Failed to write flavor"))?;
+
+    let toml_str = toml::to_string_pretty(&payload.flavor)
+        .map_err(to_api_error("Failed to serialize flavor toml"))?;
+    fs::write(dir.join("flavor.toml"), &toml_str)
+        .with_context(|| format!("Failed to write {}/flavor.toml", dir.display()))
+        .map_err(to_api_error("Failed to write flavor"))?;
+
+    let css_path = dir.join("flavor.css");
+    match payload.css.as_deref() {
+        Some(css) if !css.trim().is_empty() => {
+            fs::write(&css_path, css).map_err(to_api_error("Failed to write flavor.css"))?;
+        }
+        _ => {
+            let _ = fs::remove_file(&css_path);
+        }
+    }
+    info!("Saved flavor: {name}");
+    Ok(Json(FlavorDetail {
+        flavor: payload.flavor,
+        css: payload.css,
+    }))
+}
+
 // --- Layouts (trx-3f4w.11): canonical layout .html CRUD + zone parse/emit. ---
 
 /// Extract a layout's `<!-- sldr:category NAME -->` value.
@@ -575,17 +639,9 @@ fn resolve_layout_source(state: &SldrState, name: &str) -> Option<(String, bool)
     sldr_renderer::builtin_layout_source(name).map(|s| (s.to_string(), true))
 }
 
-/// A layout name must be a bare file stem — no path traversal.
-fn validate_layout_name(name: &str) -> Result<(), ApiError> {
-    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "Invalid layout name"));
-    }
-    Ok(())
-}
-
 /// Write a layout's source into the (writable) library layout dir.
 fn write_layout(state: &SldrState, name: &str, source: &str) -> Result<PathBuf, ApiError> {
-    validate_layout_name(name)?;
+    validate_name(name, "layout")?;
     let dir = state.config.layout_dir();
     fs::create_dir_all(&dir)
         .with_context(|| format!("Failed to create layout dir {}", dir.display()))

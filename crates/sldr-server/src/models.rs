@@ -111,6 +111,23 @@ pub struct FlavorsResponse {
     pub flavors: Vec<Flavor>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct FlavorDetail {
+    pub flavor: Flavor,
+    /// The `flavor.css` escape-hatch content, carried separately because
+    /// `Flavor.custom_css` is `#[serde(skip)]` (it never rides in the toml).
+    pub css: Option<String>,
+}
+
+/// Save a flavor: the typed tokens become `flavor.toml`, the optional css the
+/// sibling `flavor.css` (cleared/removed when empty).
+#[derive(Debug, Deserialize)]
+pub struct UpdateFlavorRequest {
+    pub flavor: Flavor,
+    #[serde(default)]
+    pub css: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct BuildRequest {
     pub playlist: String,

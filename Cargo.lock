@@ -1716,6 +1716,7 @@ dependencies = [
  "sldr-renderer",
  "tempfile",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
  "uuid",
