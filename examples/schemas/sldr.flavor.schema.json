@@ -770,7 +770,7 @@
       "type": "object",
       "properties": {
         "base_size": {
-          "description": "Base font size (CSS, e.g. \"20px\")",
+          "description": "Base font size as a px value (e.g. \"22px\"). Type is slide-relative, so\nthis acts as a global **type scale** anchored at 20px: \"22px\" scales all\ntext to 1.1×, \"18px\" to 0.9×. Unset = 1× (no change). Drives\n`--sldr-type-scale`.",
           "type": [
             "string",
             "null"

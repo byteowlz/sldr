@@ -198,7 +198,10 @@ pub struct Typography {
     #[serde(default)]
     pub code_font: Option<String>,
 
-    /// Base font size (CSS, e.g. "20px")
+    /// Base font size as a px value (e.g. "22px"). Type is slide-relative, so
+    /// this acts as a global **type scale** anchored at 20px: "22px" scales all
+    /// text to 1.1×, "18px" to 0.9×. Unset = 1× (no change). Drives
+    /// `--sldr-type-scale`.
     #[serde(default)]
     pub base_size: Option<String>,
 
@@ -776,7 +779,20 @@ fn write_typography_vars(css: &mut String, t: &Typography) {
     write_var(css, "heading-font", &t.heading_font);
     write_var(css, "body-font", &t.body_font);
     write_var(css, "code-font", &t.code_font);
-    write_var(css, "base-size", &t.base_size);
+    // The slide-relative type system has no fixed px, so `base_size` (a CSS px
+    // value) drives a global type scale instead: relative to a 20px baseline,
+    // a larger base size scales all text proportionally (`--sldr-type-scale`).
+    // Unset → the scale stays 1 (no change). Non-px values are ignored.
+    if let Some(px) = t
+        .base_size
+        .as_deref()
+        .map(str::trim)
+        .and_then(|s| s.strip_suffix("px"))
+        .and_then(|n| n.trim().parse::<f32>().ok())
+        .filter(|px| *px > 0.0)
+    {
+        let _ = writeln!(css, "  --sldr-type-scale: {};", px / 20.0);
+    }
     write_var(css, "heading-weight", &t.heading_weight);
     write_var(css, "body-weight", &t.body_weight);
     write_var(css, "heading-tracking", &t.heading_tracking);
