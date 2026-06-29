@@ -262,7 +262,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
  * 22pt headline / 20pt subheadline / 12pt footer on a 13.33in-wide slide. */
 .sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: var(--sldr-head-top, 6.3%); width: var(--sldr-head-width, 91.1%); }
 .sldr-framed .sldr-headline {
-  font-size: calc(var(--sldr-u) * 2.29 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * var(--sldr-headline-size, 2.29) * var(--sldr-type-scale));
   font-weight: 700;
   letter-spacing: var(--sldr-heading-tracking);
   line-height: 1.12;
@@ -270,7 +270,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   margin: 0;
 }
 .sldr-framed .sldr-subheadline {
-  font-size: calc(var(--sldr-u) * 2.08 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * var(--sldr-subheadline-size, 2.08) * var(--sldr-type-scale));
   font-weight: 400;
   line-height: 1.15;
   color: var(--sldr-accent);
@@ -289,7 +289,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   flex-direction: column;
   justify-content: flex-start;
   gap: calc(var(--sldr-u) * 1.6 * var(--sldr-density-scale));
-  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * var(--sldr-body-size, 1.6) * var(--sldr-type-scale));
   line-height: 1.4;
 }
 .sldr-framed .sldr-frame-body :is(h2, h3) {
@@ -337,7 +337,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   top: var(--sldr-footer-y, 92.5%);
   width: 80%;
   font-family: var(--sldr-body-font);
-  font-size: var(--sldr-footer-size, calc(var(--sldr-u) * 1.25));
+  font-size: calc(var(--sldr-u) * var(--sldr-footer-size, 1.25) * var(--sldr-type-scale));
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.7;
 }
@@ -347,7 +347,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   top: 88.2%;
   width: 86%;
   font-family: var(--sldr-body-font);
-  font-size: calc(var(--sldr-u) * 1.1 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * var(--sldr-source-size, 1.1) * var(--sldr-type-scale));
   line-height: 1.3;
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.65;
@@ -1132,7 +1132,7 @@ pre.sldr-code {
   border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border-bright, rgba(148, 163, 184, 0.12));
   padding: calc(var(--sldr-uh) * 2.5 * var(--sldr-density-scale)) calc(var(--sldr-u) * 2.5 * var(--sldr-density-scale));
   overflow-x: auto;
-  font-size: calc(var(--sldr-u) * 1.4 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * var(--sldr-code-size, 1.4) * var(--sldr-type-scale));
   line-height: 1.7;
   margin: calc(var(--sldr-uh) * 1.5) 0;
   box-shadow: var(--sldr-shadow-md);
@@ -1178,7 +1178,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin: 0.6em 0;
-  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * var(--sldr-table-size, 1.6) * var(--sldr-type-scale));
   background: var(--sldr-surface, #1e293b);
   border-radius: 12px;
   overflow: hidden;

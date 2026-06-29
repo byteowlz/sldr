@@ -200,7 +200,8 @@
         "heading_transform": null,
         "heading_weight": null,
         "heading_wrap": null,
-        "optical_sizing": null
+        "optical_sizing": null,
+        "type_scale": null
       }
     }
   },
@@ -770,7 +771,7 @@
       "type": "object",
       "properties": {
         "base_size": {
-          "description": "Base font size as a px value (e.g. \"22px\"). Type is slide-relative, so\nthis acts as a global **type scale** anchored at 20px: \"22px\" scales all\ntext to 1.1×, \"18px\" to 0.9×. Unset = 1× (no change). Drives\n`--sldr-type-scale`.",
+          "description": "Base font size (CSS, e.g. \"20px\"). Legacy / advisory — the slide-relative\ntype system sizes text as a fraction of the slide, not a fixed px. To\nscale all text up or down, use `type_scale`.",
           "type": [
             "string",
             "null"
@@ -891,6 +892,14 @@
         },
         "optical_sizing": {
           "description": "CSS font-optical-sizing: \"auto\" (default) or \"none\".\nVariable fonts expose optical sizing; non-variable fonts ignore it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "type_scale": {
+          "description": "Global type scale — multiplies every text size (`1.1` = 10% larger,\n`0.9` = 10% smaller). Default 1. The ergonomic way to resize a whole\ndeck's text; drives `--sldr-type-scale`.",
           "type": [
             "string",
             "null"
