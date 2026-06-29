@@ -1,18 +1,19 @@
 <!-- sldr:category framed -->
 <!-- sldr:tags classic, branded -->
 <!-- PPTX export zones (coordinates are percent of the slide box). -->
-<!-- sldr:zone name=headline ph=title rep=placeholder-text x=8 y=38 w=84 h=16 -->
-<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=8 y=55 w=84 h=8 -->
-<!-- Layout: framed-section — section divider on the deck background: a
-     single centered headline (with optional subheadline below). Partner
-     logos come from the flavor. -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=38 w=91 h=16 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=55 w=91 h=8 -->
+<!-- Layout: framed-section — section divider on the deck background: a single
+     headline (with optional subheadline below), left-aligned to the framed
+     left bound (4.4%). Partner logos come from the flavor. -->
 <style>
 .sldr-slide[data-layout="framed-section"] { padding: 0; }
 .sldr-section-frame {
   position: absolute; inset: 0;
-  display: flex; flex-direction: column; justify-content: center; align-items: center;
-  text-align: center; gap: calc(var(--sldr-uh) * 1.5);
-  padding: calc(var(--sldr-uh) * 10);
+  display: flex; flex-direction: column; justify-content: center;
+  gap: calc(var(--sldr-uh) * 1.5);
+  /* Left bound aligned with the rest of the framed family (4.4%). */
+  padding: calc(var(--sldr-uh) * 9) calc(var(--sldr-u) * 4.4);
 }
 .sldr-section-frame .sldr-headline {
   font-size: calc(var(--sldr-u) * 5);

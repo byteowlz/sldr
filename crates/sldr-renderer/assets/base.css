@@ -832,7 +832,10 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  align-content: center;
+  /* `safe` centers the rows only while they fit; once the images overflow
+   * (e.g. 3 items wrapping to two rows at a narrow size) it falls back to
+   * start alignment so the top row can't spill up over the heading. */
+  align-content: safe center;
   align-items: flex-start;
   gap: calc(var(--sldr-u) * 2 * var(--sldr-density-scale));
   flex: 1;
