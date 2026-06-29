@@ -180,7 +180,7 @@ fn resolve_path(src: &str, slide_dir: Option<&Path>) -> PathBuf {
 
     // Expand ~ home directory
     if src.starts_with('~') {
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
             return home.join(&src[2..]);
         }
     }

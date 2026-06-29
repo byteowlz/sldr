@@ -40,7 +40,6 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 # File system and paths
-dirs = "5.0"
 walkdir = "2.5"
 shellexpand = "3.1"
 

@@ -187,46 +187,71 @@ impl Default for MatchingConfig {
     }
 }
 
+/// Resolve a base directory using "option B" rules (zero external deps):
+///
+/// 1. An explicit, absolute `XDG_*` value wins on ANY OS.
+/// 2. Otherwise, on unix (incl. macOS) use `$HOME` joined with the XDG-style
+///    relative path (e.g. `.config`) — never `~/Library`.
+/// 3. Otherwise, on Windows use the relevant `%APPDATA%`/`%LOCALAPPDATA%` dir.
+fn resolve_base(
+    xdg: Option<PathBuf>,
+    home: Option<PathBuf>,
+    win_dir: Option<PathBuf>,
+    is_windows: bool,
+    unix_rel: &str,
+) -> Option<PathBuf> {
+    if let Some(p) = xdg.filter(|p| p.is_absolute()) {
+        return Some(p);
+    }
+    if is_windows {
+        win_dir
+    } else {
+        home.map(|h| h.join(unix_rel))
+    }
+}
+
+/// Resolve a base directory from environment variables using "option B" rules.
+fn base_dir(xdg_var: &str, unix_rel: &str, win_var: &str) -> anyhow::Result<PathBuf> {
+    resolve_base(
+        std::env::var_os(xdg_var).map(PathBuf::from),
+        std::env::var_os("HOME").map(PathBuf::from),
+        std::env::var_os(win_var).map(PathBuf::from),
+        cfg!(windows),
+        unix_rel,
+    )
+    .ok_or_else(|| anyhow::anyhow!("unable to determine base directory ({xdg_var})"))
+}
+
 impl Config {
     /// Get the XDG config directory for sldr
     pub fn config_dir() -> PathBuf {
-        // Priority: $XDG_CONFIG_HOME > ~/.config
-        if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
-            if !xdg.is_empty() {
-                return PathBuf::from(xdg).join("sldr");
-            }
-        }
-
-        dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("~/.config"))
+        // Priority: $XDG_CONFIG_HOME > ~/.config (or %APPDATA% on Windows)
+        base_dir("XDG_CONFIG_HOME", ".config", "APPDATA")
+            .unwrap_or_else(|_| PathBuf::from("~/.config"))
             .join("sldr")
     }
 
     /// Get the XDG data directory for sldr
     pub fn data_dir() -> PathBuf {
-        // Priority: $XDG_DATA_HOME > ~/.local/share
-        if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
-            if !xdg.is_empty() {
-                return PathBuf::from(xdg).join("sldr");
-            }
-        }
-
-        dirs::data_dir()
-            .unwrap_or_else(|| PathBuf::from("~/.local/share"))
+        // Priority: $XDG_DATA_HOME > ~/.local/share (or %APPDATA% on Windows)
+        base_dir("XDG_DATA_HOME", ".local/share", "APPDATA")
+            .unwrap_or_else(|_| PathBuf::from("~/.local/share"))
             .join("sldr")
     }
 
     /// Get the XDG state directory for sldr
     pub fn state_dir() -> PathBuf {
-        // Priority: $XDG_STATE_HOME > ~/.local/state
-        if let Ok(xdg) = std::env::var("XDG_STATE_HOME") {
-            if !xdg.is_empty() {
-                return PathBuf::from(xdg).join("sldr");
-            }
-        }
+        // Priority: $XDG_STATE_HOME > ~/.local/state (or %LOCALAPPDATA% on Windows)
+        base_dir("XDG_STATE_HOME", ".local/state", "LOCALAPPDATA")
+            .unwrap_or_else(|_| PathBuf::from("~/.local/state"))
+            .join("sldr")
+    }
 
-        dirs::state_dir()
-            .unwrap_or_else(|| PathBuf::from("~/.local/state"))
+    /// Get the XDG cache directory for sldr
+    pub fn cache_dir() -> PathBuf {
+        // Priority: $XDG_CACHE_HOME > ~/.cache (or %LOCALAPPDATA% on Windows)
+        base_dir("XDG_CACHE_HOME", ".cache", "LOCALAPPDATA")
+            .unwrap_or_else(|_| PathBuf::from("~/.cache"))
             .join("sldr")
     }
 
@@ -357,5 +382,71 @@ mod tests {
     fn test_expand_path() {
         let path = Config::expand_path("~/test");
         assert!(!path.to_string_lossy().contains('~'));
+    }
+
+    #[test]
+    fn resolve_base_absolute_xdg_wins_on_any_os() {
+        let xdg = Some(PathBuf::from("/explicit/xdg"));
+        let home = Some(PathBuf::from("/home/user"));
+        let win = Some(PathBuf::from("C:\\Users\\u\\AppData\\Roaming"));
+
+        // unix
+        assert_eq!(
+            resolve_base(xdg.clone(), home.clone(), win.clone(), false, ".config"),
+            Some(PathBuf::from("/explicit/xdg"))
+        );
+        // windows
+        assert_eq!(
+            resolve_base(xdg.clone(), home.clone(), win.clone(), true, ".config"),
+            Some(PathBuf::from("/explicit/xdg"))
+        );
+    }
+
+    #[test]
+    fn resolve_base_relative_xdg_is_ignored() {
+        // A non-absolute XDG value must not win; fall back to HOME/unix_rel.
+        let xdg = Some(PathBuf::from("relative/path"));
+        let home = Some(PathBuf::from("/home/user"));
+        assert_eq!(
+            resolve_base(xdg, home, None, false, ".config"),
+            Some(PathBuf::from("/home/user/.config"))
+        );
+    }
+
+    #[test]
+    fn resolve_base_unix_uses_home_not_library() {
+        let home = Some(PathBuf::from("/Users/user"));
+        let got = resolve_base(None, home, None, false, ".config");
+        // macOS must not be routed to ~/Library; HOME/.config is used instead.
+        assert_eq!(got, Some(PathBuf::from("/Users/user/.config")));
+        let rendered = got.map(|p| p.to_string_lossy().into_owned());
+        assert_eq!(rendered.as_deref(), Some("/Users/user/.config"));
+        assert!(!rendered.unwrap_or_default().contains("Library"));
+    }
+
+    #[test]
+    fn resolve_base_windows_uses_win_dir() {
+        let win = Some(PathBuf::from("C:\\Users\\u\\AppData\\Roaming"));
+        assert_eq!(
+            resolve_base(
+                None,
+                Some(PathBuf::from("/home/user")),
+                win.clone(),
+                true,
+                ".config"
+            ),
+            win
+        );
+    }
+
+    #[test]
+    fn resolve_base_none_when_unresolvable() {
+        // unix without HOME
+        assert_eq!(resolve_base(None, None, None, false, ".config"), None);
+        // windows without win_dir
+        assert_eq!(
+            resolve_base(None, Some(PathBuf::from("/h")), None, true, ".config"),
+            None
+        );
     }
 }

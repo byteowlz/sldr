@@ -32,7 +32,7 @@ fn agent() -> ureq::Agent {
 }
 
 fn cache_dir() -> Option<PathBuf> {
-    let d = dirs::cache_dir()?.join("sldr").join("fonts");
+    let d = sldr_core::Config::cache_dir().join("fonts");
     std::fs::create_dir_all(&d).ok()?;
     Some(d)
 }

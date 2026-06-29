@@ -862,16 +862,18 @@ fn find_browser() -> Result<PathBuf> {
         }
     }
 
-    let candidates = [
+    let mut candidates: Vec<&str> = vec![
         "chromium",
         "chromium-browser",
         "google-chrome",
         "google-chrome-stable",
-        "/usr/bin/chromium",
-        "/usr/bin/google-chrome",
+    ];
+    #[cfg(unix)]
+    candidates.extend(["/usr/bin/chromium", "/usr/bin/google-chrome"]);
+    candidates.extend([
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    ];
+    ]);
 
     for candidate in &candidates {
         let path = PathBuf::from(candidate);
