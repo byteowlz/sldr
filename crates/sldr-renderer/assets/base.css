@@ -230,7 +230,16 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 /* === Deck chrome (framed layouts) ===
  * Shared styling for the persistent headline/subheadline/footer/source
  * framing, so every framed-* layout reuses it and only supplies its body
- * arrangement. All colors bind to flavor tokens. */
+ * arrangement. All colors bind to flavor tokens.
+ *
+ * Tunable geometry tokens (override in a flavor's flavor.css `:root {}`, all
+ * percentages are of the slide box unless noted):
+ *   --sldr-head-top    (6.3%)   header (headline+subheadline) top
+ *   --sldr-body-top    (22.2%)  body top — the gap below the subheadline
+ *   --sldr-body-bottom (90.6%)  body bottom edge (kept clear of the footer)
+ *   --sldr-footer-size (1.25 × --sldr-u)  footer font-size
+ *   --sldr-footer-x/-y (4.4% / 92.5%)     footer position
+ */
 .sldr-slide:has(.sldr-framed) { padding: 0; }
 .sldr-framed { position: absolute; inset: 0; }
 /* Readability scrim: content layouts dim the flavor background toward its
@@ -250,7 +259,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 /* Chrome placed at the source deck's exact coordinates. Sizes
  * are vw-relative so they track the 16:9 design; positions are % of slide.
  * 22pt headline / 20pt subheadline / 12pt footer on a 13.33in-wide slide. */
-.sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: 6.3%; width: var(--sldr-head-width, 91.1%); }
+.sldr-framed .sldr-frame-head { position: absolute; left: 4.4%; top: var(--sldr-head-top, 6.3%); width: var(--sldr-head-width, 91.1%); }
 .sldr-framed .sldr-headline {
   font-size: calc(var(--sldr-u) * 2.29);
   font-weight: 700;
@@ -269,9 +278,12 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-framed .sldr-frame-body {
   position: absolute;
   left: 4.4%;
-  top: 22.2%;
+  /* `--sldr-body-top` is the gap below the subheadline — lower it to pull the
+   * body up. Height tracks `--sldr-body-bottom` so the bottom edge stays put
+   * (clear of the footer) regardless of the gap. */
+  top: var(--sldr-body-top, 22.2%);
   width: 91.1%;
-  height: 68.4%;
+  height: calc(var(--sldr-body-bottom, 90.6%) - var(--sldr-body-top, 22.2%));
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -320,11 +332,11 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-chrome a { pointer-events: auto; }
 .sldr-chrome .sldr-footer {
   position: absolute;
-  left: 4.4%;   /* aligned with the headline / body / source left edge */
-  top: 92.5%;
+  left: var(--sldr-footer-x, 4.4%);   /* aligned with headline / body / source */
+  top: var(--sldr-footer-y, 92.5%);
   width: 80%;
   font-family: var(--sldr-body-font);
-  font-size: calc(var(--sldr-u) * 1.25);
+  font-size: var(--sldr-footer-size, calc(var(--sldr-u) * 1.25));
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.7;
 }
