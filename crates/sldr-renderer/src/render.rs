@@ -327,10 +327,14 @@ impl HtmlRenderer {
             subheadline: resolved.subtitle.as_deref().map(|t| {
                 format!("<p class=\"sldr-subheadline\">{}</p>", html_escape_text(t))
             }),
+            // Slide `footer` overrides the flavor's; an explicit empty
+            // (`footer: ""`) suppresses it on this slide (and wins over the
+            // flavor default) rather than rendering an empty line.
             footer: resolved
                 .footer
                 .as_deref()
                 .or(flavor_footer)
+                .filter(|t| !t.trim().is_empty())
                 .map(|t| format!("<div class=\"sldr-footer\">{}</div>", html_escape_text(t))),
             source: resolved.source.as_deref().map(|s| {
                 format!(
@@ -385,7 +389,13 @@ impl HtmlRenderer {
             match cfg {
                 Some(list) if list.iter().any(|l| l == "all") => true,
                 Some(list) if !list.is_empty() => list.iter().any(|l| l == layout),
-                _ => def.category.as_deref() == Some("framed"),
+                // Default: the framed *body* family — not the title/divider
+                // covers, which are meant to be clean (a flavor can still opt
+                // them in via chrome_layouts).
+                _ => {
+                    def.category.as_deref() == Some("framed")
+                        && !matches!(layout, "framed-cover" | "framed-section")
+                }
             }
         };
 
@@ -986,6 +996,45 @@ mod tests {
             "expected a stray-marker warning: {:?}",
             renderer.warnings()
         );
+    }
+
+    #[test]
+    fn test_empty_footer_suppresses_chrome() {
+        // `footer: ""` on a slide suppresses the footer (and wins over the
+        // flavor footer), rather than rendering an empty line.
+        let flavor = Flavor {
+            name: "f".to_string(),
+            footer: Some("© Flavor".to_string()),
+            ..Default::default()
+        };
+        let slide = sldr_core::slide::Slide::from_str(
+            "nf",
+            "nf.md",
+            "---\nlayout: framed\nfooter: \"\"\n---\nbody\n",
+        );
+        let mut r = HtmlRenderer::new(RenderConfig::default()).add_flavor(flavor);
+        r.add_slide(&slide).unwrap();
+        let html = r.render().unwrap();
+        assert!(!html.contains("<div class=\"sldr-footer\""), "footer should be suppressed");
+        assert!(!html.contains("© Flavor"), "flavor footer should not leak through");
+    }
+
+    #[test]
+    fn test_framed_cover_has_no_footer_by_default() {
+        let flavor = Flavor {
+            name: "f".to_string(),
+            footer: Some("© Flavor".to_string()),
+            ..Default::default()
+        };
+        let slide = sldr_core::slide::Slide::from_str(
+            "cov",
+            "cov.md",
+            "---\nlayout: framed-cover\ntitle: Hi\n---\n2026\n",
+        );
+        let mut r = HtmlRenderer::new(RenderConfig::default()).add_flavor(flavor);
+        r.add_slide(&slide).unwrap();
+        let html = r.render().unwrap();
+        assert!(!html.contains("<div class=\"sldr-chrome\""), "covers stay clean by default");
     }
 
     #[test]

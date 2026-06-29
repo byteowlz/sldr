@@ -1,9 +1,9 @@
 <!-- sldr:category framed -->
 <!-- sldr:tags classic, branded -->
 <!-- PPTX export zones (coordinates are percent of the slide box). -->
-<!-- sldr:zone name=headline ph=title rep=placeholder-text x=8 y=34 w=84 h=16 -->
-<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=8 y=51 w=84 h=8 -->
-<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=8 y=62 w=84 h=22 -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=34 w=91 h=16 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=51 w=91 h=8 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=4.4 y=62 w=91 h=22 -->
 <!-- Layout: framed-cover — title slide on the deck background. Subheadline
      reads as an eyebrow above an oversized headline; the markdown body
      carries a date or strapline. Footer/source omitted; partner logos come
@@ -14,7 +14,8 @@
   position: absolute; inset: 0;
   display: flex; flex-direction: column; justify-content: center;
   gap: calc(var(--sldr-uh) * 1.8);
-  padding: calc(var(--sldr-uh) * 9) calc(var(--sldr-u) * 7);
+  /* Left bound aligned with the rest of the framed family (4.4%). */
+  padding: calc(var(--sldr-uh) * 9) calc(var(--sldr-u) * 4.4);
 }
 .sldr-cover-frame .sldr-subheadline {
   order: -1;
