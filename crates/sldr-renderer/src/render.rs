@@ -377,6 +377,18 @@ impl HtmlRenderer {
             ));
         }
 
+        // Persistent bottom chrome (footer + source) shows on the layouts the
+        // flavor opts in via `chrome_layouts`; empty (default) = the framed
+        // family only, preserving the clean look of cover/statement/image.
+        let chrome_overlay = {
+            let cfg = self.flavors.first().map(|f| f.chrome_layouts.as_slice());
+            match cfg {
+                Some(list) if list.iter().any(|l| l == "all") => true,
+                Some(list) if !list.is_empty() => list.iter().any(|l| l == layout),
+                _ => def.category.as_deref() == Some("framed"),
+            }
+        };
+
         let html = wrap_slide(
             SlideOpts {
                 index,
@@ -387,6 +399,7 @@ impl HtmlRenderer {
                 rendered,
                 speaker_notes: notes.as_deref(),
                 chrome,
+                chrome_overlay,
             },
             def,
         );

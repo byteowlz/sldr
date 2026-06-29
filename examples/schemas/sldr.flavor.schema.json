@@ -21,6 +21,14 @@
         "value": null
       }
     },
+    "chrome_layouts": {
+      "description": "Which layouts carry the persistent bottom chrome (footer + source\nattribution). Empty (the default) means the `framed` family only —\npreserving the clean look of cover/statement/image layouts. Use\n`[\"all\"]` for every layout, or name specific layouts to opt them in.\n(Logos are controlled separately, per `[[logos]] layouts`.)",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
     "code": {
       "description": "Code block styling",
       "$ref": "#/$defs/Code",
@@ -110,7 +118,7 @@
       }
     },
     "footer": {
-      "description": "Deck footer line — persistent chrome (e.g. a copyright or\nconfidentiality notice) shown via a framed layout's `{{footer}}`\nslot. A slide's own `footer` frontmatter overrides this per slide.",
+      "description": "Deck footer line — persistent chrome (e.g. a copyright or\nconfidentiality notice). A slide's own `footer` frontmatter overrides\nthis per slide. Shown on the layouts named in `chrome_layouts`.",
       "type": [
         "string",
         "null"

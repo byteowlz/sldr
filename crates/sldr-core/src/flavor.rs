@@ -92,10 +92,18 @@ pub struct Flavor {
     pub logos: Vec<LogoPlacement>,
 
     /// Deck footer line — persistent chrome (e.g. a copyright or
-    /// confidentiality notice) shown via a framed layout's `{{footer}}`
-    /// slot. A slide's own `footer` frontmatter overrides this per slide.
+    /// confidentiality notice). A slide's own `footer` frontmatter overrides
+    /// this per slide. Shown on the layouts named in `chrome_layouts`.
     #[serde(default)]
     pub footer: Option<String>,
+
+    /// Which layouts carry the persistent bottom chrome (footer + source
+    /// attribution). Empty (the default) means the `framed` family only —
+    /// preserving the clean look of cover/statement/image layouts. Use
+    /// `["all"]` for every layout, or name specific layouts to opt them in.
+    /// (Logos are controlled separately, per `[[logos]] layouts`.)
+    #[serde(default)]
+    pub chrome_layouts: Vec<String>,
 
     /// Path to additional assets (logos, images)
     #[serde(default)]
@@ -577,6 +585,7 @@ impl Default for Flavor {
             font_imports: Vec::new(),
             logos: Vec::new(),
             footer: None,
+            chrome_layouts: Vec::new(),
             assets_dir: None,
             custom_css: None,
             source_dir: None,

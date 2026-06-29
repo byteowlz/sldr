@@ -304,11 +304,21 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   gap: calc(var(--sldr-uh) * 1.1);
   min-height: 0;
 }
-.sldr-framed .sldr-frame-foot { display: contents; }
-/* Footer (copyright) pinned bottom-left; source attribution sits one line
- * above it, left-aligned to the headline (4.4%) — matching the source deck.
- * They are independent so a slide can carry both. */
-.sldr-framed .sldr-footer {
+/* Persistent bottom chrome (footer + source) as a fixed, layout-agnostic
+ * overlay: injected into every chrome-enabled slide (framed family by default;
+ * any layout via the flavor's `chrome_layouts`). Spans the slide so its
+ * children position against the slide box regardless of the layout. Footer
+ * (copyright) pinned bottom-left; source attribution one line above it, both
+ * left-aligned to the headline edge (4.4%). Layouts may still override the
+ * source/footer placement via their own `[data-layout]` rules. */
+.sldr-chrome {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.sldr-chrome a { pointer-events: auto; }
+.sldr-chrome .sldr-footer {
   position: absolute;
   left: 4.4%;   /* aligned with the headline / body / source left edge */
   top: 92.5%;
@@ -318,7 +328,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   color: var(--sldr-text-dim, var(--sldr-text));
   opacity: 0.7;
 }
-.sldr-framed .sldr-source {
+.sldr-chrome .sldr-source {
   position: absolute;
   left: 4.4%;
   top: 88.2%;
@@ -332,8 +342,8 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sldr-framed .sldr-source-label { color: var(--sldr-accent); }
-.sldr-framed .sldr-source a {
+.sldr-chrome .sldr-source-label { color: var(--sldr-accent); }
+.sldr-chrome .sldr-source a {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;

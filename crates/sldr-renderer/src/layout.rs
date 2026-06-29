@@ -48,9 +48,14 @@ pub struct SlideOpts<'a> {
     pub speaker_notes: Option<&'a str>,
     /// Chrome slots — persistent deck framing fed from frontmatter and the
     /// flavor, not from the markdown body. Each is pre-escaped/rendered
-    /// HTML; a framed layout places them, a plain layout ignores them, and
-    /// an empty slot collapses to nothing.
+    /// HTML; the headline/subheadline fill a framed layout's slots, while the
+    /// footer + source render as a fixed `.sldr-chrome` overlay (so any
+    /// `chrome_overlay` layout can carry them — see below).
     pub chrome: Chrome,
+    /// Whether this slide's layout shows the persistent bottom chrome (footer
+    /// + source). Decided per flavor `chrome_layouts`; the overlay is injected
+    /// regardless of whether the layout has any footer/source *slot*.
+    pub chrome_overlay: bool,
 }
 
 /// Persistent slide framing: the headline/subheadline zone, footer line,
@@ -700,6 +705,7 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
         rendered,
         speaker_notes,
         chrome,
+        chrome_overlay,
     } = opts;
 
     let mut html = String::new();
@@ -727,6 +733,20 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
 
     let slots = slot_map(rendered, def.collage, &def.structure, &chrome);
     html.push_str(&fill_slots(&def.structure, &slots));
+
+    // Persistent bottom chrome (footer + source) as a fixed overlay, so any
+    // chrome-enabled layout carries it — not just framed ones with a slot.
+    // Positioned by `.sldr-chrome` CSS, independent of the layout's content.
+    if chrome_overlay {
+        let footer = chrome.footer.as_deref().unwrap_or("");
+        let source = chrome.source.as_deref().unwrap_or("");
+        if !footer.is_empty() || !source.is_empty() {
+            html.push_str("  <div class=\"sldr-chrome\" aria-hidden=\"true\">");
+            html.push_str(source);
+            html.push_str(footer);
+            html.push_str("</div>\n");
+        }
+    }
 
     // Speaker notes (hidden, read by presenter.js)
     if let Some(notes) = speaker_notes {
@@ -762,6 +782,7 @@ mod tests {
                 rendered,
                 speaker_notes: notes,
                 chrome: Chrome::default(),
+                chrome_overlay: false,
             },
             def,
         )
@@ -800,6 +821,7 @@ mod tests {
                 },
                 speaker_notes: Some("Speaker note here"),
                 chrome: Chrome::default(),
+                chrome_overlay: false,
             },
             def,
         );
@@ -940,6 +962,7 @@ mod tests {
                 rendered: MarkdownOutput::Single("<h1>Right-aligned</h1>".to_string()),
                 speaker_notes: None,
                 chrome: Chrome::default(),
+                chrome_overlay: false,
             },
             def,
         );
@@ -1031,6 +1054,7 @@ mod tests {
                 rendered: MarkdownOutput::Single("<h1>Big</h1>".to_string()),
                 speaker_notes: None,
                 chrome: Chrome::default(),
+                chrome_overlay: false,
             },
             def,
         );
