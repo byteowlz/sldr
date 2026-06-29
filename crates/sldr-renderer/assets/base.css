@@ -867,42 +867,34 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   text-wrap: balance;
 }
 
-/* image-grid: cells size to the image (no horizontal stretch), so cells
- * never get wider than the image they hold. Image height scales with the
- * item count so few = big, many = smaller with extra rows. */
+/* image-grid: every image shares one common height, so mixed aspect ratios
+ * line up into clean rows with aligned captions (width follows each image's
+ * aspect — no letterboxing). The shared height steps down with the item count
+ * (few = big); rows wrap when they don't fit, and fitSlide scales the block if
+ * it still overflows. */
 .sldr-slide[data-layout="image-grid"] .sldr-collage > .sldr-collage-item {
-  flex: 0 1 auto;
-  max-width: calc(var(--sldr-u) * 26);
+  flex: 0 0 auto;
 }
-
 .sldr-slide[data-layout="image-grid"] .sldr-collage > .sldr-collage-item img {
+  height: calc(var(--sldr-uh) * 28 * var(--sldr-density-scale));
   width: auto;
   max-width: 100%;
-  max-height: calc(var(--sldr-uh) * 38);
+  max-height: none;
 }
 
-/* 1–4 items: bigger images, single row. */
-.sldr-slide[data-layout="image-grid"] .sldr-collage:not(:has(> :nth-child(5))) > .sldr-collage-item {
-  max-width: calc(var(--sldr-u) * 32);
-}
-.sldr-slide[data-layout="image-grid"] .sldr-collage:not(:has(> :nth-child(5))) > .sldr-collage-item img {
-  max-height: calc(var(--sldr-uh) * 60);
+/* 1–3 items: bigger. */
+.sldr-slide[data-layout="image-grid"] .sldr-collage:not(:has(> :nth-child(4))) > .sldr-collage-item img {
+  height: calc(var(--sldr-uh) * 34 * var(--sldr-density-scale));
 }
 
-/* 7+ items: smaller, lets 2–3 rows fit. */
-.sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(7)) > .sldr-collage-item {
-  max-width: calc(var(--sldr-u) * 22);
-}
+/* 7+ items: smaller, lets more rows fit. */
 .sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(7)) > .sldr-collage-item img {
-  max-height: calc(var(--sldr-uh) * 28);
+  height: calc(var(--sldr-uh) * 22 * var(--sldr-density-scale));
 }
 
-/* 13+ items: tightest cap. */
-.sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(13)) > .sldr-collage-item {
-  max-width: calc(var(--sldr-u) * 17);
-}
+/* 13+ items: tightest. */
 .sldr-slide[data-layout="image-grid"] .sldr-collage:has(> :nth-child(13)) > .sldr-collage-item img {
-  max-height: calc(var(--sldr-uh) * 22);
+  height: calc(var(--sldr-uh) * 17 * var(--sldr-density-scale));
 }
 
 /* image-row: one filmstrip row with a shared image height. Cells size to

@@ -1,24 +1,43 @@
 <!-- sldr:category framed -->
 <!-- sldr:tags classic, branded -->
-<!-- PPTX export zones (coordinates are percent of the slide box). -->
-<!-- sldr:zone name=content rep=picture x=0 y=0 w=100 h=100 -->
-<!-- sldr:zone name=source ph=body idx=2 rep=placeholder-text x=4.4 y=92 w=86 h=5 -->
-<!-- Layout: framed-full — edge-to-edge media (image or video) over the deck
-     background, no chrome. For web clippings / screenshots / video stills.
-     An optional source line floats bottom-left. -->
+<!-- PPTX export zones: framed chrome + a media body (picture) filling the same
+     body box as the rest of the framed family. Percent of the slide box. -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=content rep=picture x=4.4 y=22.2 w=91.1 h=64 -->
+<!-- sldr:zone name=source ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=86 h=5 -->
+<!-- Layout: framed-full — deck chrome (framed) with a single image/video that
+     fills the framed body box (no text). For screenshots, web clippings, and
+     stills that should sit on the same left bound as the rest of the deck. The
+     branded full-media counterpart of framed-image's picture column. -->
 <style>
-.sldr-slide[data-layout="framed-full"] { padding: 0; }
-.sldr-full-frame { position: absolute; inset: 0; display: flex; }
-.sldr-full-frame .sldr-frame-body {
-  flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0;
+/* Center + contain the media within the shared framed body box, so it lands on
+   the same bounds (left 4.4%, top 22.2%) as every other framed layout. */
+.sldr-slide[data-layout="framed-full"] .sldr-frame-body {
+  justify-content: center;
+  align-items: center;
 }
-.sldr-full-frame .sldr-frame-body :is(img, video) {
-  max-width: 100%; max-height: 100%; object-fit: contain;
+.sldr-slide[data-layout="framed-full"] .sldr-frame-body :is(p, figure) {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
 }
-/* The source line renders in the shared `.sldr-chrome` overlay (left 4.4%),
- * styled by base.css — no layout-local foot rules needed. */
+.sldr-slide[data-layout="framed-full"] .sldr-frame-body :is(img, video) {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--sldr-radius-sm);
+}
 </style>
-<div class="sldr-full-frame">
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
   <div class="sldr-frame-body">
     {{content}}
   </div>
