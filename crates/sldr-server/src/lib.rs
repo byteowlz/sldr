@@ -84,13 +84,22 @@ async fn require_bearer(
     req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    let presented = req
+    let header = req
         .headers()
         .get(AUTHORIZATION)
         .and_then(|h| h.to_str().ok())
-        .and_then(|h| h.strip_prefix("Bearer "));
-    match presented {
-        Some(token) if token == expected.0 => Ok(next.run(req).await),
-        _ => Err(StatusCode::UNAUTHORIZED),
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(str::to_string);
+    // Iframes and download links can't set headers, so also accept `?token=…`
+    // (same trust model — a light, Tailscale-only token).
+    let query = req.uri().query().and_then(|q| {
+        q.split('&')
+            .find_map(|kv| kv.strip_prefix("token="))
+            .map(|t| t.to_string())
+    });
+    if header.as_deref() == Some(&expected.0) || query.as_deref() == Some(&expected.0) {
+        Ok(next.run(req).await)
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
     }
 }

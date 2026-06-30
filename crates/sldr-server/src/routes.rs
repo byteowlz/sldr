@@ -75,6 +75,7 @@ pub fn router(state: SldrState) -> Router {
         .route("/layouts/{name}", get(get_layout).put(update_layout))
         .route("/layouts/{name}/zones", put(update_layout_zones))
         .route("/build", post(build_presentation))
+        .route("/preview/sample", get(preview_sample))
         .route("/preview/{playlist}", get(preview_playlist))
         .route("/scaffolds/{name}/edit", post(edit_scaffold))
         .with_state(state)
@@ -549,6 +550,21 @@ fn resolve_scaffold_path(config: &Config, name: &str) -> Result<PathBuf> {
     }
 
     anyhow::bail!("Scaffold not found: {name}");
+}
+
+/// Render the bundled sample deck with a given flavor — live preview for the
+/// flavor editor. Returns the full self-contained HTML for an iframe.
+async fn preview_sample(
+    State(state): State<SldrState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> std::result::Result<axum::response::Html<String>, ApiError> {
+    let name = params.get("flavor").map(String::as_str).unwrap_or("default");
+    let flavors = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
+        .map_err(to_api_error("Failed to load flavors"))?;
+    let flavor = flavors.find(name).cloned().unwrap_or_default();
+    let html = sldr_renderer::render_sample(flavor, &[])
+        .map_err(to_api_error("Failed to render sample"))?;
+    Ok(axum::response::Html(html))
 }
 
 // --- Flavors: get-one + save (trx-3f4w, for the studio flavor editor). ---

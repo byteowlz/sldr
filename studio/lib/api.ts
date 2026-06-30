@@ -69,6 +69,33 @@ export interface FlavorSummary {
   description?: string | null;
 }
 
+type Tokens = Record<string, string | null | undefined>;
+export interface Flavor {
+  name: string;
+  display_name?: string | null;
+  description?: string | null;
+  colors: Tokens;
+  dark_colors?: Tokens | null;
+  typography: Tokens;
+  spacing: Tokens;
+  shape: Tokens;
+  background: Tokens;
+  footer?: string | null;
+  chrome_layouts: string[];
+  [k: string]: unknown;
+}
+export interface FlavorDetail {
+  flavor: Flavor;
+  css: string | null;
+}
+
+/** URL for the live sample-deck preview iframe (token in the query — iframes
+ * can't set headers). */
+export function samplePreviewUrl(flavor: string, bust?: number) {
+  const t = encodeURIComponent(getToken());
+  return `/api/preview/sample?flavor=${encodeURIComponent(flavor)}&token=${t}${bust ? `&t=${bust}` : ""}`;
+}
+
 // --- Endpoints ---
 export const api = {
   health: () => req<{ ok: boolean; version: string }>("/health"),
@@ -79,6 +106,12 @@ export const api = {
     req<Playlist>("/playlists", { method: "POST", body: JSON.stringify(p) }),
   flavors: () =>
     req<{ flavors: FlavorSummary[] }>("/flavors").then((r) => r.flavors),
+  getFlavor: (name: string) => req<FlavorDetail>(`/flavors/${name}`),
+  saveFlavor: (name: string, flavor: Flavor, css: string | null) =>
+    req<FlavorDetail>(`/flavors/${name}`, {
+      method: "PUT",
+      body: JSON.stringify({ flavor, css }),
+    }),
   layouts: () =>
     req<{ layouts: LayoutSummary[] }>("/layouts").then((r) => r.layouts),
   layout: (name: string) => req<LayoutDetail>(`/layouts/${name}`),
