@@ -25,7 +25,15 @@ async fn main() -> Result<()> {
     } else {
         info!("Bearer-token auth enabled");
     }
-    let app = app(state, ServeOptions { token });
+    let studio_dir = std::env::var("SLDR_STUDIO_DIR")
+        .ok()
+        .filter(|d| !d.is_empty())
+        .map(std::path::PathBuf::from);
+    match &studio_dir {
+        Some(d) => info!("serving studio frontend from {}", d.display()),
+        None => info!("no SLDR_STUDIO_DIR — serving API only (no studio UI)"),
+    }
+    let app = app(state, ServeOptions { token, studio_dir });
     info!("sldr-server listening on {}", addr);
 
     axum::serve(tokio::net::TcpListener::bind(addr).await?, app)

@@ -14,12 +14,15 @@ pub mod preview;
 pub mod routes;
 pub mod state;
 
+use std::path::PathBuf;
+
 use axum::extract::{Request, State};
 use axum::http::{header::AUTHORIZATION, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
+use tower_http::services::{ServeDir, ServeFile};
 
 pub use routes::router;
 pub use state::SldrState;
@@ -32,10 +35,15 @@ pub struct ServeOptions {
     /// as `Authorization: Bearer <token>`, so the studio plugs in with no
     /// adapter (ADR-0009; light token, Tailscale-only).
     pub token: Option<String>,
+    /// Directory of the built studio frontend (`studio/dist`). When set, it is
+    /// served at `/` with SPA fallback; the API lives under `/api`. When `None`,
+    /// only the API is served (the Oqto-mount path provides its own UI).
+    pub studio_dir: Option<PathBuf>,
 }
 
-/// Build the standalone application: the API, an open `/health`, and the
-/// Bearer-token guard when a token is configured.
+/// Build the standalone application: the API under `/api` (with an open
+/// `/api/health` and the optional Bearer guard), and — when configured — the
+/// studio SPA at `/`.
 pub fn app(state: SldrState, opts: ServeOptions) -> Router {
     let mut api = router(state);
     if let Some(token) = opts.token {
@@ -44,9 +52,17 @@ pub fn app(state: SldrState, opts: ServeOptions) -> Router {
             require_bearer,
         ));
     }
-    // `/health` is intentionally outside the auth layer so a monitor (or Oqto)
-    // can probe liveness without the token.
-    Router::new().route("/health", get(health)).merge(api)
+    // `/health` stays outside the auth layer so a monitor (or Oqto) can probe
+    // liveness without the token.
+    let api = Router::new().route("/health", get(health)).merge(api);
+
+    let mut app = Router::new().nest("/api", api);
+    if let Some(dir) = opts.studio_dir {
+        // Serve the SPA, falling back to index.html so client-side routes work.
+        let index = dir.join("index.html");
+        app = app.fallback_service(ServeDir::new(dir).not_found_service(ServeFile::new(index)));
+    }
+    app
 }
 
 async fn health() -> Json<serde_json::Value> {
