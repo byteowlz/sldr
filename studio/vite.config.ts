@@ -8,7 +8,7 @@ import path from "node:path";
 // and the /api routes from the same origin.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+  resolve: { alias: { "@": path.resolve(__dirname) } },
   server: {
     proxy: {
       "/api": {

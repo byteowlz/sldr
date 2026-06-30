@@ -1,27 +1,47 @@
 import { useQuery } from "@tanstack/react-query";
+import { Palette } from "lucide-react";
 import { api } from "@/lib/api";
-import { Card, Muted, Spinner } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function Flavors() {
   const flavors = useQuery({ queryKey: ["flavors"], queryFn: api.flavors });
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold">
-        Flavors <Muted>({flavors.data?.length ?? "…"})</Muted>
-      </h2>
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <h2 className="text-xl font-semibold tracking-tight">Flavors</h2>
+        <Badge variant="secondary">{flavors.data?.length ?? "…"}</Badge>
+      </div>
       {flavors.isLoading ? (
-        <Spinner />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {flavors.data?.map((f) => (
             <Card key={f.name}>
-              <div className="font-medium">{f.display_name || f.name}</div>
-              <Muted>{f.description || f.name}</Muted>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="size-4 text-muted-foreground" />
+                  {f.display_name || f.name}
+                </CardTitle>
+                <CardDescription>{f.description || f.name}</CardDescription>
+              </CardHeader>
             </Card>
           ))}
         </div>
       )}
-      <Muted>Editing arrives with the flavor editor — the API is ready.</Muted>
+      <p className="text-sm text-muted-foreground">
+        Visual editing arrives next — the GET/PUT flavor API is already live.
+      </p>
     </section>
   );
 }

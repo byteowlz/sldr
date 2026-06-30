@@ -1,0 +1,921 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* JetBrainsMono Nerd Font - Optional custom fonts
+   If fonts are not available in /public/fonts/, the system will fallback to ui-monospace */
+@font-face {
+	font-family: "JetBrainsMono Nerd Font";
+	src: url("/fonts/JetBrainsMonoNerdFont-Regular.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "JetBrainsMono Nerd Font";
+	src: url("/fonts/JetBrainsMonoNerdFont-Bold.ttf") format("truetype");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "JetBrainsMono Nerd Font";
+	src: url("/fonts/JetBrainsMonoNerdFont-Italic.ttf") format("truetype");
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "JetBrainsMono Nerd Font";
+	src: url("/fonts/JetBrainsMonoNerdFont-BoldItalic.ttf") format("truetype");
+	font-weight: 700;
+	font-style: italic;
+	font-display: swap;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--font-sans: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--font-mono: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+	--radius-sm: 0;
+	--radius-md: 0;
+	--radius-lg: 0;
+	--radius-xl: 0;
+	--font-serif: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--radius: 0;
+	--tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+	--tracking-tight: calc(var(--tracking-normal) - 0.025em);
+	--tracking-wide: calc(var(--tracking-normal) + 0.025em);
+	--tracking-wider: calc(var(--tracking-normal) + 0.05em);
+	--tracking-widest: calc(var(--tracking-normal) + 0.1em);
+	--tracking-normal: var(--tracking-normal);
+	--shadow-2xl: var(--shadow-2xl);
+	--shadow-xl: var(--shadow-xl);
+	--shadow-lg: var(--shadow-lg);
+	--shadow-md: var(--shadow-md);
+	--shadow: var(--shadow);
+	--shadow-sm: var(--shadow-sm);
+	--shadow-xs: var(--shadow-xs);
+	--shadow-2xs: var(--shadow-2xs);
+	--spacing: var(--spacing);
+	--letter-spacing: var(--letter-spacing);
+	--shadow-offset-y: var(--shadow-offset-y);
+	--shadow-offset-x: var(--shadow-offset-x);
+	--shadow-spread: var(--shadow-spread);
+	--shadow-blur: var(--shadow-blur);
+	--shadow-opacity: var(--shadow-opacity);
+	--color-shadow-color: var(--shadow-color);
+	--color-destructive-foreground: var(--destructive-foreground);
+}
+
+:root {
+	--radius: 0;
+	--background: oklch(0.9702 0 0);
+	--foreground: oklch(0.25 0.015 230);
+	--card: oklch(0.9249 0 0);
+	--card-foreground: oklch(0.25 0.015 230);
+	--popover: oklch(0.9702 0 0);
+	--popover-foreground: oklch(0.25 0.015 230);
+	--primary: oklch(0.45 0.12 160);
+	--primary-foreground: oklch(0.98 0 0);
+	--secondary: oklch(0.8926 0.0354 234.8416);
+	--secondary-foreground: oklch(0.1435 0.0018 196.9603);
+	--muted: oklch(0.9067 0 0);
+	--muted-foreground: oklch(0.45 0.015 230);
+	--accent: oklch(0.8588 0.0406 231.8804);
+	--accent-foreground: oklch(0.25 0.015 230);
+	--destructive: oklch(0.5 0.18 25);
+	--border: oklch(0.82 0 0);
+	--input: oklch(0.9067 0 0);
+	--ring: oklch(0.796 0.0347 255.2349);
+	--chart-1: oklch(0.8488 0.0483 247.4285);
+	--chart-2: oklch(0.3649 0.0834 30.8559);
+	--chart-3: oklch(0.8147 0.0357 314.0619);
+	--chart-4: oklch(0.9542 0.0172 67.6199);
+	--chart-5: oklch(0.796 0.0347 255.2349);
+	--sidebar: oklch(0.9249 0 0);
+	--sidebar-foreground: oklch(0.25 0.015 230);
+	--sidebar-primary: oklch(0.45 0.12 160);
+	--sidebar-primary-foreground: oklch(0.98 0 0);
+	--sidebar-accent: oklch(0.92 0 0);
+	--sidebar-accent-foreground: oklch(0.25 0 0);
+	--sidebar-border: oklch(0.82 0 0);
+	--sidebar-ring: oklch(0.45 0.12 160);
+	--destructive-foreground: oklch(0.98 0 0);
+	--font-sans: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--font-serif: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--font-mono: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--shadow-color: #b5d1ec;
+	--shadow-opacity: 0;
+	--shadow-blur: 0px;
+	--shadow-spread: 0rem;
+	--shadow-offset-x: 0rem;
+	--shadow-offset-y: 0.5rem;
+	--letter-spacing: 0em;
+	--spacing: 0.25rem;
+	--shadow-2xs: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--shadow-xs: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--shadow-sm: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0), 0rem
+		1px 2px -1px hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--shadow: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0), 0rem 1px
+		2px -1px hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--shadow-md: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0), 0rem
+		2px 4px -1px hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--shadow-lg: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0), 0rem
+		4px 6px -1px hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--shadow-xl: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0), 0rem
+		8px 10px -1px hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--shadow-2xl: 0rem 0.5rem 0px 0rem hsl(209.4545 59.1398% 81.7647% / 0.0);
+	--tracking-normal: 0em;
+	/* Panel variables for light mode */
+	--panel: #ffffff;
+	--panel-strong: #eef0ef;
+	/* Terminal theme variables for light mode */
+	--terminal-bg: #f5f5f5;
+	--terminal-fg: #1e1e1e;
+	/* Code block colors for light mode */
+	--code-bg: #f2f3f2;
+	--code-inline-bg: #e8eae8;
+	--code-fg: #1e1e1e;
+	--code-border: #d8dad8;
+	--code-muted: #666666;
+	--code-accent: #0969da;
+	--code-success: #2d6a4f;
+}
+
+.dark {
+	--background: #222624;
+	--foreground: oklch(0.8008 0.0079 228.8806);
+	--card: #2d312f;
+	--card-foreground: oklch(0.8008 0.0079 228.8806);
+	--popover: #2d312f;
+	--popover-foreground: oklch(0.8008 0.0079 228.8806);
+	--primary: #3ba77c;
+	--primary-foreground: #222624;
+	--secondary: #3a3f41;
+	--secondary-foreground: #f2f5f3;
+	--muted: #3a3f41;
+	--muted-foreground: #b2b9b5;
+	--accent: #3a3f41;
+	--accent-foreground: #f2f5f3;
+	--destructive: #b94a48;
+	--border: #2d312f;
+	--input: #2d312f;
+	--ring: #3ba77c;
+	--chart-1: #3ba77c;
+	--chart-2: #727272;
+	--chart-3: #8a8a8a;
+	--chart-4: #9f9f9f;
+	--chart-5: #b2b2b2;
+	--sidebar: #0f1412;
+	--sidebar-foreground: #f2f5f3;
+	--sidebar-primary: #3ba77c;
+	--sidebar-primary-foreground: #0f1412;
+	--sidebar-accent: #222624;
+	--sidebar-accent-foreground: #f2f5f3;
+	--sidebar-border: #2d312f;
+	--sidebar-ring: #3ba77c;
+	--destructive-foreground: #f2f5f3;
+	--radius: 0;
+	--font-sans: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--font-serif: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--font-mono: "JetBrainsMono Nerd Font", ui-monospace, monospace;
+	--shadow-color: #000000;
+	--shadow-opacity: 0.2;
+	--shadow-blur: 10px;
+	--shadow-spread: 0rem;
+	--shadow-offset-x: 0rem;
+	--shadow-offset-y: 0.5rem;
+	--letter-spacing: 0em;
+	--spacing: 0.25rem;
+	--shadow-2xs: 0 2px 4px rgba(0, 0, 0, 0.1);
+	--shadow-xs: 0 2px 6px rgba(0, 0, 0, 0.15);
+	--shadow-sm: 0 3px 8px rgba(0, 0, 0, 0.15);
+	--shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+	--shadow-md: 0 6px 16px rgba(0, 0, 0, 0.18);
+	--shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.2);
+	--shadow-xl: 0 14px 30px rgba(0, 0, 0, 0.22);
+	--shadow-2xl: 0 18px 40px rgba(0, 0, 0, 0.24);
+	/* Panel variables for dark mode */
+	--panel: #161c1a;
+	--panel-strong: #222624;
+	/* Terminal theme variables for dark mode */
+	--terminal-bg: #0b0d12;
+	--terminal-fg: #f5f5f5;
+	/* Code block colors for dark mode */
+	--code-bg: #1a201e;
+	--code-inline-bg: rgba(255, 255, 255, 0.07);
+	--code-fg: #d5f0e4;
+	--code-border: #2a3632;
+	--code-muted: #6b7974;
+	--code-accent: #3ba77c;
+	--code-success: #a3d9c0;
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+		letter-spacing: var(--tracking-normal);
+	}
+}
+
+/* Custom scrollbar styling - thin, flat, matches theme */
+/* Hidden by default, visible on hover */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: transparent transparent;
+}
+
+*:hover {
+	scrollbar-color: var(--muted-foreground) transparent;
+}
+
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+	background: transparent;
+}
+
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* Use box-shadow inset trick for sharp rectangular scrollbar in Chromium */
+/* Hidden by default */
+*::-webkit-scrollbar-thumb {
+	background: transparent;
+	box-shadow: inset 0 0 0 10px transparent;
+	border: 3px solid transparent;
+	transition: box-shadow 0.2s ease;
+}
+
+/* Show on container hover */
+*:hover::-webkit-scrollbar-thumb {
+	box-shadow: inset 0 0 0 10px var(--muted-foreground);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	box-shadow: inset 0 0 0 10px var(--foreground);
+}
+
+*::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
+/* Sidebar scrollbar - even more subtle, hidden by default */
+.sidebar-scroll,
+[data-sidebar] {
+	scrollbar-color: transparent transparent;
+}
+
+.sidebar-scroll:hover,
+[data-sidebar]:hover {
+	scrollbar-color: var(--sidebar-border) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb,
+[data-sidebar]::-webkit-scrollbar-thumb {
+	box-shadow: inset 0 0 0 10px transparent;
+}
+
+.sidebar-scroll:hover::-webkit-scrollbar-thumb,
+[data-sidebar]:hover::-webkit-scrollbar-thumb {
+	box-shadow: inset 0 0 0 10px var(--sidebar-border);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover,
+[data-sidebar]::-webkit-scrollbar-thumb:hover {
+	box-shadow: inset 0 0 0 10px var(--sidebar-foreground);
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}
+
+/* Disable transitions during theme switch */
+.no-transitions,
+.no-transitions * {
+	transition: none !important;
+}
+
+/* Prevent horizontal scroll in chat - native app feel */
+.markdown-content {
+	overflow-wrap: break-word;
+	word-wrap: break-word;
+	word-break: normal;
+	/* Disable hyphenation-driven reflow to reduce whole-message twitch. */
+	hyphens: none;
+	-webkit-hyphens: none;
+	/* Keep wrap distribution identical during streaming and after persist. */
+	text-wrap: auto;
+}
+
+.markdown-content--streaming {
+	text-wrap: auto;
+}
+
+.markdown-content p,
+.markdown-content li > span {
+	text-align: left;
+	hyphens: none;
+	-webkit-hyphens: none;
+	overflow-wrap: normal;
+	word-break: normal;
+}
+
+.markdown-content pre {
+	overflow-x: auto;
+	max-width: 100%;
+}
+
+.markdown-content code {
+	word-break: break-all;
+}
+
+.stream-commit-slide-in-a,
+.stream-commit-slide-in-b {
+	animation: stream-commit-slide-in 160ms ease-out;
+	will-change: transform, opacity;
+}
+
+.stream-crawl-tick-a,
+.stream-crawl-tick-b {
+	animation: stream-crawl-tick 140ms ease-out;
+	will-change: transform, opacity;
+}
+
+@keyframes stream-commit-slide-in {
+	from {
+		transform: translateY(6px);
+		opacity: 0.86;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes stream-crawl-tick {
+	from {
+		transform: translateY(8px);
+		opacity: 0.84;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stream-commit-slide-in-a,
+	.stream-commit-slide-in-b,
+	.stream-crawl-tick-a,
+	.stream-crawl-tick-b {
+		animation: none;
+	}
+}
+
+/* Ensure message containers don't overflow */
+.message-container {
+	max-width: 100%;
+	overflow: hidden;
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+	button,
+	a,
+	input,
+	select,
+	textarea {
+		min-height: 44px;
+	}
+	/* Exclude compact UI elements */
+	.compact-header button,
+	.compact-header a {
+		min-height: unset;
+	}
+	/* Exclude chat input textarea - it has its own sizing */
+	.chat-input-container textarea {
+		min-height: unset;
+	}
+	/* Exclude switch component - has its own sizing */
+	[data-slot="switch"] {
+		min-height: unset;
+	}
+}
+
+/* Prevent pull-to-refresh on mobile */
+html,
+body {
+	overscroll-behavior: none;
+}
+
+/* Smooth scrolling for native feel */
+* {
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Mobile keyboard handling - use dynamic viewport height */
+@supports (height: 100dvh) {
+	.h-screen {
+		height: 100dvh !important;
+	}
+}
+
+/* Ensure input stays above keyboard on iOS */
+@media (max-width: 768px) {
+	input:focus,
+	textarea:focus {
+		position: relative;
+		z-index: 100;
+	}
+
+	/* Scroll input into view when focused */
+	.chat-input-container {
+		position: sticky;
+		bottom: 0;
+		/* Use explicit muted background instead of inherit to ensure correct color in Tauri */
+		background-color: oklch(from var(--muted) l c h / 0.3);
+		width: calc(100% + 0.75rem);
+		margin-left: -0.375rem;
+		margin-right: -0.375rem;
+		margin-bottom: -0.375rem;
+		padding-bottom: 0.25rem;
+		border-left: none;
+		border-right: none;
+		border-radius: 0;
+	}
+}
+
+* {
+	border-radius: 0 !important;
+}
+
+input[type="radio"] {
+	border-radius: 9999px !important;
+}
+
+/* App chrome should not start accidental selections during taps/long-presses.
+   Re-enable selection for editable and intentionally selectable content inside it. */
+.app-chrome {
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+
+.app-chrome
+	:is(
+		input,
+		textarea,
+		[contenteditable="true"],
+		.content-text,
+		.selectable-text,
+		.markdown-content,
+		pre,
+		code
+	) {
+	-webkit-user-select: text;
+	user-select: text;
+	-webkit-touch-callout: default;
+}
+
+.content-text,
+.selectable-text,
+.markdown-content {
+	-webkit-user-select: text;
+	user-select: text;
+}
+
+/* Search result highlight animation */
+@keyframes search-highlight-pulse {
+	0% {
+		box-shadow: 0 0 0 0 oklch(from var(--primary) l c h / 0.7);
+	}
+	50% {
+		box-shadow: 0 0 0 4px oklch(from var(--primary) l c h / 0.3);
+	}
+	100% {
+		box-shadow: 0 0 0 0 oklch(from var(--primary) l c h / 0);
+	}
+}
+
+.search-highlight {
+	animation: search-highlight-pulse 0.6s ease-out 3;
+	outline: 2px solid oklch(from var(--primary) l c h / 0.5);
+	outline-offset: 2px;
+}
+
+.stop-button-animated {
+	position: relative;
+	border-radius: 50%;
+	background: transparent !important;
+}
+
+.stop-button-animated:hover {
+	background: transparent !important;
+}
+
+.stop-button-animated:hover > *:not(.stop-button-ring) {
+	filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* Stop button animated border - smooth rotating arc */
+@keyframes stop-ring-rotate {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.stop-button-ring {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: 0;
+	animation: stop-ring-rotate 1.2s linear infinite;
+}
+
+.stop-button-ring svg {
+	width: 100%;
+	height: 100%;
+}
+
+.stop-button-animated > *:not(.stop-button-ring) {
+	position: relative;
+	z-index: 1;
+	transition: filter 0.15s ease;
+}
+
+.sidebar-chat .chat-input-container {
+	width: 100%;
+	margin-left: 0;
+	margin-right: 0;
+	margin-bottom: 0;
+	padding-bottom: 0;
+}
+
+html,
+body,
+#root {
+	padding-bottom: 0 !important;
+}
+
+/* iOS Safari: Hide native input accessory bar for elements with this class */
+/* Apply to inputs that should use custom keyboard toolbar instead */
+.hide-ios-accessory {
+	/* Disable autocomplete features that trigger the bar */
+	-webkit-user-modify: read-write-plaintext-only;
+}
+
+/* When combined with autocomplete="off" and inputmode, this hides the iOS accessory bar */
+.hide-ios-accessory::-webkit-contacts-auto-fill-button,
+.hide-ios-accessory::-webkit-credentials-auto-fill-button {
+	display: none !important;
+	visibility: hidden !important;
+	pointer-events: none;
+	position: absolute;
+	right: 0;
+}
+
+/* Safe area padding for keyboard toolbar */
+.safe-area-inset-bottom {
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile keyboard toolbar positioning */
+.keyboard-toolbar {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 9999;
+	/* Ensure it sits above the keyboard */
+	transform: translateZ(0);
+	-webkit-transform: translateZ(0);
+}
+
+/* MDXEditor styling for markdown WYSIWYG mode: keep content visually aligned with MarkdownRenderer. */
+.oqto-mdxeditor {
+	--baseBase: var(--background);
+	--baseBg: var(--background);
+	--basePageBg: var(--background);
+	--baseBgSubtle: transparent;
+	--baseBgHover: color-mix(in oklab, var(--muted), transparent 35%);
+	--baseBgActive: color-mix(in oklab, var(--muted), var(--foreground) 10%);
+	--baseLine: var(--border);
+	--baseBorder: var(--border);
+	--baseBorderHover: var(--muted-foreground);
+	--baseSolid: var(--primary);
+	--baseSolidHover: var(--primary);
+	--baseText: var(--muted-foreground);
+	--baseTextContrast: var(--foreground);
+	--accentText: var(--primary);
+	--accentSolid: var(--primary);
+	--accentSolidHover: var(--primary);
+	--accentBg: color-mix(in oklab, var(--primary), transparent 82%);
+	--font-body: var(--font-mono);
+	--baseSelectionBackground: color-mix(
+		in oklab,
+		var(--primary),
+		transparent 75%
+	);
+	height: 100%;
+	background: var(--background) !important;
+	color: var(--foreground) !important;
+	font-family: var(--font-mono) !important;
+}
+
+.oqto-mdxeditor [class*="_editorRoot_"],
+.oqto-mdxeditor [class*="_editorWrapper_"],
+.oqto-mdxeditor [class*="_rootContentEditableWrapper_"] {
+	background: var(--background) !important;
+	color: var(--foreground) !important;
+	font-family: var(--font-mono) !important;
+}
+
+.oqto-mdxeditor [class*="_toolbarRoot_"],
+.oqto-mdxeditor .mdxeditor-toolbar {
+	min-height: 32px;
+	padding: 2px 8px;
+	border-bottom: 1px solid var(--border);
+	background: var(--background) !important;
+	color: var(--muted-foreground) !important;
+	font-family: var(--font-mono) !important;
+	gap: 1px;
+}
+
+.oqto-mdxeditor [class*="_toolbarRoot_"] svg,
+.oqto-mdxeditor .mdxeditor-toolbar svg {
+	color: var(--muted-foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_toolbarRoot_"] button,
+.oqto-mdxeditor [class*="_toolbarRoot_"] [role="button"],
+.oqto-mdxeditor .mdxeditor-toolbar button,
+.oqto-mdxeditor .mdxeditor-toolbar [role="button"] {
+	height: 24px;
+	min-height: 24px;
+	padding: 0 5px;
+	background: transparent !important;
+	color: var(--muted-foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_toolbarRoot_"] button:hover,
+.oqto-mdxeditor [class*="_toolbarRoot_"] [role="button"]:hover,
+.oqto-mdxeditor .mdxeditor-toolbar button:hover,
+.oqto-mdxeditor .mdxeditor-toolbar [role="button"]:hover {
+	background: var(--muted) !important;
+	color: var(--foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_toolbarRoot_"] [data-state="on"],
+.oqto-mdxeditor [class*="_toolbarRoot_"] [data-state="open"],
+.oqto-mdxeditor .mdxeditor-toolbar [data-state="on"],
+.oqto-mdxeditor .mdxeditor-toolbar [data-state="open"] {
+	background: var(--muted) !important;
+	color: var(--foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_toolbarRoot_"] [role="combobox"],
+.oqto-mdxeditor .mdxeditor-toolbar [role="combobox"] {
+	width: 9rem;
+	border: 1px solid var(--border);
+	background: var(--background) !important;
+	color: var(--muted-foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_contentEditable_"],
+.oqto-mdxeditor-content {
+	min-height: calc(100% - 33px);
+	padding: 16px;
+	font-size: 14px;
+	line-height: 1.625;
+	color: var(--foreground) !important;
+	background: var(--background) !important;
+	font-family: var(--font-mono) !important;
+	outline: none;
+}
+
+.oqto-mdxeditor-content p {
+	margin: 0 0 0.75rem;
+	line-height: 1.625;
+}
+
+.oqto-mdxeditor-content p:last-child {
+	margin-bottom: 0;
+}
+
+.oqto-mdxeditor-content h1 {
+	margin: 1rem 0 0.75rem;
+	font-size: 1.25rem;
+	font-weight: 700;
+	line-height: 1.75rem;
+	color: var(--foreground);
+}
+
+.oqto-mdxeditor-content h2 {
+	margin: 0.75rem 0 0.5rem;
+	font-size: 1.125rem;
+	font-weight: 700;
+	line-height: 1.75rem;
+	color: var(--foreground);
+}
+
+.oqto-mdxeditor-content h3 {
+	margin: 0.75rem 0 0.5rem;
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.5rem;
+	color: var(--foreground);
+}
+
+.oqto-mdxeditor-content h4 {
+	margin: 0.5rem 0;
+	font-size: 0.875rem;
+	font-weight: 600;
+	line-height: 1.25rem;
+	color: var(--foreground);
+}
+
+.oqto-mdxeditor-content h1:first-child,
+.oqto-mdxeditor-content h2:first-child,
+.oqto-mdxeditor-content h3:first-child,
+.oqto-mdxeditor-content h4:first-child {
+	margin-top: 0;
+}
+
+.oqto-mdxeditor-content blockquote {
+	margin: 0.75rem 0;
+	padding: 0.25rem 0 0.25rem 1rem;
+	border-left: 2px solid var(--primary);
+	color: var(--muted-foreground);
+	font-style: italic;
+}
+
+.oqto-mdxeditor-content hr {
+	margin: 1rem 0;
+	border: 0;
+	border-top: 1px solid var(--border);
+}
+
+.oqto-mdxeditor-content ul,
+.oqto-mdxeditor-content ol {
+	margin: 0 0 0.75rem;
+	padding-left: 1.25rem;
+}
+
+.oqto-mdxeditor-content li {
+	margin: 0.25rem 0;
+	line-height: 1.625;
+}
+
+.oqto-mdxeditor-content a {
+	color: var(--primary);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.oqto-mdxeditor-content code,
+.oqto-mdxeditor-content [class*="_code_"] {
+	padding: 0.0625rem 0.25rem;
+	background: var(--code-bg) !important;
+	color: var(--foreground) !important;
+	font-family: var(--font-mono) !important;
+	font-size: 0.94em;
+	border: 1px solid var(--code-border);
+}
+
+.oqto-mdxeditor-content pre code,
+.oqto-mdxeditor-content [data-lexical-code] code {
+	padding: 0;
+	border: 0;
+	background: transparent !important;
+}
+
+.oqto-mdxeditor-content pre,
+.oqto-mdxeditor-content [data-lexical-code],
+.oqto-mdxeditor [class*="_codeMirrorWrapper_"],
+.oqto-mdxeditor .cm-editor,
+.oqto-mdxeditor .cm-gutters,
+.oqto-mdxeditor .cm-scroller,
+.oqto-mdxeditor .cm-content {
+	background: var(--code-bg) !important;
+	color: var(--foreground) !important;
+	border-color: var(--code-border) !important;
+}
+
+.oqto-mdxeditor .cm-gutters {
+	color: var(--muted-foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] {
+	background: var(--code-bg) !important;
+	border-color: var(--code-border) !important;
+}
+
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] button,
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] [role="button"],
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] [role="combobox"],
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] [class*="_selectTrigger_"] {
+	height: 2rem;
+	min-height: 2rem;
+	border: 1px solid var(--code-border) !important;
+	background: var(--code-bg) !important;
+	color: var(--muted-foreground) !important;
+	font-family: var(--font-mono) !important;
+}
+
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] svg {
+	color: var(--muted-foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] button:hover,
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] [role="button"]:hover,
+.oqto-mdxeditor [class*="_codeMirrorToolbar_"] [role="combobox"]:hover,
+.oqto-mdxeditor
+	[class*="_codeMirrorToolbar_"]
+	[class*="_selectTrigger_"]:hover {
+	background: var(--muted) !important;
+	color: var(--foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_popoverContent_"],
+.oqto-mdxeditor [class*="_selectContainer_"] {
+	border: 1px solid var(--border) !important;
+	background: var(--popover) !important;
+	color: var(--popover-foreground) !important;
+	font-family: var(--font-mono) !important;
+}
+
+.oqto-mdxeditor [class*="_selectItem_"] {
+	background: var(--popover) !important;
+	color: var(--popover-foreground) !important;
+}
+
+.oqto-mdxeditor [class*="_selectItem_"]:hover,
+.oqto-mdxeditor [class*="_selectItem_"][data-highlighted] {
+	background: var(--muted) !important;
+	color: var(--foreground) !important;
+}
+
+.oqto-mdxeditor img {
+	max-width: 100%;
+	border: 1px solid var(--border);
+}
+
+.oqto-mdxeditor-content table {
+	width: max-content;
+	min-width: 100%;
+	font-size: 0.75rem;
+	border: 1px solid var(--border);
+	border-collapse: collapse;
+}
+
+.oqto-mdxeditor-content th,
+.oqto-mdxeditor-content td {
+	padding: 0.375rem 0.5rem;
+	border: 1px solid var(--border);
+	text-align: left;
+}
