@@ -76,6 +76,7 @@ pub fn router(state: SldrState) -> Router {
         .route("/layouts/{name}/zones", put(update_layout_zones))
         .route("/build", post(build_presentation))
         .route("/preview/sample", get(preview_sample))
+        .route("/preview/slide", get(preview_slide))
         .route("/preview/{playlist}", get(preview_playlist))
         .route("/scaffolds/{name}/edit", post(edit_scaffold))
         .with_state(state)
@@ -550,6 +551,41 @@ fn resolve_scaffold_path(config: &Config, name: &str) -> Result<PathBuf> {
     }
 
     anyhow::bail!("Scaffold not found: {name}");
+}
+
+/// Render a single library slide to self-contained HTML — the thumbnail for the
+/// slide library (`?slide=NAME&flavor=NAME`). Auto-fits to the iframe.
+async fn preview_slide(
+    State(state): State<SldrState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> std::result::Result<axum::response::Html<String>, ApiError> {
+    let slide_name = params
+        .get("slide")
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "slide param required"))?;
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = slides
+        .find(slide_name)
+        .cloned()
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Slide not found"))?;
+
+    let flavor_name = params.get("flavor").map(String::as_str).unwrap_or("default");
+    let flavors = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
+        .map_err(to_api_error("Failed to load flavors"))?;
+    let flavor = flavors.find(flavor_name).cloned().unwrap_or_default();
+
+    let cfg = RenderConfig {
+        transition: "none".to_string(),
+        ..Default::default()
+    };
+    let mut renderer = HtmlRenderer::new(cfg).add_flavor(flavor);
+    renderer
+        .add_slide(&slide)
+        .map_err(to_api_error("Failed to lay out slide"))?;
+    let html = renderer
+        .render()
+        .map_err(to_api_error("Failed to render slide"))?;
+    Ok(axum::response::Html(html))
 }
 
 /// Render the bundled sample deck with a given flavor — live preview for the

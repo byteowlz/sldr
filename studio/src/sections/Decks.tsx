@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Hammer, FileText, CheckCircle2, XCircle } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, slidePreviewUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -126,18 +126,26 @@ export function Decks() {
         {slides.isLoading ? (
           <CardGridSkeleton />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {slides.data?.map((s) => (
-              <Card key={s.name} className="gap-2 py-4">
-                <CardHeader className="px-4">
-                  <CardTitle className="flex items-center gap-2 truncate text-base">
-                    <FileText className="size-4 shrink-0 text-muted-foreground" />
-                    {s.name}
-                  </CardTitle>
-                  <CardDescription className="truncate">
-                    {s.relative_path}
-                  </CardDescription>
-                </CardHeader>
+              <Card key={s.name} className="gap-0 overflow-hidden p-0">
+                <div className="aspect-video w-full overflow-hidden border-b bg-muted">
+                  <iframe
+                    src={slidePreviewUrl(
+                      s.name,
+                      flavor === "default" ? undefined : flavor,
+                    )}
+                    title={s.name}
+                    loading="lazy"
+                    tabIndex={-1}
+                    scrolling="no"
+                    className="pointer-events-none h-full w-full border-0"
+                  />
+                </div>
+                <div className="flex items-center gap-2 p-3">
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-sm font-medium">{s.name}</span>
+                </div>
               </Card>
             ))}
           </div>

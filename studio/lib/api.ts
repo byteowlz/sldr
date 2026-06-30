@@ -96,6 +96,13 @@ export function samplePreviewUrl(flavor: string, bust?: number) {
   return `/api/preview/sample?flavor=${encodeURIComponent(flavor)}&token=${t}${bust ? `&t=${bust}` : ""}`;
 }
 
+/** URL for a single-slide preview thumbnail (auto-fits to the iframe). */
+export function slidePreviewUrl(slide: string, flavor?: string) {
+  const t = encodeURIComponent(getToken());
+  const f = flavor ? `&flavor=${encodeURIComponent(flavor)}` : "";
+  return `/api/preview/slide?slide=${encodeURIComponent(slide)}&token=${t}${f}`;
+}
+
 // --- Endpoints ---
 export const api = {
   health: () => req<{ ok: boolean; version: string }>("/health"),
