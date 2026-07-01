@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun, Lock, Presentation } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { api, ApiError, setToken, clearToken } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -15,6 +23,13 @@ import {
 import { Decks } from "./sections/Decks";
 import { Layouts } from "./sections/Layouts";
 import { Flavors } from "./sections/Flavors";
+
+type SectionId = "decks" | "flavors" | "layouts";
+const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: "decks", label: "Decks" },
+  { id: "flavors", label: "Flavors" },
+  { id: "layouts", label: "Layouts" },
+];
 
 function useDark() {
   const [dark, setDark] = useState(
@@ -51,21 +66,13 @@ function Login({ onAuthed }: { onAuthed: () => void }) {
           <CardTitle className="flex items-center gap-2">
             <Presentation className="size-5" /> sldr studio
           </CardTitle>
-          <CardDescription>
-            Enter the server token (SLDR_API_TOKEN).
-          </CardDescription>
+          <CardDescription>Enter the server token (SLDR_API_TOKEN).</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="token">Token</Label>
-              <Input
-                id="token"
-                type="password"
-                value={token}
-                onChange={(e) => setTok(e.target.value)}
-                autoFocus
-              />
+              <Input id="token" type="password" value={token} onChange={(e) => setTok(e.target.value)} autoFocus />
             </div>
             {err && <p className="text-sm text-destructive">{err}</p>}
             <Button type="submit" disabled={busy} className="w-full">
@@ -81,72 +88,88 @@ function Login({ onAuthed }: { onAuthed: () => void }) {
 export default function App() {
   const [dark, setDark] = useDark();
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [section, setSection] = useState<SectionId>("decks");
+  const [flavor, setFlavor] = useState("default");
+  const flavors = useQuery({ queryKey: ["flavors"], queryFn: api.flavors, enabled: authed === true });
 
   useEffect(() => {
     api
       .slides()
       .then(() => setAuthed(true))
-      .catch((e) =>
-        setAuthed(e instanceof ApiError && e.status === 401 ? false : true),
-      );
+      .catch((e) => setAuthed(e instanceof ApiError && e.status === 401 ? false : true));
   }, []);
 
   if (authed === null)
     return (
-      <div className="flex min-h-svh items-center justify-center text-muted-foreground">
+      <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
         Loading…
       </div>
     );
   if (!authed) return <Login onAuthed={() => setAuthed(true)} />;
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <Tabs defaultValue="decks" className="flex flex-1 flex-col gap-0">
-        <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background/80 px-4 py-2.5 backdrop-blur">
-          <span className="flex items-center gap-2 font-semibold">
-            <Presentation className="size-5 text-primary" /> sldr&nbsp;studio
-          </span>
-          <TabsList className="ml-2">
-            <TabsTrigger value="decks">Decks</TabsTrigger>
-            <TabsTrigger value="flavors">Flavors</TabsTrigger>
-            <TabsTrigger value="layouts">Layouts</TabsTrigger>
-          </TabsList>
-          <div className="ml-auto flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setDark(!dark)}
-              aria-label="Toggle theme"
+    <div className="grid h-svh grid-rows-[40px_minmax(0,1fr)] bg-background text-foreground">
+      {/* Top bar */}
+      <header className="flex items-center gap-3 border-b bg-card px-3">
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
+          <Presentation className="size-4 text-primary" />
+          sldr
+        </span>
+        <nav className="flex items-center overflow-hidden rounded-sm border">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSection(s.id)}
+              className={cn(
+                "border-r px-3 py-1 text-xs last:border-r-0",
+                section === s.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-foreground/[0.04]",
+              )}
             >
-              {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Lock"
-              onClick={() => {
-                clearToken();
-                setAuthed(false);
-              }}
-            >
-              <Lock className="size-4" />
-            </Button>
-          </div>
-        </header>
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
-          <div className="mx-auto max-w-6xl">
-            <TabsContent value="decks">
-              <Decks />
-            </TabsContent>
-            <TabsContent value="flavors">
-              <Flavors />
-            </TabsContent>
-            <TabsContent value="layouts">
-              <Layouts />
-            </TabsContent>
-          </div>
-        </main>
-      </Tabs>
+              {s.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-2">
+          <Select value={flavor} onValueChange={setFlavor}>
+            <SelectTrigger className="h-7 w-44 text-xs" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">default</SelectItem>
+              {flavors.data?.map((f) => (
+                <SelectItem key={f.name} value={f.name}>
+                  {f.display_name || f.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="icon" className="size-7" onClick={() => setDark(!dark)} aria-label="Theme">
+            {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label="Lock"
+            onClick={() => {
+              clearToken();
+              setAuthed(false);
+            }}
+          >
+            <Lock className="size-4" />
+          </Button>
+        </div>
+      </header>
+
+      {/* Body */}
+      <div className="min-h-0">
+        {section === "decks" && <Decks flavor={flavor} />}
+        {section === "flavors" && <Flavors />}
+        {section === "layouts" && <Layouts />}
+      </div>
     </div>
   );
 }

@@ -1,118 +1,106 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { LayoutTemplate, Search } from "lucide-react";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Rail, RailHead, RailList, Row, Stage, PaneHead } from "../components/shell";
 
 export function Layouts() {
   const layouts = useQuery({ queryKey: ["layouts"], queryFn: api.layouts });
-  const [selected, setSelected] = useState<string | null>(null);
+  const [sel, setSel] = useState<string | null>(null);
+  const [q, setQ] = useState("");
   const detail = useQuery({
-    queryKey: ["layout", selected],
-    queryFn: () => api.layout(selected!),
-    enabled: !!selected,
+    queryKey: ["layout", sel],
+    queryFn: () => api.layout(sel!),
+    enabled: !!sel,
   });
+  const ql = q.toLowerCase();
+  const list = layouts.data?.filter((l) => l.name.toLowerCase().includes(ql));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Layouts{" "}
-          <Badge variant="secondary">{layouts.data?.length ?? "…"}</Badge>
-        </h2>
-        <ScrollArea className="h-[70svh] rounded-lg border p-1">
-          {layouts.isLoading ? (
-            <div className="space-y-1 p-1">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <Skeleton key={i} className="h-9" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-0.5">
-              {layouts.data?.map((l) => (
-                <button
-                  key={l.name}
-                  onClick={() => setSelected(l.name)}
-                  className={
-                    "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors " +
-                    (selected === l.name
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground")
-                  }
-                >
-                  <span className="truncate font-medium">{l.name}</span>
-                  <span className="shrink-0 text-xs opacity-70">
-                    {l.zone_count}z{l.builtin ? "" : " ·custom"}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-      </section>
-
-      <section>
-        {!selected ? (
-          <p className="text-sm text-muted-foreground">Select a layout.</p>
-        ) : detail.isLoading ? (
-          <Skeleton className="h-[70svh] rounded-lg" />
-        ) : detail.data ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-semibold">{detail.data.name}</h3>
-              {detail.data.category && (
-                <Badge variant="outline">{detail.data.category}</Badge>
-              )}
-              <Badge variant={detail.data.builtin ? "secondary" : "default"}>
-                {detail.data.builtin ? "built-in" : "library override"}
-              </Badge>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">
-                  PPTX zones ({detail.data.zones.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 font-mono text-xs">
-                {detail.data.zones.length === 0 && (
-                  <span className="text-muted-foreground">
-                    No zones (screenshot-only export).
-                  </span>
-                )}
-                {detail.data.zones.map((z, i) => (
-                  <div key={i} className="flex flex-wrap gap-x-3">
-                    <span className="text-primary">{z.name}</span>
-                    <span className="text-muted-foreground">{z.rep}</span>
-                    <span>
-                      x{z.x} y{z.y} w{z.w} h{z.h}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle className="text-sm">Source</CardTitle>
-                <Button variant="outline" size="sm" disabled>
-                  Edit (soon)
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-80">
-                  <pre className="text-xs leading-relaxed">
-                    {detail.data.source}
-                  </pre>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+    <div className="grid h-full min-h-0 grid-cols-[240px_minmax(0,1fr)]">
+      <Rail>
+        <RailHead>
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Filter layouts…"
+              className="h-7 pl-7 text-xs"
+            />
           </div>
-        ) : null}
-      </section>
+        </RailHead>
+        <RailList>
+          {list?.map((l) => (
+            <Row
+              key={l.name}
+              icon={<LayoutTemplate className="size-3.5" />}
+              name={l.name}
+              sub={l.builtin ? undefined : "·custom"}
+              meta={`${l.zone_count}z`}
+              active={sel === l.name}
+              onClick={() => setSel(l.name)}
+            />
+          ))}
+        </RailList>
+      </Rail>
+
+      <Stage>
+        {!sel ? (
+          <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
+            Select a layout.
+          </div>
+        ) : !detail.data ? (
+          <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
+            Loading…
+          </div>
+        ) : (
+          <>
+            <PaneHead title={detail.data.name}>
+              <span className="text-[11px] text-muted-foreground">
+                {detail.data.category ?? "—"} ·{" "}
+                {detail.data.builtin ? "built-in" : "library override"}
+              </span>
+            </PaneHead>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {/* Zones */}
+              <div className="border-b">
+                <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  PPTX zones ({detail.data.zones.length})
+                </div>
+                {detail.data.zones.length === 0 ? (
+                  <div className="px-3 pb-2 text-xs text-muted-foreground">
+                    None — screenshot-only export.
+                  </div>
+                ) : (
+                  <div className="pb-2 font-mono text-[11px]">
+                    {detail.data.zones.map((z, i) => (
+                      <div
+                        key={i}
+                        className="grid grid-cols-[1fr_5rem_1fr] gap-2 px-3 py-0.5"
+                      >
+                        <span className="truncate text-primary">{z.name}</span>
+                        <span className="text-muted-foreground">{z.rep}</span>
+                        <span className="text-muted-foreground">
+                          x{z.x} y{z.y} w{z.w} h{z.h}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Source */}
+              <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                Source
+              </div>
+              <pre className="px-3 pb-4 text-[11px] leading-relaxed">
+                {detail.data.source}
+              </pre>
+            </div>
+          </>
+        )}
+      </Stage>
     </div>
   );
 }

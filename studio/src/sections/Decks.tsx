@@ -1,156 +1,135 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Hammer, FileText, CheckCircle2, XCircle } from "lucide-react";
+import { Hammer, ListVideo, Library, Search, Check, X, Loader2 } from "lucide-react";
 import { api, slidePreviewUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Rail, RailHead, RailList, RailLabel, Row, Stage, PaneHead } from "../components/shell";
 
-function CardGridSkeleton({ n = 6 }: { n?: number }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: n }).map((_, i) => (
-        <Skeleton key={i} className="h-20 rounded-xl" />
-      ))}
-    </div>
-  );
-}
-
-export function Decks() {
+export function Decks({ flavor }: { flavor: string }) {
   const slides = useQuery({ queryKey: ["slides"], queryFn: api.slides });
   const playlists = useQuery({ queryKey: ["playlists"], queryFn: api.playlists });
-  const flavors = useQuery({ queryKey: ["flavors"], queryFn: api.flavors });
-  const [flavor, setFlavor] = useState("default");
+  const [sel, setSel] = useState<string>("__all__");
+  const [q, setQ] = useState("");
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const build = useMutation({
-    mutationFn: (playlist: string) =>
-      api.build(playlist, flavor === "default" ? undefined : flavor),
-    onSuccess: (r) => setResult({ ok: true, msg: `Built “${r.name}” → ${r.html_path}` }),
+    mutationFn: (name: string) =>
+      api.build(name, flavor === "default" ? undefined : flavor),
+    onSuccess: (r) => setResult({ ok: true, msg: `Built → ${r.html_path}` }),
     onError: (e) => setResult({ ok: false, msg: (e as Error).message }),
   });
 
+  const active = playlists.data?.find((p) => p.name === sel) ?? null;
+  const names = useMemo(() => {
+    if (sel === "__all__") return slides.data?.map((s) => s.name) ?? [];
+    return active?.slides ?? [];
+  }, [sel, active, slides.data]);
+
+  const ql = q.toLowerCase();
+  const showPlaylists = playlists.data?.filter((p) => p.name.toLowerCase().includes(ql));
+
   return (
-    <div className="space-y-8">
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight">Playlists</h2>
-            <p className="text-sm text-muted-foreground">
-              Build a deck — pick a flavor, hit build.
+    <div className="grid h-full min-h-0 grid-cols-[240px_minmax(0,1fr)]">
+      <Rail>
+        <RailHead>
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Filter playlists…"
+              className="h-7 pl-7 text-xs"
+            />
+          </div>
+        </RailHead>
+        <RailList>
+          <Row
+            icon={<Library className="size-3.5" />}
+            name="All slides"
+            meta={slides.data?.length}
+            active={sel === "__all__"}
+            onClick={() => setSel("__all__")}
+          />
+          <RailLabel>Playlists</RailLabel>
+          {showPlaylists?.map((p) => (
+            <Row
+              key={p.name}
+              icon={<ListVideo className="size-3.5" />}
+              name={p.name}
+              meta={p.slides.length}
+              active={sel === p.name}
+              onClick={() => setSel(p.name)}
+            />
+          ))}
+        </RailList>
+      </Rail>
+
+      <Stage>
+        <PaneHead title={sel === "__all__" ? "All slides" : sel}>
+          {result && (
+            <span
+              className={
+                "flex items-center gap-1 truncate text-[11px] " +
+                (result.ok ? "text-primary" : "text-destructive")
+              }
+            >
+              {result.ok ? <Check className="size-3" /> : <X className="size-3" />}
+              {result.msg}
+            </span>
+          )}
+          <span className="text-[11px] text-muted-foreground">{names.length} slides</span>
+          {active && (
+            <Button
+              size="sm"
+              className="h-7"
+              disabled={build.isPending}
+              onClick={() => build.mutate(active.name)}
+            >
+              {build.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Hammer className="size-3.5" />
+              )}
+              Build
+            </Button>
+          )}
+        </PaneHead>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          {names.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {sel === "__all__" ? "No slides." : "This playlist has no slides."}
             </p>
-          </div>
-          <Select value={flavor} onValueChange={setFlavor}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Flavor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">default flavor</SelectItem>
-              {flavors.data?.map((f) => (
-                <SelectItem key={f.name} value={f.name}>
-                  {f.display_name || f.name}
-                </SelectItem>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+              {names.map((name) => (
+                <figure
+                  key={name}
+                  className="group overflow-hidden border bg-card"
+                >
+                  <div className="aspect-video overflow-hidden border-b bg-muted">
+                    <iframe
+                      src={slidePreviewUrl(
+                        name,
+                        flavor === "default" ? undefined : flavor,
+                      )}
+                      title={name}
+                      loading="lazy"
+                      tabIndex={-1}
+                      scrolling="no"
+                      className="pointer-events-none size-full border-0"
+                    />
+                  </div>
+                  <figcaption className="truncate px-2 py-1.5 text-[11px] text-muted-foreground group-hover:text-foreground">
+                    {name}
+                  </figcaption>
+                </figure>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          )}
         </div>
-
-        {result && (
-          <div
-            className={
-              "flex items-start gap-2 rounded-lg border p-3 text-sm " +
-              (result.ok
-                ? "border-primary/30 bg-primary/5"
-                : "border-destructive/30 bg-destructive/5 text-destructive")
-            }
-          >
-            {result.ok ? (
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
-            ) : (
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-            )}
-            <span className="break-all">{result.msg}</span>
-          </div>
-        )}
-
-        {playlists.isLoading ? (
-          <CardGridSkeleton />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {playlists.data?.map((p) => (
-              <Card key={p.name} className="gap-3">
-                <CardHeader>
-                  <CardTitle className="truncate">{p.name}</CardTitle>
-                  <CardDescription>{p.slides.length} slides</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    className="w-full"
-                    onClick={() => build.mutate(p.name)}
-                    disabled={build.isPending}
-                  >
-                    <Hammer className="size-4" />
-                    {build.isPending && build.variables === p.name
-                      ? "Building…"
-                      : "Build"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-            {playlists.data?.length === 0 && (
-              <p className="text-sm text-muted-foreground">No playlists yet.</p>
-            )}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold tracking-tight">Slide library</h2>
-          <Badge variant="secondary">{slides.data?.length ?? "…"}</Badge>
-        </div>
-        {slides.isLoading ? (
-          <CardGridSkeleton />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {slides.data?.map((s) => (
-              <Card key={s.name} className="gap-0 overflow-hidden p-0">
-                <div className="aspect-video w-full overflow-hidden border-b bg-muted">
-                  <iframe
-                    src={slidePreviewUrl(
-                      s.name,
-                      flavor === "default" ? undefined : flavor,
-                    )}
-                    title={s.name}
-                    loading="lazy"
-                    tabIndex={-1}
-                    scrolling="no"
-                    className="pointer-events-none h-full w-full border-0"
-                  />
-                </div>
-                <div className="flex items-center gap-2 p-3">
-                  <FileText className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-sm font-medium">{s.name}</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+      </Stage>
     </div>
   );
 }
