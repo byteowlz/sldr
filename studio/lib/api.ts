@@ -40,8 +40,12 @@ export interface SlideSummary {
 }
 export interface Playlist {
   name: string;
+  title?: string | null;
+  description?: string | null;
   flavor?: string | null;
   slides: string[];
+  /// Render opts — passed through untouched so saves don't wipe them.
+  render?: unknown;
 }
 export interface LayoutSummary {
   name: string;
@@ -103,6 +107,20 @@ export function slidePreviewUrl(slide: string, flavor?: string) {
   return `/api/preview/slide?slide=${encodeURIComponent(slide)}&token=${t}${f}`;
 }
 
+/** URL for a full-deck (playlist) preview — the real presenter. */
+export function deckPreviewUrl(playlist: string, flavor?: string) {
+  const t = encodeURIComponent(getToken());
+  const f = flavor ? `&flavor=${encodeURIComponent(flavor)}` : "";
+  return `/api/preview/deck?playlist=${encodeURIComponent(playlist)}&token=${t}${f}`;
+}
+
+/** URL for a layout's synthetic sample render — the zone editor's stage. */
+export function layoutPreviewUrl(layout: string, flavor?: string) {
+  const t = encodeURIComponent(getToken());
+  const f = flavor ? `&flavor=${encodeURIComponent(flavor)}` : "";
+  return `/api/preview/layout?layout=${encodeURIComponent(layout)}&token=${t}${f}`;
+}
+
 // --- Endpoints ---
 export const api = {
   health: () => req<{ ok: boolean; version: string }>("/health"),
@@ -111,6 +129,16 @@ export const api = {
     req<{ playlists: Playlist[] }>("/playlists").then((r) => r.playlists),
   createPlaylist: (p: Playlist) =>
     req<Playlist>("/playlists", { method: "POST", body: JSON.stringify(p) }),
+  updatePlaylist: (name: string, p: Playlist) =>
+    req<{ name: string }>(`/playlists/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: JSON.stringify(p),
+    }),
+  saveZones: (name: string, zones: Zone[]) =>
+    req<LayoutDetail>(`/layouts/${encodeURIComponent(name)}/zones`, {
+      method: "PUT",
+      body: JSON.stringify({ zones }),
+    }),
   flavors: () =>
     req<{ flavors: FlavorSummary[] }>("/flavors").then((r) => r.flavors),
   getFlavor: (name: string) => req<FlavorDetail>(`/flavors/${name}`),

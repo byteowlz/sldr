@@ -1,5 +1,45 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+
+/** A slide preview iframe rendered at full logical resolution (1280×720) and
+ * CSS-scaled to fit its container — so slides look exactly as presented
+ * instead of reflowing/cropping at thumbnail size. */
+export function SlideFrame({
+  src,
+  className,
+  interactive = false,
+  eager = false,
+}: {
+  src: string;
+  className?: string;
+  interactive?: boolean;
+  eager?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setScale(el.clientWidth / 1280));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={cn("relative aspect-video overflow-hidden", className)}>
+      {scale > 0 && (
+        <iframe
+          src={src}
+          title="slide"
+          loading={eager ? "eager" : "lazy"}
+          tabIndex={-1}
+          scrolling="no"
+          className={cn("origin-top-left border-0", !interactive && "pointer-events-none")}
+          style={{ width: 1280, height: 720, transform: `scale(${scale})` }}
+        />
+      )}
+    </div>
+  );
+}
 
 /** A bordered left rail (browser/list panel) — the composer's `.sl-browser`. */
 export function Rail({

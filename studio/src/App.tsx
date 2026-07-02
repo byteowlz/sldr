@@ -168,7 +168,7 @@ export default function App() {
       <div className="min-h-0">
         {section === "decks" && <Decks flavor={flavor} />}
         {section === "flavors" && <Flavors />}
-        {section === "layouts" && <Layouts />}
+        {section === "layouts" && <Layouts flavor={flavor} />}
       </div>
     </div>
   );

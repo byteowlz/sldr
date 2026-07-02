@@ -77,6 +77,8 @@ pub fn router(state: SldrState) -> Router {
         .route("/build", post(build_presentation))
         .route("/preview/sample", get(preview_sample))
         .route("/preview/slide", get(preview_slide))
+        .route("/preview/deck", get(preview_deck))
+        .route("/preview/layout", get(preview_layout))
         .route("/preview/{playlist}", get(preview_playlist))
         .route("/scaffolds/{name}/edit", post(edit_scaffold))
         .with_state(state)
@@ -585,6 +587,138 @@ async fn preview_slide(
     let html = renderer
         .render()
         .map_err(to_api_error("Failed to render slide"))?;
+    Ok(axum::response::Html(html))
+}
+
+/// Render a whole playlist to self-contained HTML in memory — the full-deck
+/// preview for the studio composer (`?playlist=NAME&flavor=NAME`). Unlike
+/// `/build` it writes nothing to disk.
+async fn preview_deck(
+    State(state): State<SldrState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> std::result::Result<axum::response::Html<String>, ApiError> {
+    let config = state.config.as_ref();
+    let name = params
+        .get("playlist")
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "playlist param required"))?;
+    let playlist_path = config.playlist_dir().join(format!("{name}.toml"));
+    if !playlist_path.exists() {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "Playlist not found"));
+    }
+    let playlist = Playlist::load(&playlist_path)
+        .map_err(to_api_error("Failed to load playlist"))?;
+
+    let flavor_name = params
+        .get("flavor")
+        .cloned()
+        .filter(|f| !f.is_empty())
+        .or_else(|| playlist.flavor.clone())
+        .unwrap_or_else(|| config.config.default_flavor.clone());
+    let flavor = FlavorCollection::load_from_dirs(&config.flavor_dirs())
+        .ok()
+        .and_then(|c| c.find(&flavor_name).cloned())
+        .unwrap_or_default();
+
+    let slides = SlideCollection::load_from_dir(&config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let matcher = SldrMatcher::new(config.matching.clone());
+    let mut resolved = Vec::new();
+    for slide_ref in &playlist.slides {
+        match matcher.resolve(slide_ref, &slides.names()) {
+            ResolveResult::Found(result) => {
+                if let Some(slide) = slides.find(&result.value) {
+                    resolved.push(slide.clone());
+                }
+            }
+            _ => {
+                return Err(ApiError::new(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    format!("Cannot resolve slide '{slide_ref}'"),
+                ))
+            }
+        }
+    }
+
+    let cfg = RenderConfig {
+        title: playlist.title.clone().unwrap_or_else(|| playlist.name.clone()),
+        speaker_notes: true,
+        ..Default::default()
+    };
+    let mut renderer = HtmlRenderer::new(cfg).add_flavor(flavor);
+    for dir in config.layout_dirs() {
+        let _ = renderer.load_layouts(&dir);
+    }
+    renderer
+        .add_slides(&resolved)
+        .map_err(to_api_error("Failed to lay out slides"))?;
+    let html = renderer.render().map_err(to_api_error("Failed to render deck"))?;
+    Ok(axum::response::Html(html))
+}
+
+/// Render a synthetic sample slide for one layout — the stage background of the
+/// visual layout editor (`?layout=NAME&flavor=NAME`). The body is shaped to the
+/// layout's expectations (columns / image / plain) so its regions are visible.
+async fn preview_layout(
+    State(state): State<SldrState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> std::result::Result<axum::response::Html<String>, ApiError> {
+    let layout_name = params
+        .get("layout")
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "layout param required"))?;
+    let mut registry = sldr_renderer::LayoutRegistry::builtin();
+    for dir in state.config.layout_dirs() {
+        let _ = registry.load_dir(&dir);
+    }
+    let def = registry
+        .get(layout_name)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Layout not found"))?;
+
+    // A neutral inline SVG placeholder for image slots (base64 data URI — no
+    // assets, and no characters that trip the markdown link parser).
+    const IMG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMjAgMjAwJz48cmVjdCB3aWR0aD0nMzIwJyBoZWlnaHQ9JzIwMCcgZmlsbD0nIzMzNDE1NScvPjxjaXJjbGUgY3g9JzI1MCcgY3k9JzU1JyByPScyOCcgZmlsbD0nI2VhYjMwOCcvPjxwYXRoIGQ9J00wIDE2MCBMMTEwIDgwIEwxOTAgMTQwIEwyNTAgMTAwIEwzMjAgMTUwIFYyMDAgSDAgWicgZmlsbD0nIzQ3NTU2OScvPjwvc3ZnPg==";
+    let body = if def.expects_columns() {
+        "::left::\n### Left column\n\n- First point\n- Second point\n\n::right::\n### Right column\n\n- Another point\n- And one more\n".to_string()
+    } else if def.expects_image() {
+        format!("::content::\n### Content\n\n- First point\n- Second point\n\n::image::\n![Sample]({IMG})\n")
+    } else {
+        format!("# Sample heading\n\nA short paragraph of body text.\n\n- First point\n- Second point\n\n![Sample]({IMG})\n")
+    };
+
+    let mut metadata = SlideMetadata::default();
+    metadata.layout = Some(layout_name.clone());
+    metadata.title = Some("Sample headline".to_string());
+    metadata.subtitle = Some("Sample subheadline".to_string());
+    metadata.footer = Some("Footer line".to_string());
+    metadata.source = Some("Sample source".to_string());
+
+    let slide = Slide {
+        name: format!("layout-preview-{layout_name}"),
+        path: PathBuf::from("layout-preview.md"),
+        relative_path: "layout-preview.md".to_string(),
+        metadata,
+        content: body,
+    };
+
+    let flavor_name = params.get("flavor").map(String::as_str).unwrap_or("default");
+    let flavor = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
+        .ok()
+        .and_then(|c| c.find(flavor_name).cloned())
+        .unwrap_or_default();
+
+    let cfg = RenderConfig {
+        transition: "none".to_string(),
+        ..Default::default()
+    };
+    let mut renderer = HtmlRenderer::new(cfg).add_flavor(flavor);
+    for dir in state.config.layout_dirs() {
+        let _ = renderer.load_layouts(&dir);
+    }
+    renderer
+        .add_slide(&slide)
+        .map_err(to_api_error("Failed to lay out sample slide"))?;
+    let html = renderer
+        .render()
+        .map_err(to_api_error("Failed to render layout preview"))?;
     Ok(axum::response::Html(html))
 }
 
