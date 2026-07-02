@@ -1453,7 +1453,7 @@ dependencies = [
 
 [[package]]
 name = "schema-gen"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "schemars",
  "serde",
@@ -1651,7 +1651,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "sldr-cli"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -1679,7 +1679,7 @@ dependencies = [
 
 [[package]]
 name = "sldr-core"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "fuzzy-matcher",
@@ -1696,7 +1696,7 @@ dependencies = [
 
 [[package]]
 name = "sldr-pptx"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "pulldown-cmark",
@@ -1708,7 +1708,7 @@ dependencies = [
 
 [[package]]
 name = "sldr-renderer"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -1726,7 +1726,7 @@ dependencies = [
 
 [[package]]
 name = "sldr-server"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "axum",
