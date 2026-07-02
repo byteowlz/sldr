@@ -108,16 +108,16 @@ async fn get_slide(
     let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
         .map_err(to_api_error("Failed to load slides"))?;
 
-    let slide = slides
-        .find(&name)
-        .cloned()
-        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Slide not found"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &name)?;
 
+    let raw = fs::read_to_string(&slide.path)
+        .map_err(to_api_error("Failed to read slide file"))?;
     Ok(Json(SlideDetail {
         name: slide.name,
         relative_path: slide.relative_path,
         metadata: slide.metadata,
         content: slide.content,
+        raw,
     }))
 }
 
@@ -158,11 +158,13 @@ async fn create_slide(
     let slide = Slide::load_with_base(&path, &slide_dir)
         .map_err(to_api_error("Failed to load created slide"))?;
 
+    let raw = fs::read_to_string(&slide.path).unwrap_or_default();
     Ok(Json(SlideDetail {
         name: slide.name,
         relative_path: slide.relative_path,
         metadata: slide.metadata,
         content: slide.content,
+        raw,
     }))
 }
 
@@ -175,24 +177,31 @@ async fn update_slide(
     let slides = SlideCollection::load_from_dir(&slide_dir)
         .map_err(to_api_error("Failed to load slides"))?;
 
-    let existing = slides
-        .find(&name)
-        .cloned()
-        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Slide not found"))?;
+    let existing = resolve_slide_ref(&state.config, &slides, &name)?;
 
-    let updated_metadata = payload.metadata.unwrap_or(existing.metadata.clone());
-    let updated_content = payload.content.unwrap_or(existing.content.clone());
-    let file_content = build_slide_content(Some(updated_metadata.clone()), updated_content.clone());
+    // Raw wins: the source drawer writes the whole file verbatim. Otherwise
+    // rebuild the file from (possibly partial) metadata + content.
+    let file_content = match &payload.raw {
+        Some(raw) => raw.clone(),
+        None => {
+            let updated_metadata = payload.metadata.unwrap_or(existing.metadata.clone());
+            let updated_content = payload.content.unwrap_or(existing.content.clone());
+            build_slide_content(Some(updated_metadata), updated_content)
+        }
+    };
 
-    fs::write(&existing.path, file_content)
+    fs::write(&existing.path, &file_content)
         .with_context(|| format!("Failed to update slide {}", existing.path.display()))
         .map_err(to_api_error("Failed to update slide"))?;
 
+    // Re-parse what we wrote so the response reflects the file's truth.
+    let parsed = Slide::from_str(existing.name.clone(), existing.path.clone(), &file_content);
     Ok(Json(SlideDetail {
         name: existing.name,
         relative_path: existing.relative_path,
-        metadata: updated_metadata,
-        content: updated_content,
+        metadata: parsed.metadata,
+        content: parsed.content,
+        raw: file_content,
     }))
 }
 
@@ -566,10 +575,17 @@ async fn preview_slide(
         .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "slide param required"))?;
     let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
         .map_err(to_api_error("Failed to load slides"))?;
-    let slide = slides
-        .find(slide_name)
-        .cloned()
-        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Slide not found"))?;
+    // Previews are an iframe surface: an unresolved ref renders as a legible
+    // warning tile (matching build's fail-loud), not a JSON blob.
+    let slide = match resolve_slide_ref(&state.config, &slides, slide_name) {
+        Ok(s) => s,
+        Err(e) => {
+            let msg = html_escape_min(&e.message);
+            return Ok(axum::response::Html(format!(
+                r#"<!doctype html><html><body style="margin:0;height:100vh;display:grid;place-items:center;background:#16191b;color:#8b949e;font:500 26px/1.5 ui-monospace,monospace"><div style="text-align:center;padding:0 6%"><div style="color:#e0b84a;font-size:52px">⚠</div>{msg}<div style="font-size:18px;margin-top:12px;color:#6e7681">fix the reference in the playlist, or re-add the slide</div></div></body></html>"#
+            )));
+        }
+    };
 
     let flavor_name = params.get("flavor").map(String::as_str).unwrap_or("default");
     let flavors = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
@@ -927,4 +943,39 @@ where
     E: std::fmt::Display,
 {
     move |err| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, format!("{context}: {err}"))
+}
+
+fn html_escape_min(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// Resolve a slide reference the way the CLI does: exact name first, then the
+/// configured fuzzy matcher (playlists store fuzzy refs — same contract as
+/// `sldr build`). Ambiguity fails loudly rather than guessing.
+fn resolve_slide_ref(
+    config: &Config,
+    slides: &SlideCollection,
+    name: &str,
+) -> Result<Slide, ApiError> {
+    if let Some(s) = slides.find(name) {
+        return Ok(s.clone());
+    }
+    let matcher = SldrMatcher::new(config.matching.clone());
+    match matcher.resolve(name, &slides.names()) {
+        ResolveResult::Found(r) => slides
+            .find(&r.value)
+            .cloned()
+            .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Slide not found")),
+        ResolveResult::Multiple(m) => Err(ApiError::new(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            format!(
+                "Ambiguous slide '{name}': {}",
+                m.into_iter().map(|x| x.value).take(5).collect::<Vec<_>>().join(", ")
+            ),
+        )),
+        ResolveResult::NotFound => Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("Slide not found: {name}"),
+        )),
+    }
 }

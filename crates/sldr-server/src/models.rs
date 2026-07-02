@@ -19,6 +19,9 @@ pub struct SlideDetail {
     pub relative_path: String,
     pub metadata: SlideMetadata,
     pub content: String,
+    /// The slide's raw file source (frontmatter + body) — what the studio's
+    /// source drawer edits. The file is the truth; this is it, verbatim.
+    pub raw: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,6 +43,11 @@ pub struct UpdateSlideRequest {
     pub content: Option<String>,
     #[serde(default)]
     pub metadata: Option<SlideMetadata>,
+    /// Raw file source (frontmatter + body). When present it wins over
+    /// content/metadata and is written verbatim — the studio source drawer's
+    /// save path. Still a canonical slide .md, no new format (ADR-0001).
+    #[serde(default)]
+    pub raw: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

@@ -71,6 +71,17 @@ export interface FlavorSummary {
   name: string;
   display_name?: string | null;
   description?: string | null;
+  /// Full flavor objects come back from /flavors — colors feed the swatches.
+  colors?: Record<string, string | null | undefined>;
+}
+
+export interface SlideDetail {
+  name: string;
+  relative_path: string;
+  metadata: Record<string, unknown>;
+  content: string;
+  /// Raw file source (frontmatter + body) — what the source drawer edits.
+  raw: string;
 }
 
 type Tokens = Record<string, string | null | undefined>;
@@ -125,6 +136,23 @@ export function layoutPreviewUrl(layout: string, flavor?: string) {
 export const api = {
   health: () => req<{ ok: boolean; version: string }>("/health"),
   slides: () => req<{ slides: SlideSummary[] }>("/slides").then((r) => r.slides),
+  slideDetail: (name: string) =>
+    req<SlideDetail>(`/slides/${encodeURIComponent(name)}`),
+  saveSlideRaw: (name: string, raw: string) =>
+    req<SlideDetail>(`/slides/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: JSON.stringify({ raw }),
+    }),
+  saveSlideMeta: (name: string, metadata: Record<string, unknown>) =>
+    req<SlideDetail>(`/slides/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: JSON.stringify({ metadata }),
+    }),
+  createSlide: (name: string, subdir?: string) =>
+    req<SlideDetail>("/slides", {
+      method: "POST",
+      body: JSON.stringify({ name, subdir }),
+    }),
   playlists: () =>
     req<{ playlists: Playlist[] }>("/playlists").then((r) => r.playlists),
   createPlaylist: (p: Playlist) =>

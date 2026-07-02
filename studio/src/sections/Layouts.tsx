@@ -21,6 +21,7 @@ import {
   PaneHead,
   SlideFrame,
 } from "../components/shell";
+import { TopBar, FlavorChip, type Chrome } from "../components/chrome";
 
 const REP_STYLE: Record<string, string> = {
   "placeholder-text": "border-sky-400 bg-sky-400/10 text-sky-300",
@@ -141,7 +142,8 @@ function NumField({
   );
 }
 
-export function Layouts({ flavor }: { flavor: string }) {
+export function Layouts({ chrome }: { chrome: Chrome }) {
+  const [flavor, setFlavor] = useState<string | null>(null);
   const qc = useQueryClient();
   const layouts = useQuery({ queryKey: ["layouts"], queryFn: api.layouts });
   const [name, setName] = useState<string | null>(null);
@@ -192,12 +194,14 @@ export function Layouts({ flavor }: { flavor: string }) {
     setDirty(true);
   };
 
-  const previewFlavor = flavor === "default" ? undefined : flavor;
+  const previewFlavor = flavor ?? undefined;
   const ql = q.toLowerCase();
   const z = sel !== null ? zones[sel] : null;
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[230px_minmax(0,1fr)_270px]">
+    <div className="sl-root grid h-svh grid-rows-[40px_minmax(0,1fr)]">
+      <TopBar chrome={chrome} extras={<FlavorChip value={flavor} onChange={setFlavor} />} />
+      <div className="grid h-full min-h-0 grid-cols-[230px_minmax(0,1fr)_270px]">
       <Rail>
         <RailHead>
           <div className="relative flex-1">
@@ -346,6 +350,7 @@ export function Layouts({ flavor }: { flavor: string }) {
           )}
         </div>
       </aside>
+    </div>
     </div>
   );
 }

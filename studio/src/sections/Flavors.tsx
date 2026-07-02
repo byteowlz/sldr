@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Rail, RailHead, RailList, RailLabel, Row, Stage, PaneHead } from "../components/shell";
+import { TopBar, type Chrome } from "../components/chrome";
 
 type Sec = "colors" | "typography" | "spacing" | "shape" | "background";
 const COLORS = [
@@ -54,7 +55,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-export function Flavors() {
+export function Flavors({ chrome }: { chrome: Chrome }) {
   const flavors = useQuery({ queryKey: ["flavors"], queryFn: api.flavors });
   const [name, setName] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -92,7 +93,9 @@ export function Flavors() {
   const list = flavors.data?.filter((f) => (f.display_name || f.name).toLowerCase().includes(ql));
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[200px_minmax(0,380px)_minmax(0,1fr)]">
+    <div className="sl-root grid h-svh grid-rows-[40px_minmax(0,1fr)]">
+      <TopBar chrome={chrome} />
+      <div className="grid h-full min-h-0 grid-cols-[200px_minmax(0,380px)_minmax(0,1fr)]">
       {/* Flavor list */}
       <Rail>
         <RailHead>
@@ -214,6 +217,7 @@ export function Flavors() {
           <p className="pt-2 text-[11px] text-muted-foreground">Reflects the last save.</p>
         </div>
       </Stage>
+    </div>
     </div>
   );
 }
