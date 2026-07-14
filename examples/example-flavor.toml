@@ -5,7 +5,7 @@
 #
 # Place this file in: ~/.config/sldr/flavors/<flavor-name>/flavor.toml
 
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json
 
 # Unique identifier for this flavor
 name = "example"

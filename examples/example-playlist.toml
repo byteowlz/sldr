@@ -5,7 +5,7 @@
 #
 # Place this file in: ~/sldr/playlists/<playlist-name>.toml
 
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json
 
 # Name of the playlist/presentation
 name = "example-talk"
