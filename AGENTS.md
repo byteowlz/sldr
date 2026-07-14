@@ -69,7 +69,7 @@ Slides can be in subdirs and nested subdirs. Fuzzy matching works without full p
 sldr is configured via a config.toml file in $XDG_CONFIG_HOME/sldr/ (defaults to ~/.config/sldr/). If the file doesn't exist yet, it is created on first run of the sldr CLI.
 
 ```toml
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json
 
 [config]
 scaffold_dir = "~/.config/sldr/scaffolds"

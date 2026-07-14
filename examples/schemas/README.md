@@ -41,7 +41,7 @@ Most modern editors support JSON Schema validation for TOML files. Configure you
 All sldr config files include a `$schema` field pointing to canonical schema location:
 
 ```toml
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json
 ```
 
 ## Generating Schemas & Examples

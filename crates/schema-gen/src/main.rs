@@ -111,7 +111,7 @@ fn generate_config_example(examples_dir: &PathBuf) {
 #
 # Schema reference for IDE autocompletion (requires Even Better TOML extension)
 
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json
 
 [config]
 # Directory containing slide scaffolds
@@ -172,7 +172,7 @@ fn generate_flavor_example(examples_dir: &PathBuf) {
 #
 # Place this file in: ~/.config/sldr/flavors/<flavor-name>/flavor.toml
 
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json
 
 # Unique identifier for this flavor
 name = "example"
@@ -270,7 +270,7 @@ fn generate_playlist_example(examples_dir: &PathBuf) {
 #
 # Place this file in: ~/sldr/playlists/<playlist-name>.toml
 
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.playlist.schema.json
 
 # Name of the playlist/presentation
 name = "example-talk"

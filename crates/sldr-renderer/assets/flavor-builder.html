@@ -2645,7 +2645,7 @@ function generateToml() {
   // Extract clean font name from CSS value
   const cleanFont = (f) => f.replace(/'/g, '').split(',')[0].trim();
 
-  let toml = `"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+  let toml = `#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json
 
 name = "${name}"
 display_name = "${name.charAt(0).toUpperCase() + name.slice(1)}"

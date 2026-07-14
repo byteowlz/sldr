@@ -188,7 +188,7 @@ Flavors define visual theming separate from content:
 
 ```toml
 # ~/.config/sldr/flavors/acme/flavor.toml
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.flavor.schema.json
 
 name = "acme"
 display_name = "ACME Corp"
@@ -218,7 +218,7 @@ value = "#ffffff"
 
 ```toml
 # ~/.config/sldr/config.toml
-"$schema" = "https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json"
+#:schema https://raw.githubusercontent.com/byteowlz/schemas/refs/heads/main/sldr/sldr.config.schema.json
 
 [config]
 scaffold_dir = "~/.config/sldr/scaffolds"
