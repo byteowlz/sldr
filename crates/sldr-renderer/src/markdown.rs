@@ -270,6 +270,137 @@ fn render_two_cols(
     }
 }
 
+/// Run a media reference through the pipeline and return the src to emit.
+fn process_src(src: &str, media_config: &MediaConfig) -> String {
+    match media::process_media_src(
+        src,
+        media_config.slide_dir.as_deref(),
+        media_config.image_mode,
+        media_config.assets_dir.as_deref(),
+    ) {
+        MediaEmbed::DataUri(data_uri) => data_uri,
+        MediaEmbed::External(url) => url,
+        MediaEmbed::AssetFile { html_src, .. } => html_src,
+        MediaEmbed::NotFound(original) => original,
+    }
+}
+
+/// Run the media pipeline over local image/video references inside raw
+/// markup (```html / ```svg fences and inline HTML): `src="…"`, `href="…"`
+/// and `xlink:href="…"` values that name a local media file are embedded or
+/// copied exactly like a markdown image, so a hand-built diagram can use
+/// icons and pictures from the slide's `media/` folder. URLs, anchors and
+/// non-media paths pass through untouched.
+fn rewrite_media_attrs(html: &str, media_config: &MediaConfig) -> String {
+    const ATTRS: [&str; 3] = ["xlink:href=", "href=", "src="];
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    loop {
+        // Next attribute occurrence (earliest of the three).
+        let hit = ATTRS
+            .iter()
+            .filter_map(|a| rest.find(a).map(|i| (i, *a)))
+            .min_by_key(|(i, _)| *i);
+        let Some((idx, attr)) = hit else {
+            out.push_str(rest);
+            return out;
+        };
+        let value_start = idx + attr.len();
+        out.push_str(&rest[..value_start]);
+        rest = &rest[value_start..];
+        let Some(quote) = rest.chars().next().filter(|c| *c == '"' || *c == '\'') else {
+            continue;
+        };
+        let Some(end) = rest[1..].find(quote) else {
+            continue;
+        };
+        let value = &rest[1..1 + end];
+        out.push(quote);
+        if media::is_video(value) || media::is_local_image(value) {
+            out.push_str(&process_src(value, media_config));
+        } else {
+            out.push_str(value);
+        }
+        out.push(quote);
+        rest = &rest[1 + end + 1..];
+    }
+}
+
+/// Render a ```bars fence — one `label | value` line per bar — into a
+/// `.sldr-bars` list (label, track + fill, value), the survey / benchmark /
+/// probability visual every deck needs and nobody should hand-build.
+///
+/// `value` is a number optionally followed by a unit that is shown as-is
+/// (`93 %`, `4.2 s`, `12k`). Bars scale to the largest value, or to 100 when
+/// any value carries a `%`. A `**bold**` label marks the highlighted bar.
+/// Blank lines and `#` comments are skipped; a line without `|` is ignored.
+fn render_bars(src: &str) -> String {
+    struct Bar {
+        label: String,
+        value: f64,
+        display: String,
+        hi: bool,
+    }
+    let mut bars: Vec<Bar> = Vec::new();
+    let mut percent = false;
+    for line in src.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((label, rest)) = line.split_once('|') else {
+            continue;
+        };
+        let (label, hi) = {
+            let l = label.trim();
+            match l.strip_prefix("**").and_then(|s| s.strip_suffix("**")) {
+                Some(inner) => (inner.trim().to_string(), true),
+                None => (l.to_string(), false),
+            }
+        };
+        let rest = rest.trim();
+        // Leading number (digits, one decimal point, optional sign / comma
+        // thousands separator); the remainder is the displayed unit.
+        let num_end = rest
+            .char_indices()
+            .take_while(|(i, c)| c.is_ascii_digit() || *c == '.' || *c == ',' || (*i == 0 && *c == '-'))
+            .map(|(i, c)| i + c.len_utf8())
+            .last()
+            .unwrap_or(0);
+        let value = rest[..num_end].replace(',', "").parse::<f64>().unwrap_or(0.0);
+        if rest.contains('%') {
+            percent = true;
+        }
+        bars.push(Bar {
+            label,
+            value,
+            display: rest.to_string(),
+            hi,
+        });
+    }
+    if bars.is_empty() {
+        return String::new();
+    }
+    let max = bars.iter().map(|b| b.value).fold(0.0_f64, f64::max);
+    let scale = if percent { max.max(100.0) } else { max };
+    let mut out = String::from("<div class=\"sldr-bars\">\n");
+    for b in bars {
+        let pct = if scale > 0.0 {
+            (b.value.max(0.0) / scale * 100.0).clamp(0.0, 100.0)
+        } else {
+            0.0
+        };
+        let cls = if b.hi { "sldr-bar is-hi" } else { "sldr-bar" };
+        out.push_str(&format!(
+            "<div class=\"{cls}\" style=\"--sldr-bar:{pct:.1}%\"><span class=\"sldr-bar-label\">{}</span><span class=\"sldr-bar-track\"><span class=\"sldr-bar-fill\"></span></span><span class=\"sldr-bar-value\">{}</span></div>\n",
+            html_escape(&b.label),
+            html_escape(&b.display)
+        ));
+    }
+    out.push_str("</div>\n");
+    out
+}
+
 /// Core markdown -> HTML conversion with syntax highlighting and media embedding
 fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
     let ss = SyntaxSet::load_defaults_newlines();
@@ -287,6 +418,10 @@ fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
     let mut code_content = String::new();
     let mut in_image = false;
     let mut image_alt = String::new();
+    // (processed src, markdown title, Some(mime) when the src is a video,
+    // pixel dimensions when known)
+    let mut pending_media: Option<(String, String, Option<&'static str>, Option<(u32, u32)>)> =
+        None;
 
     for event in parser {
         match event {
@@ -321,8 +456,14 @@ fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
                 // of highlighting it, so a hand-written SVG/HTML figure in a
                 // fence works (the natural agent instinct).
                 if code_lang == "svg" || code_lang == "html" {
-                    output.push_str(code_content.trim());
+                    output.push_str(&rewrite_media_attrs(code_content.trim(), media_config));
                     output.push('\n');
+                    continue;
+                }
+                // ```bars → a horizontal bar list (label, bar, value) styled
+                // by the diagram tokens. See `render_bars`.
+                if code_lang == "bars" {
+                    output.push_str(&render_bars(&code_content));
                     continue;
                 }
 
@@ -381,40 +522,58 @@ fn markdown_to_html(input: &str, media_config: &MediaConfig) -> String {
                 output.push_str("<br />\n");
             }
             Event::Html(html) | Event::InlineHtml(html) => {
-                output.push_str(html.as_ref());
+                output.push_str(&rewrite_media_attrs(html.as_ref(), media_config));
             }
             Event::Start(Tag::Image { dest_url, title, .. }) => {
                 in_image = true;
                 image_alt.clear();
-
-                // Process the image source through the media pipeline
-                let src = dest_url.as_ref();
-                let processed_src = match media::process_media_src(
-                    src,
-                    media_config.slide_dir.as_deref(),
-                    media_config.image_mode,
-                    media_config.assets_dir.as_deref(),
-                ) {
-                    MediaEmbed::DataUri(data_uri) => data_uri,
-                    MediaEmbed::External(url) => url,
-                    MediaEmbed::AssetFile { html_src, .. } => html_src,
-                    MediaEmbed::NotFound(original) => original,
-                };
-
-                output.push_str("<img src=\"");
-                output.push_str(&processed_src);
-                output.push('"');
-                if !title.is_empty() {
-                    output.push_str(" title=\"");
-                    output.push_str(title.as_ref());
-                    output.push('"');
-                }
-                // alt text will be added when we hit End(Image)
-                output.push_str(" alt=\"");
+                // The tag is emitted at End(Image), once the alt text is
+                // collected — a video needs it as an attribute up front.
+                pending_media = Some((
+                    process_src(dest_url.as_ref(), media_config),
+                    title.to_string(),
+                    media::is_video(dest_url.as_ref()).then(|| media::video_mime(dest_url.as_ref())),
+                    media::image_dimensions(dest_url.as_ref(), media_config.slide_dir.as_deref()),
+                ));
             }
             Event::End(TagEnd::Image) => {
-                output.push_str(&html_escape(&image_alt));
-                output.push_str("\" />\n");
+                let (src, title, video_mime, dims) = pending_media.take().unwrap_or_default();
+                let alt = html_escape(&image_alt);
+                if let Some(mime) = video_mime {
+                    // `![alt](clip.mp4 "poster.png")` — the markdown title
+                    // doubles as the poster frame, run through the same
+                    // media pipeline as any image.
+                    let mut attrs = String::from("controls playsinline preload=\"metadata\"");
+                    if !title.is_empty() {
+                        attrs.push_str(" poster=\"");
+                        attrs.push_str(&process_src(&title, media_config));
+                        attrs.push('"');
+                    }
+                    if !alt.is_empty() {
+                        attrs.push_str(" aria-label=\"");
+                        attrs.push_str(&alt);
+                        attrs.push('"');
+                    }
+                    output.push_str(&media::video_tag(&src, mime, &attrs));
+                    output.push('\n');
+                } else {
+                    output.push_str("<img src=\"");
+                    output.push_str(&src);
+                    output.push('"');
+                    if let Some((w, h)) = dims {
+                        // Intrinsic size: gives the browser the aspect ratio
+                        // before load, and lets collage layouts size cells by it.
+                        output.push_str(&format!(" width=\"{w}\" height=\"{h}\""));
+                    }
+                    if !title.is_empty() {
+                        output.push_str(" title=\"");
+                        output.push_str(&html_escape(&title));
+                        output.push('"');
+                    }
+                    output.push_str(" alt=\"");
+                    output.push_str(&alt);
+                    output.push_str("\" />\n");
+                }
                 in_image = false;
                 image_alt.clear();
             }
@@ -578,6 +737,38 @@ mod tests {
     }
 
     #[test]
+    fn test_raw_markup_media_attrs_go_through_pipeline() {
+        // Local media inside ```html / ```svg fences and inline HTML is
+        // resolved like a markdown image: a missing file stays as written
+        // (NotFound passthrough), URLs and non-media hrefs are untouched.
+        let cfg = MediaConfig {
+            image_mode: ImageMode::Embed,
+            slide_dir: Some(std::path::PathBuf::from("/nonexistent")),
+            assets_dir: None,
+        };
+        let out = rewrite_media_attrs(
+            "<a href=\"https://x.org/a.png\"><img src='media/i.svg'></a><use xlink:href=\"#id\"/>",
+            &cfg,
+        );
+        assert_eq!(
+            out,
+            "<a href=\"https://x.org/a.png\"><img src='media/i.svg'></a><use xlink:href=\"#id\"/>"
+        );
+        // A real file gets embedded.
+        let dir = std::env::temp_dir().join("sldr-raw-media-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("dot.svg"), "<svg xmlns='http://www.w3.org/2000/svg'/>").unwrap();
+        let cfg = MediaConfig {
+            image_mode: ImageMode::Embed,
+            slide_dir: Some(dir.clone()),
+            assets_dir: None,
+        };
+        let out = rewrite_media_attrs("<image href=\"dot.svg\"/>", &cfg);
+        assert!(out.starts_with("<image href=\"data:image/svg+xml"), "{out}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn test_mermaid_block_becomes_diagram_div() {
         let md = "```mermaid\nflowchart LR\n  A --> B\n```";
         let html = markdown_to_html(md, &default_config());
@@ -600,6 +791,28 @@ mod tests {
         let html = markdown_to_html(raw, &default_config());
         assert!(html.contains("<b>bold</b>"));
         assert!(!html.contains("&lt;b&gt;"));
+    }
+
+    #[test]
+    fn test_bars_fence_renders_bar_list() {
+        let md = "```bars\n# next token\n**blue** | 93 %\nclear | 68 %\nnot | 26 %\n```";
+        let html = markdown_to_html(md, &default_config());
+        assert!(html.contains("<div class=\"sldr-bars\">"));
+        assert_eq!(html.matches("class=\"sldr-bar-track\"").count(), 3);
+        assert_eq!(html.matches("class=\"sldr-bar-fill\"").count(), 3);
+        // Percent values scale against 100, the bold label is the highlight.
+        assert!(html.contains("<div class=\"sldr-bar is-hi\" style=\"--sldr-bar:93.0%\">"));
+        assert!(html.contains("<span class=\"sldr-bar-label\">blue</span>"));
+        assert!(html.contains("<span class=\"sldr-bar-value\">93 %</span>"));
+        assert!(!html.contains("next token"));
+        assert!(!html.contains("sldr-code"));
+
+        // Plain numbers scale against the largest value; units pass through.
+        let md = "```bars\nA | 4,000 ms\nB | 2000 ms\n```";
+        let html = markdown_to_html(md, &default_config());
+        assert!(html.contains("style=\"--sldr-bar:100.0%\""));
+        assert!(html.contains("style=\"--sldr-bar:50.0%\""));
+        assert!(html.contains("<span class=\"sldr-bar-value\">4,000 ms</span>"));
     }
 
     #[test]

@@ -2,7 +2,11 @@
 <!-- sldr:tags classic -->
 <!-- PPTX export zones (coordinates are percent of the slide box). -->
 <!-- sldr:zone name=content rep=picture x=0 y=0 w=100 h=100 -->
-<!-- Layout: image — Full-bleed image -->
+<!-- Layout: image — Full-bleed image (or video). Fills the whole slide with
+     no deck chrome: no logos, footer or source. A video here plays from the
+     start when the slide is shown and pauses when it is left. -->
+<!-- sldr:chrome none -->
+<!-- sldr:media autoplay -->
 <div class="sldr-content">
   {{content}}
 </div>

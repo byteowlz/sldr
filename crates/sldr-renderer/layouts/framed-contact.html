@@ -1,0 +1,74 @@
+<!-- sldr:category framed -->
+<!-- sldr:tags classic, branded -->
+<!-- PPTX export zones (coordinates are percent of the slide box). -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=image rep=picture x=8 y=30 w=28 h=52 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=40 y=34 w=56 h=40 -->
+<!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
+<!-- Layout: framed-contact — closing slide on the deck chrome: a portrait on
+     the left, contact lines on the right (::image:: / ::content:: markers,
+     or a single image followed by a list). The first list item is the name
+     (large), the second the role (dim), the rest are channels — e-mail, web,
+     social — rendered as plain lines; links stay links. -->
+<style>
+.sldr-slide[data-layout="framed-contact"] .sldr-frame-body { justify-content: center; }
+.sldr-slide[data-layout="framed-contact"] .sldr-frame-contact {
+  display: grid;
+  grid-template-columns: 30% 1fr;
+  gap: calc(var(--sldr-u) * 4);
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+}
+.sldr-slide[data-layout="framed-contact"] .sldr-frame-contact > * { min-width: 0; min-height: 0; }
+.sldr-slide[data-layout="framed-contact"] .sldr-col-image { height: 100%; display: flex; align-items: center; }
+.sldr-slide[data-layout="framed-contact"] .sldr-col-image p { margin: 0; width: 100%; height: 100%; display: flex; align-items: center; }
+.sldr-slide[data-layout="framed-contact"] .sldr-col-image img {
+  width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--sldr-radius);
+}
+.sldr-slide[data-layout="framed-contact"] .sldr-col-content ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sldr-uh) * 1.2);
+  font-size: calc(var(--sldr-u) * 1.7 * var(--sldr-type-scale));
+}
+.sldr-slide[data-layout="framed-contact"] .sldr-col-content li { margin: 0; }
+.sldr-slide[data-layout="framed-contact"] .sldr-col-content li:first-child {
+  font-family: var(--sldr-heading-font);
+  font-size: calc(var(--sldr-u) * 3 * var(--sldr-type-scale));
+  font-weight: var(--sldr-heading-weight);
+  color: var(--sldr-text);
+  margin-bottom: calc(var(--sldr-uh) * 0.4);
+}
+.sldr-slide[data-layout="framed-contact"] .sldr-col-content li:nth-child(2) {
+  color: var(--sldr-accent);
+  margin-bottom: calc(var(--sldr-uh) * 2);
+}
+.sldr-slide[data-layout="framed-contact"] .sldr-col-content a {
+  color: inherit;
+  text-decoration: none;
+}
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    <div class="sldr-frame-contact">
+      <div class="sldr-col-image">
+        {{image}}
+      </div>
+      <div class="sldr-col-content">
+        {{content}}
+      </div>
+    </div>
+  </div>
+</div>

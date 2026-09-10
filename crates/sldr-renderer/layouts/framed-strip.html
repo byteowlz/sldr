@@ -1,0 +1,65 @@
+<!-- sldr:category framed -->
+<!-- sldr:tags classic, branded -->
+<!-- PPTX export zones (coordinates are percent of the slide box). -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=content rep=picture x=4.4 y=22.2 w=91.1 h=64 -->
+<!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
+<!-- Layout: framed-strip — deck chrome (framed) with a single row of images
+     (or videos) shown whole, side by side, each with its alt text as a
+     caption underneath. Two to five items; a paragraph above the images
+     stays above the strip (a prompt, a claim, a lead-in). The captioned
+     counterpart of framed-gallery: use it when the items are a series to
+     compare (before/after, variants, steps), not a wall. -->
+<!-- sldr:transform collage -->
+<style>
+.sldr-slide[data-layout="framed-strip"] .sldr-frame-body { justify-content: flex-start; }
+.sldr-slide[data-layout="framed-strip"] .sldr-collage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sldr-u) * 1.6);
+}
+/* Cells grow in proportion to their media's aspect ratio (`--sldr-ar`, set by
+   the collage transform from the image's intrinsic size), so a portrait and
+   two landscapes share the row at one common height — a justified strip.
+   Each cell is as tall as its media needs (caption right underneath) and is
+   capped at the row height, where the media shrinks to fit. */
+.sldr-slide[data-layout="framed-strip"] .sldr-collage-item {
+  flex: var(--sldr-ar, 1) 1 0%;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--sldr-uh) * 1.2);
+}
+.sldr-slide[data-layout="framed-strip"] .sldr-collage-item :is(img, video) {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-height: none;
+  object-fit: contain;
+  object-position: center;
+  border-radius: var(--sldr-radius-sm);
+}
+.sldr-slide[data-layout="framed-strip"] .sldr-collage-item figcaption {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: calc(var(--sldr-u) * 1.35 * var(--sldr-type-scale));
+  font-weight: 700;
+  color: var(--sldr-text);
+}
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    {{content}}
+  </div>
+</div>

@@ -43,6 +43,15 @@ slides = [
   "reference/35-framed-full",
   "reference/36-image-center",
   "reference/37-figure",
+  "reference/38-framed-cards",
+  "reference/39-framed-timeline",
+  "reference/40-framed-strip",
+  "reference/41-framed-quote",
+  "reference/42-framed-contact",
+  "reference/43-video",
+  "reference/44-framed-flow",
+  "reference/45-bars",
+  "reference/46-custom-html",
 ]
 
 [render]

@@ -553,23 +553,49 @@
     return v || fallback;
   }
 
+  // Diagram colors come from the --sldr-diagram-* tokens (base.css defaults
+  // derive them from surface/border; a flavor sets them to its master's shape
+  // style), so flowcharts and sequence diagrams match hand-built figures.
   function mermaidThemeVars() {
     var text = cssVar("--sldr-text", "#f1f5f9");
     var surface = cssVar("--sldr-surface", "#1e293b");
+    var fill = cssVar("--sldr-diagram-fill", surface);
+    var stroke = cssVar("--sldr-diagram-stroke", cssVar("--sldr-border-bright", cssVar("--sldr-accent", text)));
+    var muted = cssVar("--sldr-muted", "transparent");
     return {
       background: "transparent",
-      mainBkg: surface,
-      primaryColor: surface,
+      mainBkg: fill,
+      primaryColor: fill,
       primaryTextColor: text,
-      primaryBorderColor: cssVar("--sldr-border-bright", cssVar("--sldr-accent", text)),
-      secondaryColor: cssVar("--sldr-surface2", surface),
-      tertiaryColor: cssVar("--sldr-muted", surface),
+      primaryBorderColor: stroke,
+      secondaryColor: fill,
+      tertiaryColor: muted,
       secondaryTextColor: text,
       tertiaryTextColor: text,
-      lineColor: cssVar("--sldr-text-dim", text),
+      lineColor: stroke,
+      edgeLabelBackground: cssVar("--sldr-background", surface),
       textColor: text,
       nodeTextColor: text,
       titleColor: text,
+      clusterBkg: muted,
+      clusterBorder: stroke,
+      // Sequence diagrams
+      actorBkg: fill,
+      actorBorder: stroke,
+      actorTextColor: text,
+      actorLineColor: stroke,
+      signalColor: stroke,
+      signalTextColor: text,
+      labelBoxBkgColor: fill,
+      labelBoxBorderColor: stroke,
+      labelTextColor: text,
+      loopTextColor: text,
+      noteBkgColor: fill,
+      noteBorderColor: stroke,
+      noteTextColor: text,
+      activationBkgColor: fill,
+      activationBorderColor: stroke,
+      sequenceNumberColor: cssVar("--sldr-diagram-highlight-text", surface),
       fontFamily: cssVar("--sldr-body-font", "inherit")
     };
   }
@@ -600,13 +626,38 @@
       }
     }
     try {
-      var p = mermaid.run({ nodes: Array.prototype.slice.call(nodes) });
+      var list = Array.prototype.slice.call(nodes);
+      var p = mermaid.run({ nodes: list });
       // The diagram changes the slide's height — re-fit once it resolves.
       if (p && p.then) {
-        p.then(function () { setUnit(slide); fitSlide(slide); }).catch(function () {});
+        p.then(function () {
+          requestAnimationFrame(function () {
+            refitMermaidViewBox(list);
+            setUnit(slide);
+            fitSlide(slide);
+          });
+        }).catch(function () {});
       }
     } catch (e) {
       /* leave the diagram source visible if mermaid throws */
+    }
+  }
+
+  // Mermaid sizes the SVG's viewBox from a bounding box taken mid-render.
+  // With HTML labels (flowcharts) that box can lag the settled layout, and
+  // the outermost node ends up clipped. Once the render has resolved and a
+  // frame has been laid out, re-fit the viewBox to the real geometry.
+  function refitMermaidViewBox(nodes) {
+    var pad = 8;
+    for (var i = 0; i < nodes.length; i++) {
+      var svg = nodes[i].querySelector("svg");
+      if (!svg) continue;
+      try {
+        var b = svg.getBBox();
+        if (b.width > 0 && b.height > 0) {
+          svg.setAttribute("viewBox", [b.x - pad, b.y - pad, b.width + 2 * pad, b.height + 2 * pad].join(" "));
+        }
+      } catch (e) { /* detached element — nothing to fit */ }
     }
   }
 
@@ -631,11 +682,41 @@
   var deckLogos = Array.prototype.slice.call(
     document.querySelectorAll(".sldr-logos .sldr-logo")
   );
-  function updateLogos(layout) {
+  function updateLogos(slide) {
+    var layout = slide.getAttribute("data-layout") || "";
+    // A `sldr:chrome none` layout (full-bleed image/video) shows no logos at all.
+    var bare = slide.getAttribute("data-chrome") === "none";
     for (var i = 0; i < deckLogos.length; i++) {
       var list = (deckLogos[i].getAttribute("data-logo-layouts") || "").split(/\s+/);
-      var on = list.indexOf("all") !== -1 || list.indexOf(layout) !== -1;
+      var on = !bare && (list.indexOf("all") !== -1 || list.indexOf(layout) !== -1);
       deckLogos[i].classList.toggle("sldr-logo-on", on);
+    }
+  }
+
+  // Videos: pause everything that is not on the current slide; on a
+  // `sldr:media autoplay` layout (full-screen video) restart the clip from
+  // the top. Autoplay with sound needs a prior user gesture — the deck has
+  // usually had one (a key press to get here); if the browser still refuses,
+  // fall back to playing muted rather than showing a frozen poster.
+  function syncMedia(enterSlide) {
+    var all = document.querySelectorAll(".sldr-slide video");
+    for (var i = 0; i < all.length; i++) {
+      if (!enterSlide.contains(all[i]) && !all[i].paused) all[i].pause();
+    }
+    if (enterSlide.getAttribute("data-media") !== "autoplay") return;
+    var vids = enterSlide.querySelectorAll("video");
+    for (var j = 0; j < vids.length; j++) {
+      (function (v) {
+        try { v.currentTime = 0; } catch (e) { /* not seekable yet */ }
+        var p = v.play();
+        if (p && p.catch) {
+          p.catch(function () {
+            v.muted = true;
+            var q = v.play();
+            if (q && q.catch) q.catch(function () {});
+          });
+        }
+      })(vids[j]);
     }
   }
 
@@ -719,7 +800,8 @@
 
     // Show only the logos that apply to this slide's layout. Logos that
     // carry across consecutive slides stay on (no toggle, no flicker).
-    updateLogos(enterSlide.getAttribute("data-layout") || "");
+    updateLogos(enterSlide);
+    syncMedia(enterSlide);
 
     // Resolution-independent unit, then shrink the body to fit if it overflows.
     setUnit(enterSlide);

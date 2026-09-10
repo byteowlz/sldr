@@ -2,19 +2,58 @@
 <!-- sldr:tags classic, branded -->
 <!-- Layout: framed-gallery — deck chrome (framed) with an image-grid body.
      Each markdown image on its own line becomes a grid cell (collage
-     transform); alt text is dropped here for a clean wall of images. -->
+     transform); alt text is dropped here for a clean wall of images. The
+     grid fills the body: one row up to three images, 2×2 for four, three
+     columns for five or six, four for seven or eight, five beyond. A partial
+     last row is centred. Cells crop (cover) to a common size. -->
 <!-- sldr:transform collage -->
 <style>
 .sldr-slide[data-layout="framed-gallery"] .sldr-frame-body { justify-content: flex-start; }
+/* 120 tracks (divisible by 1–6) so cells can span 1/n of the row and a
+   partial last row can be offset to sit centred. The column gutter is
+   padding on the cells (a grid column-gap would repeat 119 times). */
 .sldr-slide[data-layout="framed-gallery"] .sldr-collage {
+  --sldr-gallery-gap: calc(var(--sldr-u) * 0.8);
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: calc(var(--sldr-u) * 0.8);
-  align-content: start;
+  grid-template-columns: repeat(120, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  row-gap: var(--sldr-gallery-gap);
+  column-gap: 0; /* the shared .sldr-collage gap would repeat 119 times */
+  margin: 0; /* no negative outset: it would count as horizontal overflow */
+  align-items: stretch; /* the shared flex-start would let cells shrink-wrap */
+  align-content: stretch;
 }
-.sldr-slide[data-layout="framed-gallery"] .sldr-collage-item { margin: 0; }
-.sldr-slide[data-layout="framed-gallery"] .sldr-collage-item img {
-  width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; max-height: none;
+/* A cell is a plain block filling its grid area; the image fills the cell. */
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage-item {
+  display: block;
+  margin: 0;
+  padding: 0 calc(var(--sldr-gallery-gap) / 2);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  grid-column: span 120;
+}
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(2)) > .sldr-collage-item { grid-column: span 60; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(3)) > .sldr-collage-item { grid-column: span 40; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(4):last-child) > .sldr-collage-item { grid-column: span 60; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(7)) > .sldr-collage-item { grid-column: span 30; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(9)) > .sldr-collage-item { grid-column: span 24; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(11)) > .sldr-collage-item { grid-column: span 30; }
+/* Centre a partial last row: 5 → 3 + 2, 7 → 4 + 3, 9 → 5 + 4, 11 → 4 + 4 + 3. */
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(5):last-child) > .sldr-collage-item:nth-child(4) { grid-column: 21 / span 40; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(7):last-child) > .sldr-collage-item:nth-child(5) { grid-column: 16 / span 30; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(9):last-child) > .sldr-collage-item:nth-child(6) { grid-column: 13 / span 24; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage:has(> :nth-child(11):last-child) > .sldr-collage-item:nth-child(9) { grid-column: 16 / span 30; }
+.sldr-slide[data-layout="framed-gallery"] .sldr-collage-item :is(img, video) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--sldr-radius-sm);
+  max-height: none;
 }
 .sldr-slide[data-layout="framed-gallery"] .sldr-collage-item figcaption { display: none; }
 </style>
