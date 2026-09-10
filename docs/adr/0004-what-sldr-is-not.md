@@ -7,3 +7,7 @@ Scope boundaries decided alongside the vision. Each of these is a plausible feat
 3. **PPTX is an exit door, never a format target.** Export is lossy by design and fidelity is not promised. The core will never contain a PPTX importer or let PowerPoint's model shape sldr formats. If PPTX import ever happens, it is agent work — a capable model translating decks into canonical slides/layouts/flavors — producing plain files, not a core parser.
 4. **No realtime collaboration in the core.** Git is the synchronization and history layer. A satellite may offer live sessions, but it must converge to plain files in git and may never extend core formats to do it.
 5. **No embedded intelligence.** The binary makes no model calls and ships no judgment heuristics. The agent using sldr is the only intelligence needed; sldr may shell out to a user-configured external agent (`agent` config key), but judgment always lives outside the binary.
+
+## Related proposal
+
+[ADR-0010](0010-preservation-aware-presentation-interoperability.md) proposes a narrow revision of item 3 for preservation-aware PPTX interoperability. It is **proposed**, not accepted; this ADR's existing scope remains in force until that decision is explicitly made.
