@@ -41,6 +41,10 @@ pub struct SlideOpts<'a> {
     pub align: Option<&'static str>,
     /// Vertical alignment override: `Some("top" | "center" | "bottom")`.
     pub valign: Option<&'static str>,
+    /// Per-slide type scale (frontmatter `type_scale`), already clamped.
+    /// Emitted as an inline `--sldr-type-scale` on the section so every
+    /// scale-aware font size on the slide follows it.
+    pub type_scale: Option<f64>,
     /// Language of this slide variant when the deck embeds several
     /// languages (`data-lang`); None for single-language decks.
     pub lang: Option<&'a str>,
@@ -94,6 +98,13 @@ pub struct LayoutDef {
     pub category: Option<String>,
     /// `<!-- sldr:tags a, b -->` — free tags (e.g. register: classic/expressive).
     pub tags: Vec<String>,
+    /// `<!-- sldr:chrome none -->` — a full-bleed layout that shows none of
+    /// the deck chrome: no flavor logos, no footer/source overlay. Emitted as
+    /// `data-chrome="none"` on the section for the presenter.
+    pub chrome_none: bool,
+    /// `<!-- sldr:media autoplay -->` — videos on this layout start playing
+    /// when the slide is shown and pause when it is left (`data-media`).
+    pub media_autoplay: bool,
     /// `<!-- sldr:zone … -->` directives — the PPTX export contract for this
     /// layout (ADR-0008, trx-4s9s). Each zone declares how one region maps to
     /// native PowerPoint: an editable text placeholder, a positioned picture,
@@ -185,6 +196,13 @@ impl LayoutDef {
     /// i.e. it expects the body to split via `::left::` / `::right::` markers.
     pub fn expects_columns(&self) -> bool {
         self.structure.contains("{{left}}") || self.structure.contains("{{right}}")
+    }
+
+    /// Whether the layout also places a plain `{{content}}` slot — a layout
+    /// that has both (e.g. `framed-flow`) accepts a single-block body *and* a
+    /// `::left::` / `::right::` one, so a missing marker is not a mismatch.
+    pub fn has_content_slot(&self) -> bool {
+        self.structure.contains("{{content}}")
     }
 }
 
@@ -348,16 +366,23 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("feature-image", include_str!("../layouts/feature-image.html")),
     ("figure", include_str!("../layouts/figure.html")),
     ("framed", include_str!("../layouts/framed.html")),
+    ("framed-cards", include_str!("../layouts/framed-cards.html")),
     ("framed-cols", include_str!("../layouts/framed-cols.html")),
+    ("framed-contact", include_str!("../layouts/framed-contact.html")),
     ("framed-cover", include_str!("../layouts/framed-cover.html")),
     ("framed-figure", include_str!("../layouts/framed-figure.html")),
+    ("framed-flow", include_str!("../layouts/framed-flow.html")),
     ("framed-full", include_str!("../layouts/framed-full.html")),
     ("framed-gallery", include_str!("../layouts/framed-gallery.html")),
     ("framed-image", include_str!("../layouts/framed-image.html")),
+    ("framed-quote", include_str!("../layouts/framed-quote.html")),
     ("framed-scatter", include_str!("../layouts/framed-scatter.html")),
     ("framed-section", include_str!("../layouts/framed-section.html")),
+    ("framed-strip", include_str!("../layouts/framed-strip.html")),
+    ("framed-timeline", include_str!("../layouts/framed-timeline.html")),
     ("hero-stat", include_str!("../layouts/hero-stat.html")),
     ("image", include_str!("../layouts/image.html")),
+    ("video", include_str!("../layouts/video.html")),
     ("image-center", include_str!("../layouts/image-center.html")),
     ("image-grid", include_str!("../layouts/image-grid.html")),
     ("image-left", include_str!("../layouts/image-left.html")),
@@ -527,6 +552,8 @@ fn parse_layout(name: &str, source: &str) -> LayoutDef {
                 .collect()
         })
         .unwrap_or_default();
+    let chrome_none = directive_value(source, "chrome").map(str::trim) == Some("none");
+    let media_autoplay = directive_value(source, "media").map(str::trim) == Some("autoplay");
 
     LayoutDef {
         name: name.to_string(),
@@ -535,6 +562,8 @@ fn parse_layout(name: &str, source: &str) -> LayoutDef {
         collage,
         category,
         tags,
+        chrome_none,
+        media_autoplay,
         zones: parse_zones(source),
     }
 }
@@ -627,13 +656,22 @@ fn try_render_image_paragraph(inner: &str) -> Option<String> {
         if trimmed.is_empty() {
             break;
         }
-        if !trimmed.starts_with("<img ") {
+        let close = if trimmed.starts_with("<img ") {
+            trimmed.find("/>")? + 2
+        } else if trimmed.starts_with("<video ") {
+            trimmed.find("</video>")? + "</video>".len()
+        } else {
             return None;
-        }
-        let close = trimmed.find("/>")?;
-        let img_tag = &trimmed[..close + 2];
+        };
+        let img_tag = &trimmed[..close];
         let alt = extract_alt(img_tag).unwrap_or_default();
-        figures.push_str("<figure class=\"sldr-collage-item\">");
+        figures.push_str("<figure class=\"sldr-collage-item\"");
+        // `--sldr-ar` (width / height) lets a layout size the cell by the
+        // media's aspect ratio (e.g. a justified strip with equal heights).
+        if let Some(ar) = aspect_ratio(img_tag) {
+            figures.push_str(&format!(" style=\"--sldr-ar:{ar:.4}\""));
+        }
+        figures.push('>');
         figures.push_str(img_tag);
         if !alt.is_empty() {
             figures.push_str("<figcaption>");
@@ -641,7 +679,7 @@ fn try_render_image_paragraph(inner: &str) -> Option<String> {
             figures.push_str("</figcaption>");
         }
         figures.push_str("</figure>");
-        cursor = &trimmed[close + 2..];
+        cursor = &trimmed[close..];
         found_any = true;
     }
     if found_any {
@@ -651,8 +689,24 @@ fn try_render_image_paragraph(inner: &str) -> Option<String> {
     }
 }
 
+/// `width / height` from the tag's intrinsic-size attributes, if both exist.
+fn aspect_ratio(tag: &str) -> Option<f64> {
+    let num = |name: &str| -> Option<f64> {
+        let needle = format!(" {name}=\"");
+        let start = tag.find(&needle)? + needle.len();
+        let end = tag[start..].find('"')?;
+        tag[start..start + end].parse::<f64>().ok().filter(|v| *v > 0.0)
+    };
+    Some(num("width")? / num("height")?)
+}
+
+/// Caption text of a media tag: `alt` on `<img>`, `aria-label` on `<video>`.
 fn extract_alt(img_tag: &str) -> Option<String> {
-    let needle = " alt=\"";
+    let needle = if img_tag.starts_with("<video") {
+        " aria-label=\""
+    } else {
+        " alt=\""
+    };
     let start = img_tag.find(needle)? + needle.len();
     let end_rel = img_tag[start..].find('"')?;
     Some(img_tag[start..start + end_rel].to_string())
@@ -784,6 +838,7 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
         layout,
         align,
         valign,
+        type_scale,
         lang,
         rendered,
         speaker_notes,
@@ -809,8 +864,17 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
     if let Some(v) = valign {
         let _ = write!(html, " data-valign=\"{v}\"");
     }
+    if let Some(s) = type_scale {
+        let _ = write!(html, " style=\"--sldr-type-scale:{s}\"");
+    }
     if let Some(l) = lang {
         let _ = write!(html, " data-lang=\"{l}\"");
+    }
+    if def.chrome_none {
+        html.push_str(" data-chrome=\"none\"");
+    }
+    if def.media_autoplay {
+        html.push_str(" data-media=\"autoplay\"");
     }
     html.push_str(">\n");
 
@@ -820,7 +884,8 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
     // Persistent bottom chrome (footer + source) as a fixed overlay, so any
     // chrome-enabled layout carries it — not just framed ones with a slot.
     // Positioned by `.sldr-chrome` CSS, independent of the layout's content.
-    if chrome_overlay {
+    // A `sldr:chrome none` layout (full-bleed image/video) never gets it.
+    if chrome_overlay && !def.chrome_none {
         let footer = chrome.footer.as_deref().unwrap_or("");
         let source = chrome.source.as_deref().unwrap_or("");
         if !footer.is_empty() || !source.is_empty() {
@@ -861,6 +926,7 @@ mod tests {
                 layout,
                 align: None,
                 valign: None,
+                type_scale: None,
                 lang: None,
                 rendered,
                 speaker_notes: notes,
@@ -896,6 +962,7 @@ mod tests {
                 layout: "two-cols",
                 align: None,
                 valign: None,
+                type_scale: None,
                 lang: None,
                 rendered: MarkdownOutput::TwoCols {
                     heading: "<h1>Compare</h1>".to_string(),
@@ -1041,6 +1108,7 @@ mod tests {
                 layout: "default",
                 align: Some("right"),
                 valign: Some("bottom"),
+                type_scale: Some(0.85),
                 lang: None,
                 rendered: MarkdownOutput::Single("<h1>Right-aligned</h1>".to_string()),
                 speaker_notes: None,
@@ -1051,6 +1119,7 @@ mod tests {
         );
         assert!(html.contains("data-align=\"right\""));
         assert!(html.contains("data-valign=\"bottom\""));
+        assert!(html.contains(" style=\"--sldr-type-scale:0.85\""));
     }
 
     #[test]
@@ -1133,6 +1202,7 @@ mod tests {
                 layout: "hero-split",
                 align: None,
                 valign: None,
+                type_scale: None,
                 lang: None,
                 rendered: MarkdownOutput::Single("<h1>Big</h1>".to_string()),
                 speaker_notes: None,

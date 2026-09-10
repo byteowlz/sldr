@@ -1,0 +1,143 @@
+<!-- sldr:category framed -->
+<!-- sldr:tags classic, branded -->
+<!-- PPTX export zones (coordinates are percent of the slide box). -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=4.4 y=22.2 w=91.1 h=64 -->
+<!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
+<!-- Layout: framed-timeline — deck chrome (framed) with a list rendered as
+     milestones along a horizontal axis through the middle of the body.
+     Each list item is one milestone: a bold lead (`**1956**`) is the marker
+     label, the rest is the event. Items alternate above and below the axis,
+     so twice as many fit as on a single-sided timeline (a dozen reads fine).
+     Because neighbours sit on the other side of the axis, each label may run
+     into the next column: items are laid out ~two columns wide, overlapping
+     by one (up to 16 items; beyond that they fall back to one column each).
+     An intro paragraph before the list stays above the axis. -->
+<style>
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body { justify-content: flex-start; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--sldr-u) * 0.8);
+}
+/* Item count → column math for the two-column-wide labels. */
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(2):last-child) { --sldr-tl-n: 2; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(3):last-child) { --sldr-tl-n: 3; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(4):last-child) { --sldr-tl-n: 4; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(5):last-child) { --sldr-tl-n: 5; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(6):last-child) { --sldr-tl-n: 6; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(7):last-child) { --sldr-tl-n: 7; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(8):last-child) { --sldr-tl-n: 8; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(9):last-child) { --sldr-tl-n: 9; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(10):last-child) { --sldr-tl-n: 10; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(11):last-child) { --sldr-tl-n: 11; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(12):last-child) { --sldr-tl-n: 12; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(13):last-child) { --sldr-tl-n: 13; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(14):last-child) { --sldr-tl-n: 14; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(15):last-child) { --sldr-tl-n: 15; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(16):last-child) { --sldr-tl-n: 16; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(-n+16):last-child) {
+  gap: 0;
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(-n+16):last-child) > li {
+  flex: 0 0 calc(190% / var(--sldr-tl-n));
+  margin-right: calc(-90% / var(--sldr-tl-n));
+  padding-right: calc(var(--sldr-u) * 1.2);
+  box-sizing: border-box;
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol):has(> li:nth-child(-n+16):last-child) > li:last-child {
+  flex-basis: calc(100% / var(--sldr-tl-n));
+  margin-right: 0;
+  padding-right: 0;
+}
+/* The axis. */
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: var(--sldr-border-bright);
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 50%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-size: calc(var(--sldr-u) * 1.2 * var(--sldr-type-scale));
+  line-height: 1.3;
+  color: var(--sldr-text);
+  text-wrap: pretty;
+}
+/* Odd items hang above the axis, even items sit below it. */
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:nth-child(odd) {
+  align-self: flex-start;
+  justify-content: flex-end;
+  padding-bottom: calc(var(--sldr-uh) * 3.2);
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:nth-child(even) {
+  align-self: flex-end;
+  justify-content: flex-start;
+  padding-top: calc(var(--sldr-uh) * 3.2);
+}
+/* Marker dot on the axis. */
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: calc(var(--sldr-u) * 1.1);
+  height: calc(var(--sldr-u) * 1.1);
+  border-radius: 50%;
+  background: var(--sldr-background);
+  border: 2px solid var(--sldr-accent);
+  box-sizing: border-box;
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:nth-child(odd)::before {
+  bottom: calc(var(--sldr-u) * -0.55);
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:nth-child(even)::before {
+  top: calc(var(--sldr-u) * -0.55);
+}
+/* Tick from the dot to the text. */
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--sldr-u) * 0.5);
+  width: 1px;
+  height: calc(var(--sldr-uh) * 2.2);
+  background: var(--sldr-border-bright);
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:nth-child(odd)::after { bottom: 0; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:nth-child(even)::after { top: 0; }
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li > p { margin: 0; }
+/* `**1956**` lead → marker label. */
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li > strong:first-of-type,
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li > p > strong:first-of-type {
+  display: block;
+  color: var(--sldr-accent);
+  font-family: var(--sldr-heading-font);
+  font-size: calc(var(--sldr-u) * 1.5 * var(--sldr-type-scale));
+  font-weight: var(--sldr-heading-weight);
+  margin-bottom: 0.2em;
+}
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    {{content}}
+  </div>
+</div>

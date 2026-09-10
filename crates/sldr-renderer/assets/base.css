@@ -61,6 +61,17 @@
   --sldr-muted: color-mix(in oklch, var(--sldr-text) 6%, transparent);
   --sldr-accent-dim: color-mix(in oklch, var(--sldr-accent) 8%, transparent);
 
+  /* Diagram shapes — mermaid nodes/edges and hand-built SVG/HTML figures in
+   * slides: panel fill, outline color and weight, and the highlight used for
+   * the one emphasized shape (bar, selected token, …). Flavors override these
+   * to match their master's shape style; slides reference the tokens instead
+   * of picking colors. */
+  --sldr-diagram-fill: var(--sldr-surface);
+  --sldr-diagram-stroke: var(--sldr-border-bright);
+  --sldr-diagram-stroke-width: 2px;
+  --sldr-diagram-highlight: var(--sldr-accent);
+  --sldr-diagram-highlight-text: var(--sldr-background);
+
   /* Typography */
   --sldr-heading-font: 'DM Sans', system-ui, sans-serif;
   --sldr-body-font: 'DM Sans', system-ui, sans-serif;
@@ -273,7 +284,9 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   font-size: calc(var(--sldr-u) * var(--sldr-subheadline-size, 2.08) * var(--sldr-type-scale));
   font-weight: 400;
   line-height: 1.15;
-  color: var(--sldr-accent);
+  /* Accent by default; a flavor whose master keeps the subheadline in the
+   * text colour sets --sldr-subheadline-color in its flavor.css. */
+  color: var(--sldr-subheadline-color, var(--sldr-accent));
   margin: calc(var(--sldr-u) * 0.3) 0 0;
 }
 .sldr-framed .sldr-frame-body {
@@ -289,24 +302,52 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   flex-direction: column;
   justify-content: flex-start;
   gap: calc(var(--sldr-u) * 1.6 * var(--sldr-density-scale));
-  font-size: calc(var(--sldr-u) * var(--sldr-body-size, 1.6) * var(--sldr-type-scale));
+  /* The body's own size is what paragraphs and list items use (they inherit
+   * it below, rather than the bare `p` / `li` element sizes), so a custom
+   * ```html panel only has to set font-size once on its wrapper and every
+   * p/li inside follows — no per-element `font-size: inherit` boilerplate. */
+  font-size: calc(var(--sldr-u) * var(--sldr-body-size, 2) * var(--sldr-type-scale));
   line-height: 1.4;
 }
-.sldr-framed .sldr-frame-body :is(h2, h3) {
+/* Low specificity (`:where`) on purpose: a slide's own `.panel h3` / `.panel p`
+ * rule must win over these framed defaults without selector gymnastics. */
+.sldr-frame-body :where(h2, h3) {
   color: var(--sldr-primary);
   font-size: calc(var(--sldr-u) * 1.8 * var(--sldr-type-scale));
   margin: 0;
 }
+.sldr-frame-body :where(p, li) { font-size: inherit; }
 .sldr-framed .sldr-frame-body p { margin: 0; }
 .sldr-framed .sldr-frame-body ul { margin: 0; padding-left: 1.2em; }
 /* Images in a framed body never overflow their box/column. Grid cells get
  * min-width:0 so a wide image can't force the column past its 1fr share. */
-.sldr-framed .sldr-frame-body img {
+.sldr-framed .sldr-frame-body img,
+.sldr-framed .sldr-frame-body video {
   max-width: 100%;
   max-height: 100%;
   height: auto;
   object-fit: contain;
   display: block;
+  /* One corner radius for every picture on a framed slide (collage cells,
+   * split columns, scatter, full-bleed all use the same token). */
+  border-radius: var(--sldr-radius-sm);
+}
+/* A source line sits at 88.2%; keep the body clear of it. */
+.sldr-slide:has(.sldr-source) .sldr-frame-body { --sldr-body-bottom: 87%; }
+/* Mermaid renders at browser pixel size (16px type), which is tiny on a slide
+ * measured in --sldr-u. Inside a framed body the diagram takes the room its
+ * flex parent leaves and scales its SVG (viewBox, aspect preserved) into it. */
+.sldr-framed .sldr-frame-body .sldr-mermaid {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+}
+.sldr-framed .sldr-frame-body .sldr-mermaid svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
 }
 .sldr-framed .sldr-frame-cols > *,
 .sldr-framed .sldr-frame-imgsplit > * { min-width: 0; }
@@ -317,6 +358,36 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   gap: calc(var(--sldr-uh) * 1.1 * var(--sldr-density-scale));
   min-height: 0;
 }
+/* Columns holding visual media (images, video, diagrams) take the full body
+ * height so the media can shrink to fit instead of running over the footer;
+ * text-only columns stay content-sized (top-aligned). */
+.sldr-framed .sldr-frame-cols:has(img, video, .sldr-mermaid, svg),
+.sldr-framed .sldr-frame-imgsplit:has(img, video, .sldr-mermaid, svg) {
+  grid-template-rows: minmax(0, 1fr);
+}
+.sldr-framed .sldr-frame-imgsplit > * {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--sldr-uh) * 1.1 * var(--sldr-density-scale));
+  min-height: 0;
+  max-height: 100%;
+}
+/* An image-only paragraph is transparent so the image itself is the flex item
+ * and can shrink; text keeps its natural height. */
+.sldr-framed :is(.sldr-col, .sldr-col-image, .sldr-col-content) > p:has(> :is(img, video):only-child) {
+  display: contents;
+}
+.sldr-framed :is(.sldr-col, .sldr-col-image, .sldr-col-content) > :is(img, video),
+.sldr-framed :is(.sldr-col, .sldr-col-image, .sldr-col-content) > p > :is(img, video) {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-height: none;
+  object-fit: contain;
+  border-radius: var(--sldr-radius-sm);
+}
+.sldr-framed :is(.sldr-col, .sldr-col-image, .sldr-col-content) > .sldr-mermaid { flex: 1 1 auto; }
 /* Persistent bottom chrome (footer + source) as a fixed, layout-agnostic
  * overlay: injected into every chrome-enabled slide (framed family by default;
  * any layout via the flavor's `chrome_layouts`). Spans the slide so its
@@ -381,7 +452,6 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 }
 .sldr-framed .sldr-frame-imgsplit .sldr-col-image img {
   width: 100%;
-  max-height: calc(var(--sldr-uh) * 64);
   object-fit: contain;
   border-radius: var(--sldr-radius-sm);
 }
@@ -624,15 +694,35 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 /* =========================================================================
  * Layout: image (full bleed)
  * ========================================================================= */
-.sldr-slide[data-layout="image"] {
+.sldr-slide[data-layout="image"],
+.sldr-slide[data-layout="video"] {
   padding: 0;
 }
-
-.sldr-slide[data-layout="image"] img {
+/* The media element is the whole slide: no paragraph margins, no radius,
+ * nothing that could push it past the box (which would trigger a shrink). */
+.sldr-slide[data-layout="image"] .sldr-content,
+.sldr-slide[data-layout="video"] .sldr-content {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.sldr-slide[data-layout="image"] .sldr-content > p,
+.sldr-slide[data-layout="video"] .sldr-content > p {
+  margin: 0;
+  height: 100%;
+}
+.sldr-slide[data-layout="image"] img,
+.sldr-slide[data-layout="image"] video,
+.sldr-slide[data-layout="video"] video {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 0;
 }
+.sldr-slide[data-layout="image"] video,
+.sldr-slide[data-layout="video"] video { object-fit: contain; background: #000; }
+.sldr-slide[data-layout="video"] { background: #000; }
 
 
 /* =========================================================================
@@ -850,7 +940,8 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   min-width: 0;
 }
 
-.sldr-collage-item img {
+.sldr-collage-item img,
+.sldr-collage-item video {
   display: block;
   width: 100%;
   height: auto;
@@ -1149,7 +1240,177 @@ pre.sldr-code {
 .sldr-mermaid svg {
   max-width: 100%;
   height: auto;
+  /* Undo the source-hiding resets above for the rendered diagram: flowchart
+     labels are HTML (foreignObject) and inherit line-height — at 0 they
+     measure as zero-height, so mermaid draws every node as a flat sliver
+     with no visible text. */
+  line-height: normal;
+  color: var(--sldr-text);
 }
+/* Shape outlines and connectors follow the diagram tokens. Mermaid's own
+   stylesheet is id-scoped (higher specificity), hence !important. */
+.sldr-mermaid svg :is(.node, .cluster) :is(rect, circle, ellipse, polygon, path),
+.sldr-mermaid svg :is(.actor, .actor-box, .note, .labelBox, .activation0, .activation1, .activation2) {
+  stroke-width: var(--sldr-diagram-stroke-width) !important;
+}
+.sldr-mermaid svg :is(.edgePath path, .flowchart-link, .messageLine0, .messageLine1, .loopLine, .actor-line) {
+  stroke-width: var(--sldr-diagram-stroke-width) !important;
+}
+.sldr-mermaid svg :is(.messageLine0, .messageLine1, .loopLine) { stroke-width: calc(var(--sldr-diagram-stroke-width) * 0.75) !important; }
+.sldr-mermaid svg .actor-line { stroke-width: 1px !important; }
+.sldr-mermaid svg :is(.arrowheadPath, marker path) { fill: var(--sldr-diagram-stroke) !important; stroke: var(--sldr-diagram-stroke) !important; }
+
+/* Building blocks for hand-drawn figures in ```html / ```svg blocks, so a
+   slide's diagram takes its shape style from the flavor instead of hard-coding
+   colors. `.sldr-shape` is a panel (HTML box or SVG shape), `.is-hi` the one
+   emphasized shape; `.sldr-line`/`.sldr-head` connectors and arrowheads;
+   `.sldr-label` SVG text; `.sldr-arrow` an HTML arrow bar (add `.is-left`). */
+.sldr-shape {
+  background: var(--sldr-diagram-fill);
+  border: var(--sldr-diagram-stroke-width) solid var(--sldr-diagram-stroke);
+  border-radius: var(--sldr-radius-lg);
+  color: var(--sldr-text);
+}
+.sldr-shape.is-hi {
+  background: var(--sldr-diagram-highlight);
+  border-color: var(--sldr-diagram-highlight);
+  color: var(--sldr-diagram-highlight-text);
+}
+svg .sldr-shape { fill: var(--sldr-diagram-fill); stroke: var(--sldr-diagram-stroke); stroke-width: var(--sldr-diagram-stroke-width); }
+svg .sldr-shape.is-hi { fill: var(--sldr-diagram-highlight); stroke: var(--sldr-diagram-highlight); }
+svg .sldr-line { fill: none; stroke: var(--sldr-diagram-stroke); stroke-width: var(--sldr-diagram-stroke-width); stroke-linecap: round; stroke-linejoin: round; }
+svg .sldr-head { fill: var(--sldr-diagram-stroke); stroke: none; }
+svg .sldr-label { fill: var(--sldr-text); font-family: var(--sldr-body-font); }
+svg .sldr-label.is-dim { fill: var(--sldr-text-dim); }
+svg .sldr-label.is-hi { fill: var(--sldr-diagram-highlight-text); }
+.sldr-arrow {
+  position: relative;
+  height: var(--sldr-diagram-stroke-width);
+  background: var(--sldr-diagram-stroke);
+  border-radius: 2px;
+}
+.sldr-arrow::after,
+.sldr-arrow.is-both::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  width: 0.85em;
+  height: 0.85em;
+  border-top: var(--sldr-diagram-stroke-width) solid var(--sldr-diagram-stroke);
+  border-right: var(--sldr-diagram-stroke-width) solid var(--sldr-diagram-stroke);
+  transform: translateY(-50%) rotate(45deg);
+}
+.sldr-arrow.is-left::after,
+.sldr-arrow.is-both::before {
+  right: auto;
+  left: 1px;
+  transform: translateY(-50%) rotate(-135deg);
+}
+/* Vertical arrow bars: `.is-down` (default head at the bottom) / `.is-up`.
+   Give the element a height; the width is the stroke. */
+.sldr-arrow.is-down,
+.sldr-arrow.is-up {
+  width: var(--sldr-diagram-stroke-width);
+  height: auto;
+  min-height: 1.5em;
+}
+.sldr-arrow.is-down::after,
+.sldr-arrow.is-up::after {
+  top: auto;
+  left: 50%;
+  right: auto;
+  bottom: 1px;
+  transform: translateX(-50%) rotate(135deg);
+}
+.sldr-arrow.is-up::after {
+  bottom: auto;
+  top: 1px;
+  transform: translateX(-50%) rotate(-45deg);
+}
+/* A filled block arrow (the PowerPoint "right arrow" shape) that carries a
+   label: `<div class="sldr-block-arrow">Input</div>`. Points right; add
+   `.is-left` / `.is-down` / `.is-up` to turn it. Highlight colours, so it
+   reads as a strong connector against the outlined `.sldr-shape` boxes. */
+.sldr-block-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 4em;
+  padding: 0.45em 1.4em 0.45em 0.8em;
+  background: var(--sldr-diagram-highlight);
+  color: var(--sldr-diagram-highlight-text);
+  font-weight: 700;
+  text-align: center;
+  clip-path: polygon(0 18%, 72% 18%, 72% 0, 100% 50%, 72% 100%, 72% 82%, 0 82%);
+}
+.sldr-block-arrow.is-left {
+  padding: 0.45em 0.8em 0.45em 1.4em;
+  clip-path: polygon(100% 18%, 28% 18%, 28% 0, 0 50%, 28% 100%, 28% 82%, 100% 82%);
+}
+.sldr-block-arrow.is-down {
+  padding: 0.6em 0.6em 1.2em;
+  clip-path: polygon(18% 0, 82% 0, 82% 65%, 100% 65%, 50% 100%, 0 65%, 18% 65%);
+}
+.sldr-block-arrow.is-up {
+  padding: 1.2em 0.6em 0.6em;
+  clip-path: polygon(50% 0, 100% 35%, 82% 35%, 82% 100%, 18% 100%, 18% 35%, 0 35%);
+}
+/* A small dim caption under a figure or box ("User input", "Step 2"). */
+.sldr-caption {
+  display: block;
+  font-size: calc(var(--sldr-u) * 1.2 * var(--sldr-type-scale));
+  color: var(--sldr-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ```bars fence → horizontal bar list (label | bar | value). Fill and track
+   follow the diagram tokens; the `.is-hi` bar (a `**bold**` label) is the
+   one to look at. Width is the container's; type inherits the slide's. */
+.sldr-bars {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: calc(var(--sldr-u) * 1);
+  row-gap: calc(var(--sldr-uh) * 1.6);
+  width: 100%;
+  margin: calc(var(--sldr-uh) * 1) 0;
+}
+.sldr-bar { display: contents; }
+.sldr-bar-label {
+  font-weight: 700;
+  text-align: right;
+  min-width: 0;
+}
+.sldr-bar-track {
+  display: block;
+  height: 0.9em;
+  border-radius: var(--sldr-radius-sm);
+  background: var(--sldr-diagram-fill);
+  border: var(--sldr-diagram-stroke-width) solid var(--sldr-diagram-stroke);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.sldr-bar-fill {
+  display: block;
+  height: 100%;
+  width: var(--sldr-bar, 0%);
+  background: var(--sldr-diagram-stroke);
+  transition: width 0.4s ease;
+}
+.sldr-bar.is-hi .sldr-bar-fill { background: var(--sldr-diagram-highlight); }
+.sldr-bar.is-hi .sldr-bar-label { color: var(--sldr-diagram-highlight); }
+.sldr-bar-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--sldr-text-dim);
+}
+.sldr-bar.is-hi .sldr-bar-value { color: var(--sldr-text); }
+.sldr-framed .sldr-frame-body .sldr-bars { flex: 0 0 auto; }
 
 code {
   font-family: var(--sldr-code-font);
@@ -1211,10 +1472,11 @@ tr:hover td {
 /* =========================================================================
  * Images
  * ========================================================================= */
-.sldr-content img {
+.sldr-content img,
+.sldr-content video {
   max-width: 100%;
   height: auto;
-  border-radius: 6px;
+  border-radius: var(--sldr-radius-sm);
 }
 
 

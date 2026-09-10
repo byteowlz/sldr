@@ -294,6 +294,13 @@ impl HtmlRenderer {
         // attribute selector.
         let align = sanitize_align(slide.metadata.align.as_deref());
         let valign = sanitize_valign(slide.metadata.valign.as_deref());
+        // `type_scale` is a plain multiplier; clamp so a typo (`8.5`) can't
+        // blow the slide up, and drop NaN/inf rather than emit garbage CSS.
+        let type_scale = slide
+            .metadata
+            .type_scale
+            .filter(|s| s.is_finite())
+            .map(|s| s.clamp(0.5, 2.0));
 
         // Chrome: persistent deck framing fed from frontmatter + flavor,
         // not the markdown body. Footer resolves slide override over the
@@ -360,7 +367,9 @@ impl HtmlRenderer {
             MarkdownOutput::Single(_) if def.expects_image() => {
                 Some("::content:: / ::image::")
             }
-            MarkdownOutput::Single(_) if def.expects_columns() => {
+            // A layout with both a `{{content}}` and column slots (framed-flow)
+            // takes a single-block body by design — no warning there.
+            MarkdownOutput::Single(_) if def.expects_columns() && !def.has_content_slot() => {
                 Some("::left:: / ::right::")
             }
             MarkdownOutput::TwoCols { .. } if def.expects_image() => {
@@ -405,6 +414,7 @@ impl HtmlRenderer {
                 layout,
                 align,
                 valign,
+                type_scale,
                 lang: tag,
                 rendered,
                 speaker_notes: notes.as_deref(),

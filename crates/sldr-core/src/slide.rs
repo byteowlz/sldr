@@ -54,6 +54,11 @@ pub struct SlideInput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub valign: Option<String>,
 
+    /// Per-slide type scale (e.g. `0.85` for a dense table); see
+    /// `SlideMetadata::type_scale`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub type_scale: Option<f64>,
+
     /// Subtitle / second-line chrome (framed layouts). Default-language value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<String>,
@@ -157,6 +162,9 @@ impl SlideInput {
         }
         if let Some(ref v) = self.valign {
             let _ = writeln!(output, "valign: {v}");
+        }
+        if let Some(s) = self.type_scale {
+            let _ = writeln!(output, "type_scale: {s}");
         }
 
         // Per-language chrome → translations.<lang> frontmatter (body text is
@@ -289,6 +297,13 @@ pub struct SlideMetadata {
     /// slide section.
     #[serde(default)]
     pub valign: Option<String>,
+
+    /// Per-slide type scale: multiplies every `--sldr-type-scale`-aware font
+    /// size on this slide (body, lists, cards, timeline …). `0.85` squeezes a
+    /// dense table or list onto the slide without dropping to raw HTML;
+    /// `1.2` enlarges a sparse one. Clamped to 0.5–2 at render time.
+    #[serde(default)]
+    pub type_scale: Option<f64>,
 
     /// Research area this slide belongs to
     #[serde(default)]
@@ -612,6 +627,7 @@ This is the content.
             layout: "framed-image".into(),
             align: None,
             valign: None,
+            type_scale: None,
             subtitle: Some("World".into()),
             source: Some("Source".into()),
             source_url: Some("https://example.com".into()),
