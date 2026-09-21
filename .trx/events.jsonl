@@ -100,3 +100,24 @@
 {"id":"evt_jz6apexe","issue_id":"trx-3f4w.12","action":"closed","timestamp":"2026-06-29T22:48:27.317763055Z"}
 {"id":"evt_qy1ghffq","issue_id":"trx-3f4w.14","action":"updated","timestamp":"2026-06-29T23:00:03.788704057Z","changes":[{"field":"description","from":"Rebuild the flavor editor in-studio on the current token surface: color/font/background pickers + type_scale, density, per-role sizes, chrome_layouts, .sldr-chrome hooks. Live sample-deck iframe preview. Writes flavor.toml + flavor.css only.","to":"Backend (server API) DONE: GET /flavors/{name} (full token model + css) and PUT /flavors/{name} (typed Flavor -> flavor.toml, css -> flavor.css). Remaining: the Oqto frontend editor UI (color/font/background pickers + type_scale/density/per-role sizes/chrome_layouts/.sldr-chrome), live sample-deck preview. Replaces sldr flavor."}]}
 {"id":"evt_s93m50w0","issue_id":"trx-3f4w.13","action":"updated","timestamp":"2026-06-30T05:33:53.190127279Z","changes":[{"field":"status","from":"open","to":"in_progress"}]}
+{"id":"evt_vx4h6ep5","issue_id":"trx-3f4w.17","action":"created","timestamp":"2026-09-21T10:16:42.026152267Z"}
+{"id":"evt_cakjx5s6","issue_id":"trx-3f4w.18","action":"created","timestamp":"2026-09-21T10:16:42.040749061Z"}
+{"id":"evt_1rd7yshn","issue_id":"trx-3f4w.19","action":"created","timestamp":"2026-09-21T10:16:42.058161964Z"}
+{"id":"evt_5b5yb8at","issue_id":"trx-3f4w.20","action":"created","timestamp":"2026-09-21T10:16:42.080273347Z"}
+{"id":"evt_vfzx9wsj","issue_id":"trx-3f4w.21","action":"created","timestamp":"2026-09-21T10:16:42.103755433Z"}
+{"id":"evt_1e7nyvhz","issue_id":"trx-3f4w.22","action":"created","timestamp":"2026-09-21T10:16:42.123158598Z"}
+{"id":"evt_x89rryjb","issue_id":"trx-3f4w.23","action":"created","timestamp":"2026-09-21T10:16:42.138645921Z"}
+{"id":"evt_3zts2zkz","issue_id":"trx-3f4w.24","action":"created","timestamp":"2026-09-21T10:16:42.150775699Z"}
+{"id":"evt_b5gpcx1z","issue_id":"trx-3f4w.25","action":"created","timestamp":"2026-09-21T10:16:42.164188860Z"}
+{"id":"evt_32466vcg","issue_id":"trx-3f4w.26","action":"created","timestamp":"2026-09-21T10:16:42.175365534Z"}
+{"id":"evt_x2yxxph1","issue_id":"trx-3f4w.27","action":"created","timestamp":"2026-09-21T10:16:42.191163940Z"}
+{"id":"evt_kpf0bqdc","issue_id":"trx-4s9s.6","action":"created","timestamp":"2026-09-21T10:16:42.206994251Z"}
+{"id":"evt_9j1rk905","issue_id":"trx-3f4w.22","action":"dep_added","timestamp":"2026-09-21T10:17:23.288216208Z","note":"trx-3f4w.18"}
+{"id":"evt_rvz4jawy","issue_id":"trx-3f4w.22","action":"dep_added","timestamp":"2026-09-21T10:17:23.291098208Z","note":"trx-3f4w.19"}
+{"id":"evt_y4sc90tq","issue_id":"trx-3f4w.22","action":"dep_added","timestamp":"2026-09-21T10:17:23.293837077Z","note":"trx-3f4w.21"}
+{"id":"evt_d1br2jbk","issue_id":"trx-3f4w.23","action":"dep_added","timestamp":"2026-09-21T10:17:23.304963595Z","note":"trx-3f4w.17"}
+{"id":"evt_wwr63xwc","issue_id":"trx-3f4w.23","action":"dep_added","timestamp":"2026-09-21T10:17:23.307566739Z","note":"trx-3f4w.21"}
+{"id":"evt_kbs4j9h4","issue_id":"trx-3f4w.24","action":"dep_added","timestamp":"2026-09-21T10:17:23.318032503Z","note":"trx-3f4w.19"}
+{"id":"evt_g0vk8rtj","issue_id":"trx-3f4w.25","action":"dep_added","timestamp":"2026-09-21T10:17:23.328700619Z","note":"trx-3f4w.19"}
+{"id":"evt_44kqfrmm","issue_id":"trx-3f4w.26","action":"dep_added","timestamp":"2026-09-21T10:17:23.340020283Z","note":"trx-3f4w.18"}
+{"id":"evt_e5nwdvdx","issue_id":"trx-3f4w.21","action":"dep_added","timestamp":"2026-09-21T10:17:23.351375316Z","note":"trx-3f4w.20"}
