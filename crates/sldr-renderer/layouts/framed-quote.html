@@ -1,0 +1,76 @@
+<!-- sldr:category framed -->
+<!-- sldr:tags expressive, branded -->
+<!-- PPTX export zones (coordinates are percent of the slide box). -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=4.4 y=22.2 w=91.1 h=64 -->
+<!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
+<!-- Layout: framed-quote — deck chrome (framed) around one big quotation.
+     Body: a `> blockquote` (the quote), a trailing paragraph (the
+     attribution — name, role, year), and optionally one image before the
+     quote (a portrait, shown as a round medallion on the left). Headline
+     and subheadline are optional. -->
+<style>
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body {
+  justify-content: center;
+  gap: calc(var(--sldr-uh) * 2.4);
+}
+/* Portrait + quote: two columns, medallion left. */
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body:has(> p > img) {
+  display: grid;
+  grid-template-columns: calc(var(--sldr-u) * 20) 1fr;
+  grid-template-rows: auto auto;
+  column-gap: calc(var(--sldr-u) * 3.5);
+  row-gap: calc(var(--sldr-uh) * 2.4);
+  align-content: center;
+  align-items: center;
+}
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body > p:has(> img) {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  margin: 0;
+}
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body > p > img {
+  width: calc(var(--sldr-u) * 20);
+  height: calc(var(--sldr-u) * 20);
+  max-height: none;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--sldr-accent);
+  box-shadow: var(--sldr-shadow-md);
+}
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body > blockquote {
+  grid-column: 2;
+  margin: 0;
+  padding: 0 0 0 calc(var(--sldr-u) * 2.2);
+  border-left: 4px solid var(--sldr-accent);
+  position: relative;
+  font-size: calc(var(--sldr-u) * 2.3 * var(--sldr-type-scale));
+  line-height: 1.35;
+  font-weight: 400;
+  color: var(--sldr-text);
+  text-wrap: pretty;
+}
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body > blockquote p { margin: 0 0 0.6em; }
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body > blockquote p:last-child { margin-bottom: 0; }
+/* Attribution: the paragraph after the quote. */
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body > blockquote + p {
+  grid-column: 2;
+  margin: 0;
+  padding-left: calc(var(--sldr-u) * 2.2 + 4px);
+  font-size: calc(var(--sldr-u) * 1.5 * var(--sldr-type-scale));
+  color: var(--sldr-accent);
+}
+.sldr-slide[data-layout="framed-quote"] .sldr-frame-body > blockquote + p::before {
+  content: '— ';
+}
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    {{content}}
+  </div>
+</div>

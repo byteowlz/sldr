@@ -1,0 +1,213 @@
+<!-- sldr:category framed -->
+<!-- sldr:tags classic, branded, diagram -->
+<!-- PPTX export zones (coordinates are percent of the slide box). -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=4.4 y=22.2 w=91.1 h=64 -->
+<!-- sldr:zone name=left ph=body idx=4 rep=placeholder-text x=4.4 y=22.2 w=43 h=64 -->
+<!-- sldr:zone name=right ph=body idx=5 rep=placeholder-text x=52.6 y=22.2 w=43 h=64 -->
+<!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
+<!-- Layout: framed-flow — deck chrome (framed) with a list rendered as a
+     chain of boxes joined by arrows: the process / pipeline / "how it works"
+     diagram. Each top-level list item is one step: an optional leading image
+     (icon), a bold lead (`**Title**`) as the step title, the rest as body
+     copy. A task-list check (`- [x] **Step**`) highlights that step. Boxes
+     and arrows follow the flavor's diagram tokens, so the same slide works on
+     any deck.
+
+     Single-block body: the chain runs left to right across the body; a
+     paragraph before the list stays above it, anything after it (bullets,
+     a paragraph) sits below as commentary. With `::left::` / `::right::`
+     markers the chain runs top to bottom in the left column and the right
+     column holds the commentary (its own lists stay bullets). -->
+<style>
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body { justify-content: center; }
+/* Hide whichever slot the body shape left empty. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols:not(:has(> .sldr-col > *)) { display: none; }
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols:has(> .sldr-col > *) ~ * { display: none; }
+
+/* The chain: a top-level list in the body, or in the left column. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol),
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) {
+  --sldr-flow-gap: calc(var(--sldr-u) * 3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: var(--sldr-flow-gap);
+  flex: 0 1 auto;
+  min-height: 0;
+  min-width: 0;
+  counter-reset: sldr-flow;
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > ol,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > ol { padding: 0; }
+/* Each step is a diagram shape. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: calc(var(--sldr-uh) * 2.4) calc(var(--sldr-u) * 1.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  background: var(--sldr-diagram-fill);
+  border: var(--sldr-diagram-stroke-width) solid var(--sldr-diagram-stroke);
+  border-radius: var(--sldr-radius-lg);
+  color: var(--sldr-text);
+  font-size: calc(var(--sldr-u) * 1.35 * var(--sldr-type-scale));
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+/* `- [x]` → the highlighted step; the checkbox itself never shows. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li > :is(input, p > input)[type="checkbox"],
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li > :is(input, p > input)[type="checkbox"] { display: none; }
+/* (In a loose list the marker sits inside the first paragraph.) */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li:has(> input:checked, > p:first-child > input:checked),
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li:has(> input:checked, > p:first-child > input:checked) {
+  background: var(--sldr-diagram-highlight);
+  border-color: var(--sldr-diagram-highlight);
+  color: var(--sldr-diagram-highlight-text);
+}
+/* The arrow between steps, drawn in the gap before every step but the first. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li + li::before,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li + li::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: var(--sldr-flow-gap);
+  height: var(--sldr-diagram-stroke-width);
+  margin-top: calc(var(--sldr-diagram-stroke-width) / -2);
+  background: linear-gradient(var(--sldr-diagram-stroke), var(--sldr-diagram-stroke)) no-repeat
+    calc(var(--sldr-u) * 0.6) 0 / calc(100% - var(--sldr-u) * 1.4) 100%;
+  pointer-events: none;
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li + li::after,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li + li::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: calc(100% + var(--sldr-u) * 0.7);
+  width: calc(var(--sldr-u) * 0.9);
+  height: calc(var(--sldr-u) * 0.9);
+  border-top: var(--sldr-diagram-stroke-width) solid var(--sldr-diagram-stroke);
+  border-right: var(--sldr-diagram-stroke-width) solid var(--sldr-diagram-stroke);
+  transform: translateY(-50%) rotate(45deg);
+  pointer-events: none;
+}
+/* Step content: icon, `**Title**`, body. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li > p,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li > p { margin: 0; }
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li > p + p,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li > p + p { margin-top: calc(var(--sldr-uh) * 1.2); }
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li > img,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li > p:first-child:has(> img:first-child) > img,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li > img,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li > p:first-child:has(> img:first-child) > img {
+  display: block;
+  height: calc(var(--sldr-uh) * 8);
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  margin: 0 auto calc(var(--sldr-uh) * 1.4);
+  border-radius: 0;
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li > strong:first-of-type,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li > p > strong:first-of-type,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li > strong:first-of-type,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li > p > strong:first-of-type {
+  display: block;
+  font-family: var(--sldr-heading-font);
+  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
+  font-weight: var(--sldr-heading-weight);
+  line-height: 1.2;
+  margin-bottom: 0.3em;
+  color: inherit; /* follows the box (highlight text on a highlighted step) */
+}
+/* An ordered list numbers the steps in the title. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > ol > li > :is(strong:first-of-type, p > strong:first-of-type)::before,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > ol > li > :is(strong:first-of-type, p > strong:first-of-type)::before {
+  counter-increment: sldr-flow;
+  content: counter(sldr-flow) ". ";
+}
+/* Nested lists inside a step keep the body size, left-aligned. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li :is(ul, ol),
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li :is(ul, ol) {
+  margin: 0;
+  padding-left: 1.1em;
+  text-align: left;
+  font-size: inherit;
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) > li :is(ul, ol) > li,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li :is(ul, ol) > li { margin: 0; font-size: inherit; line-height: inherit; }
+/* Commentary below a horizontal chain reads as body copy. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) ~ :is(ul, ol) {
+  display: block;
+  padding-left: 1.2em;
+  flex: none;
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) ~ :is(ul, ol) > li {
+  display: list-item;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  font-size: calc(var(--sldr-u) * 1.5 * var(--sldr-type-scale));
+  line-height: 1.4;
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) ~ :is(ul, ol) > li::before,
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) ~ :is(ul, ol) > li::after { content: none; }
+
+/* Column mode: the chain runs top to bottom in the left column. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child { justify-content: center; }
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) {
+  --sldr-flow-gap: calc(var(--sldr-uh) * 5);
+  flex-direction: column;
+  flex: 0 1 auto;
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li {
+  flex: 0 1 auto;
+  padding: calc(var(--sldr-uh) * 2) calc(var(--sldr-u) * 1.2);
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li + li::before {
+  top: auto;
+  right: auto;
+  bottom: 100%;
+  left: 50%;
+  width: var(--sldr-diagram-stroke-width);
+  height: var(--sldr-flow-gap);
+  margin: 0 0 0 calc(var(--sldr-diagram-stroke-width) / -2);
+  background: linear-gradient(var(--sldr-diagram-stroke), var(--sldr-diagram-stroke)) no-repeat
+    0 calc(var(--sldr-uh) * 0.8) / 100% calc(100% - var(--sldr-uh) * 1.8);
+}
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) > li + li::after {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + var(--sldr-uh) * 0.9);
+  left: 50%;
+  transform: translateX(-50%) rotate(135deg);
+}
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    <div class="sldr-frame-cols">
+      <div class="sldr-col">
+        {{left}}
+      </div>
+      <div class="sldr-col">
+        {{right}}
+      </div>
+    </div>
+    {{content}}
+  </div>
+</div>

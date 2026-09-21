@@ -873,6 +873,8 @@ fn find_browser() -> Result<PathBuf> {
     candidates.extend([
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        "microsoft-edge",
     ]);
 
     for candidate in &candidates {

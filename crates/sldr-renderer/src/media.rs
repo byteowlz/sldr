@@ -50,7 +50,7 @@ fn is_url(path: &str) -> bool {
 }
 
 /// Check if a path points to a video file
-fn is_video(path: &str) -> bool {
+pub fn is_video(path: &str) -> bool {
     let lower = path.to_lowercase();
     lower.ends_with(".mp4")
         || lower.ends_with(".webm")
@@ -58,6 +58,11 @@ fn is_video(path: &str) -> bool {
         || lower.ends_with(".mkv")
         || lower.ends_with(".avi")
         || lower.ends_with(".ogv")
+}
+
+/// A local (non-URL) image path the pipeline can embed or copy.
+pub fn is_local_image(path: &str) -> bool {
+    !is_url(path) && is_image(path)
 }
 
 /// Check if a path points to an image file we can process
@@ -93,13 +98,8 @@ pub fn process_media_src(
         return MediaEmbed::External(src.to_string());
     }
 
-    // Videos always stay external
-    if is_video(src) {
-        return MediaEmbed::External(src.to_string());
-    }
-
-    // Not an image we can handle
-    if !is_image(src) {
+    // Not an image or video we can handle
+    if !is_image(src) && !is_video(src) {
         return MediaEmbed::External(src.to_string());
     }
 
@@ -107,8 +107,41 @@ pub fn process_media_src(
     let resolved = resolve_path(src, slide_dir);
 
     if !resolved.exists() {
-        warn!("Image not found: {}", resolved.display());
+        warn!("Media not found: {}", resolved.display());
         return MediaEmbed::NotFound(src.to_string());
+    }
+
+    // Videos: never transcoded. Directory output copies the file next to
+    // the HTML (browser-native streaming/seeking over file://, ADR-0006);
+    // single-file output inlines it as a data URI like everything else —
+    // the build warns when that pushes the file past the playback ceiling.
+    if is_video(src) {
+        return match (mode, assets_dir) {
+            (ImageMode::External, Some(assets)) => match copy_media_file(&resolved, assets) {
+                Ok((html_src, dest_path)) => {
+                    info!("Copied video: {} -> {}", src, dest_path.display());
+                    MediaEmbed::AssetFile {
+                        html_src,
+                        dest_path,
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to copy video {}: {}", resolved.display(), e);
+                    MediaEmbed::NotFound(src.to_string())
+                }
+            },
+            _ => match std::fs::read(&resolved) {
+                Ok(bytes) => {
+                    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    info!("Embedded video: {} ({} bytes)", src, bytes.len());
+                    MediaEmbed::DataUri(format!("data:{};base64,{encoded}", video_mime(src)))
+                }
+                Err(e) => {
+                    warn!("Failed to read video {}: {}", resolved.display(), e);
+                    MediaEmbed::NotFound(src.to_string())
+                }
+            },
+        };
     }
 
     // SVGs - always embed (they're tiny as text)
@@ -167,6 +200,79 @@ pub fn process_media_src(
             }
         }
     }
+}
+
+/// Pixel dimensions of a local image as emitted (after the max-dimension
+/// downscale), so `<img width height>` matches the file and the browser knows
+/// the aspect ratio before the bytes arrive. `None` for URLs, videos, and
+/// anything unreadable — the tag is simply emitted without the attributes.
+pub fn image_dimensions(src: &str, slide_dir: Option<&Path>) -> Option<(u32, u32)> {
+    if is_url(src) || !is_image(src) {
+        return None;
+    }
+    let resolved = resolve_path(src, slide_dir);
+    if src.to_lowercase().ends_with(".svg") {
+        return svg_dimensions(&std::fs::read_to_string(&resolved).ok()?);
+    }
+    let (w, h) = image::image_dimensions(&resolved).ok()?;
+    if w == 0 || h == 0 {
+        return None;
+    }
+    // Mirror the downscale in `load_and_convert_to_webp` (fit inside the box).
+    if w > MAX_IMAGE_DIMENSION || h > MAX_IMAGE_DIMENSION {
+        let ratio = (MAX_IMAGE_DIMENSION as f64 / w as f64).min(MAX_IMAGE_DIMENSION as f64 / h as f64);
+        return Some((
+            ((w as f64 * ratio).round() as u32).max(1),
+            ((h as f64 * ratio).round() as u32).max(1),
+        ));
+    }
+    Some((w, h))
+}
+
+/// Intrinsic size of an SVG from its `viewBox` (preferred) or `width`/`height`
+/// attributes on the root element. Only the aspect ratio matters downstream.
+fn svg_dimensions(svg: &str) -> Option<(u32, u32)> {
+    let open = svg.find("<svg")?;
+    let end = svg[open..].find('>')? + open;
+    let root = &svg[open..end];
+    let attr = |name: &str| -> Option<String> {
+        let needle = format!(" {name}=");
+        let start = root.find(&needle)? + needle.len();
+        let quote = root[start..].chars().next()?;
+        if quote != '"' && quote != '\'' {
+            return None;
+        }
+        let inner = &root[start + 1..];
+        let close = inner.find(quote)?;
+        Some(inner[..close].to_string())
+    };
+    let to_px = |v: &str| -> Option<f64> {
+        let v = v.trim();
+        if v.ends_with('%') {
+            return None;
+        }
+        v.trim_end_matches(|c: char| c.is_ascii_alphabetic()).trim().parse::<f64>().ok()
+    };
+    let round = |w: f64, h: f64| -> Option<(u32, u32)> {
+        if w > 0.0 && h > 0.0 {
+            Some(((w.round() as u32).max(1), (h.round() as u32).max(1)))
+        } else {
+            None
+        }
+    };
+    if let Some(vb) = attr("viewBox") {
+        let parts: Vec<f64> = vb
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .filter(|s| !s.is_empty())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        if parts.len() == 4 {
+            if let Some(d) = round(parts[2], parts[3]) {
+                return Some(d);
+            }
+        }
+    }
+    round(to_px(&attr("width")?)?, to_px(&attr("height")?)?)
 }
 
 /// Resolve a relative path against the slide directory
@@ -284,17 +390,46 @@ fn copy_image_as_webp(path: &Path, assets_dir: &Path) -> Result<(String, PathBuf
     Ok((html_src, dest_path))
 }
 
-/// Generate a `<video>` tag for a video source.
-/// Videos are always external - too large to embed.
-pub fn video_tag(src: &str, attrs: &str) -> String {
-    let mime = if src.ends_with(".webm") {
+/// Copy a media file verbatim into the assets directory.
+/// Returns (relative html src path, absolute destination path).
+fn copy_media_file(path: &Path, assets_dir: &Path) -> Result<(String, PathBuf)> {
+    std::fs::create_dir_all(assets_dir)?;
+    let filename = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("media")
+        .to_string();
+    let dest_path = assets_dir.join(&filename);
+    // Skip the copy when the destination is already this exact file (rebuilds
+    // of large videos would otherwise dominate build time).
+    let same = std::fs::metadata(&dest_path)
+        .ok()
+        .zip(std::fs::metadata(path).ok())
+        .is_some_and(|(d, s)| d.len() == s.len() && d.modified().ok() >= s.modified().ok());
+    if !same {
+        std::fs::copy(path, &dest_path).context("Failed to copy media file")?;
+    }
+    Ok((format!("assets/{filename}"), dest_path))
+}
+
+/// MIME type for a video source, by extension (data-URI srcs carry it
+/// inline, so only the original path is consulted).
+pub fn video_mime(src: &str) -> &'static str {
+    let lower = src.to_lowercase();
+    if lower.ends_with(".webm") {
         "video/webm"
-    } else if src.ends_with(".mov") {
+    } else if lower.ends_with(".mov") {
         "video/quicktime"
+    } else if lower.ends_with(".ogv") {
+        "video/ogg"
     } else {
         "video/mp4"
-    };
+    }
+}
 
+/// Generate a `<video>` tag for a video source. `mime` is derived from the
+/// original (pre-pipeline) path via [`video_mime`].
+pub fn video_tag(src: &str, mime: &str, attrs: &str) -> String {
     format!(
         r#"<video {attrs} playsinline>
   <source src="{src}" type="{mime}">
@@ -342,16 +477,49 @@ mod tests {
     }
 
     #[test]
-    fn test_video_passthrough() {
-        let result = process_media_src("demo.mp4", None, ImageMode::Embed, None);
-        assert!(matches!(result, MediaEmbed::External(url) if url == "demo.mp4"));
+    fn test_video_url_passthrough() {
+        let result = process_media_src("https://example.com/demo.mp4", None, ImageMode::Embed, None);
+        assert!(matches!(result, MediaEmbed::External(url) if url == "https://example.com/demo.mp4"));
+    }
+
+    #[test]
+    fn test_missing_video_is_not_found() {
+        let result = process_media_src("does-not-exist.mp4", None, ImageMode::External, None);
+        assert!(matches!(result, MediaEmbed::NotFound(src) if src == "does-not-exist.mp4"));
+    }
+
+    #[test]
+    fn test_video_copied_to_assets() {
+        let dir = std::env::temp_dir().join(format!("sldr-video-{}", std::process::id()));
+        let src_dir = dir.join("slides");
+        let assets = dir.join("assets");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(src_dir.join("clip.mp4"), b"not really mp4").unwrap();
+
+        let result =
+            process_media_src("clip.mp4", Some(&src_dir), ImageMode::External, Some(&assets));
+        match result {
+            MediaEmbed::AssetFile {
+                html_src,
+                dest_path,
+            } => {
+                assert_eq!(html_src, "assets/clip.mp4");
+                assert_eq!(std::fs::read(dest_path).unwrap(), b"not really mp4");
+            }
+            _ => panic!("expected AssetFile"),
+        }
+
+        let result = process_media_src("clip.mp4", Some(&src_dir), ImageMode::Embed, None);
+        assert!(matches!(result, MediaEmbed::DataUri(uri) if uri.starts_with("data:video/mp4;base64,")));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn test_video_tag() {
-        let tag = video_tag("demo.mp4", "controls loop");
+        let tag = video_tag("demo.mp4", video_mime("demo.MP4"), "controls loop");
         assert!(tag.contains("<video controls loop"));
         assert!(tag.contains("video/mp4"));
         assert!(tag.contains("demo.mp4"));
+        assert_eq!(video_mime("a.webm"), "video/webm");
     }
 }
