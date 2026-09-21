@@ -26,29 +26,8 @@ if (window.location.search.includes('print')) {
       s.style.position = 'relative';
       s.style.pageBreakAfter = 'always';
     });
-    // Per-page logos: the deck-level .sldr-logos overlay is a single
-    // absolutely-positioned element, so in paged media it only lands on the
-    // first page. Clone each slide's matching logos (by data-logo-layouts)
-    // into the slide itself so every printed page carries its own logos.
-    var overlay = document.querySelector('.sldr-logos');
-    if (overlay) {
-      var logos = Array.prototype.slice.call(overlay.querySelectorAll('.sldr-logo'));
-      document.querySelectorAll('.sldr-slide').forEach(function(slide) {
-        var layout = slide.getAttribute('data-layout') || '';
-        var holder = null;
-        logos.forEach(function(logo) {
-          var list = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
-          if (list.indexOf('all') !== -1 || list.indexOf(layout) !== -1) {
-            if (!holder) { holder = document.createElement('div'); holder.className = 'sldr-logos'; }
-            var clone = logo.cloneNode(true);
-            clone.classList.add('sldr-logo-on');
-            holder.appendChild(clone);
-          }
-        });
-        if (holder) slide.appendChild(holder);
-      });
-      overlay.style.display = 'none';
-    }
+    // The presenter's shared beforeprint hook handles language selection,
+    // per-page logos and fitting at final print geometry (also for Ctrl+P).
     // Hide toolbar and nav
     var toolbar = document.querySelector('.sldr-toolbar');
     if (toolbar) toolbar.style.display = 'none';
@@ -56,9 +35,9 @@ if (window.location.search.includes('print')) {
     if (nav) nav.style.display = 'none';
     var progress = document.querySelector('.sldr-progress');
     if (progress) progress.style.display = 'none';
-    // Shrink-to-fit every slide once they're all laid out for print (the
-    // presenter's per-slide fit hook only runs for the active slide).
-    requestAnimationFrame(function() {
+    // Start deferred diagram rendering once fonts are ready. This is not
+    // the final print fit: beforeprint repeats it with CSS print metrics.
+    document.fonts.ready.then(function() {
       if (window.__sldrFitAll) window.__sldrFitAll();
     });
   });
@@ -75,6 +54,7 @@ pub fn run(
     format: &str,
     template: bool,
     flatten: bool,
+    options: &super::interchange::Options,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -85,7 +65,7 @@ pub fn run(
         if format != "pptx" {
             anyhow::bail!("--template is only valid with --format pptx");
         }
-        return export_template(&config, playlist_name, flavor, output);
+        return export_template(&config, playlist_name, flavor, output, options);
     }
 
     let playlist_name = playlist_name
@@ -181,6 +161,30 @@ pub fn run(
     // lossy screenshot writer; PDF and screenshot both still need the HTML.
     let native_pptx = format == "pptx" && !flatten;
 
+    // Preflight all language variants before publishing any native deck.
+    if native_pptx {
+        let mut staged = Vec::new();
+        let mut report = sldr_pptx::Report::default();
+        for lang_opt in &export_langs {
+            let path = match (lang_opt, multi) {
+                (Some(l), true) => insert_lang_suffix(&base_path, l),
+                _ => base_path.clone(),
+            };
+            let result = options.diagnose(build_native_deck(&config, &resolved_slides, &flavor, &title,
+                lang_opt.as_deref(), &default_language), &base_path)?;
+            report.findings.extend(result.report.findings);
+            staged.push((ensure_ext(&path, "pptx"), result.value));
+        }
+        for (path, _) in &staged {
+            options.finish(&report, path)?;
+        }
+        for (path, bytes) in staged {
+            super::interchange::atomic_write(&path, &bytes)?;
+            println!("Exported {}", path.display());
+        }
+        return Ok(());
+    }
+
     for lang_opt in export_langs {
         // Suffix the filename with the language when emitting one per lang.
         let out_path = match (&lang_opt, multi) {
@@ -188,23 +192,7 @@ pub fn run(
             _ => base_path.clone(),
         };
 
-        let final_path = if native_pptx {
-            let pptx_path = ensure_ext(&out_path, "pptx");
-            let bytes = build_native_deck(
-                &config,
-                &resolved_slides,
-                &flavor,
-                &title,
-                lang_opt.as_deref(),
-                &default_language,
-            )?;
-            std::fs::write(&pptx_path, &bytes)
-                .with_context(|| format!("Failed to write {}", pptx_path.display()))?;
-            if !pptx_path.exists() {
-                anyhow::bail!("PPTX write reported success but no file at {}", pptx_path.display());
-            }
-            pptx_path
-        } else {
+        let final_path = {
             // PDF or screenshot-PPTX: render the HTML deck first.
             let render_config = sldr_renderer::RenderConfig {
                 title: title.clone(),
@@ -266,6 +254,7 @@ fn export_template(
     playlist_name: Option<&str>,
     flavor: Option<String>,
     output: Option<String>,
+    options: &super::interchange::Options,
 ) -> Result<()> {
     // Flavor: --flavor, else the named playlist's flavor, else config default.
     let flavor_name = match flavor {
@@ -323,8 +312,8 @@ fn export_template(
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    std::fs::write(&out_path, &bytes)
-        .with_context(|| format!("Failed to write {}", out_path.display()))?;
+    options.finish(&sldr_pptx::flavor_report(&flavor), &out_path)?;
+    super::interchange::atomic_write(&out_path, &bytes)?;
 
     let included: Vec<&str> = eligible.iter().map(|d| d.name.as_str()).collect();
     println!(
@@ -348,7 +337,7 @@ fn build_native_deck(
     title: &str,
     lang: Option<&str>,
     default_lang: &str,
-) -> Result<Vec<u8>> {
+) -> Result<sldr_pptx::Conversion<Vec<u8>>> {
     let mut registry = sldr_renderer::LayoutRegistry::builtin();
     for dir in config.layout_dirs() {
         registry.load_dir(&dir)?;
@@ -461,11 +450,9 @@ fn build_native_deck(
                         match resolve_picture(md, &slide.path) {
                             Some((bytes, ext)) => fields
                                 .push((name.to_string(), ZoneContent::Picture { bytes, ext, fit: None })),
-                            None => println!(
-                                "  {} slide '{}': image for zone '{name}' not embeddable as native PPTX (left empty)",
-                                "note:".yellow(),
-                                slide.name
-                            ),
+                            // Keep unresolved input at the content seam so it
+                            // receives an unsupported disposition in the report.
+                            None => fields.push((name.to_string(), ZoneContent::Markdown(md.into()))),
                         }
                     }
                 }
@@ -489,11 +476,55 @@ fn build_native_deck(
             }
         }
 
-        inputs.push(sldr_pptx::SlideInput { layout, fields });
+        // Account for input fields even when the selected layout has no
+        // compatible zone. Iterating only zones used to silently erase them.
+        for (name, value) in [
+            ("headline", chrome.title.as_ref()), ("subheadline", chrome.subtitle.as_ref()),
+            ("footer", footer.as_ref()), ("source", source_text.as_ref()),
+            ("heading", segments.heading.as_ref()), ("content", segments.content.as_ref()),
+            ("left", segments.left.as_ref()), ("right", segments.right.as_ref()),
+            ("image", segments.image.as_ref()),
+        ] {
+            if let Some(value) = value.filter(|s| !s.trim().is_empty()) {
+                if !fields.iter().any(|(key, _)| key == name) {
+                    fields.push((name.into(), ZoneContent::Markdown(value.clone())));
+                }
+            }
+        }
+        inputs.push(sldr_pptx::SlideInput { layout, fields, details: sldr_pptx::SlideDetails {
+            source_id: Some(slide.name.clone()), language: Some(lang.unwrap_or(default_lang).into()),
+            notes: speaker_notes(&slide.content), ..Default::default()
+        } });
     }
 
     let theme = sldr_pptx::Theme::from_flavor(flavor);
-    sldr_pptx::build_deck(&theme, title, &inputs)
+    let mut result = sldr_pptx::build_deck_with_report(&theme, title, &inputs)?;
+    result.report.findings.extend(sldr_pptx::flavor_report(flavor).findings);
+    for (i, input) in inputs.iter().enumerate() {
+        for (name, content) in &input.fields {
+            if matches!(content, ZoneContent::Picture { fit: Some(_), .. }) {
+                let part = format!("ppt/slides/slide{}.xml", i + 1);
+                result.report.record(Some(&part), &part, name, "diagram_raster", sldr_pptx::Disposition::Baked,
+                    "Diagram is a region picture, not editable native geometry");
+            }
+        }
+    }
+    Ok(result)
+}
+
+/// Extract speaker notes from a slide's markdown, mirroring the HTML renderer.
+fn speaker_notes(content: &str) -> Option<String> {
+    if let Some(idx) = content.find("<!-- notes -->") {
+        let notes = content[idx + "<!-- notes -->".len()..].trim();
+        if !notes.is_empty() { return Some(notes.to_string()); }
+    }
+    if let Some(start) = content.find("<!-- notes:") {
+        if let Some(end) = content[start..].find("-->") {
+            let notes = content[start + "<!-- notes:".len()..start + end].trim();
+            if !notes.is_empty() { return Some(notes.to_string()); }
+        }
+    }
+    None
 }
 
 /// A body segment that is exactly one ` ```mermaid ` fence → its source.

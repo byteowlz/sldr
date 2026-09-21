@@ -726,7 +726,7 @@
   // Set on the slide element so its own padding picks it up too. Must run
   // before fitSlide (which measures the now-correctly-sized content).
   function setUnit(slide) {
-    if (!slide) return;
+    if (!slide || window.matchMedia('print').matches) return;
     var w = slide.clientWidth, h = slide.clientHeight;
     if (w > 0 && h > 0) {
       slide.style.setProperty("--sldr-u", w / 100 + "px");
@@ -777,6 +777,45 @@
       fitSlide(slides[i]);
     }
   };
+
+  // One print preparation path for CLI PDF and the browser's Print command.
+  // CSS owns print geometry; this hook measures body fit only after that
+  // geometry is active. Chrome's beforeprint event is synchronous.
+  function preparePrint() {
+    var overlay = deck.querySelector(':scope > .sldr-logos');
+    allSlides.forEach(function (slide) {
+      slide.toggleAttribute('data-print-excluded', slides.indexOf(slide) === -1);
+      slide.toggleAttribute('data-print-last', slide === slides[slides.length - 1]);
+      if (slide.querySelector('[data-print-logos]') || !overlay) return;
+      var holder = document.createElement('div');
+      holder.className = 'sldr-logos';
+      holder.setAttribute('data-print-logos', '');
+      overlay.querySelectorAll('.sldr-logo').forEach(function (logo) {
+        var layouts = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
+        if (layouts.indexOf('all') === -1 && layouts.indexOf(slide.dataset.layout) === -1) return;
+        var clone = logo.cloneNode(true);
+        clone.classList.add('sldr-logo-on');
+        holder.appendChild(clone);
+      });
+      slide.appendChild(holder);
+    });
+    window.__sldrFitAll();
+  }
+
+  function finishPrint() {
+    deck.querySelectorAll('[data-print-logos]').forEach(function (el) { el.remove(); });
+    allSlides.forEach(function (slide) {
+      slide.removeAttribute('data-print-excluded');
+      slide.removeAttribute('data-print-last');
+      slide.querySelectorAll('.sldr-content, .sldr-frame-body').forEach(function (el) {
+        el.style.transform = '';
+      });
+    });
+    setUnit(slides[current]);
+    fitSlide(slides[current]);
+  }
+  window.addEventListener('beforeprint', preparePrint);
+  window.addEventListener('afterprint', finishPrint);
 
   function showSlide(index, dir, prevIndex) {
     // Clean up any in-flight animations first to prevent stuck states.

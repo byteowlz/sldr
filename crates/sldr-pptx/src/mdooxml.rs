@@ -23,6 +23,10 @@ const SQUARE_BULLET: &str = "&#9642;";
 /// ready to drop inside a `<p:txBody>`. Returns at least one (possibly empty)
 /// paragraph so a placeholder is never structurally empty.
 pub fn to_paragraphs(markdown: &str) -> Vec<String> {
+    to_paragraphs_with_links(markdown).0
+}
+
+pub(crate) fn to_paragraphs_with_links(markdown: &str) -> (Vec<String>, Vec<(String, String)>) {
     let mut w = Walker::default();
     let parser = Parser::new_ext(markdown, Options::empty());
     for ev in parser {
@@ -32,7 +36,7 @@ pub fn to_paragraphs(markdown: &str) -> Vec<String> {
     if w.out.is_empty() {
         w.out.push(empty_paragraph());
     }
-    w.out
+    (w.out, w.links)
 }
 
 /// One inline run: text plus the emphasis flags active when it was emitted.
@@ -41,6 +45,7 @@ struct Run {
     bold: bool,
     italic: bool,
     mono: bool,
+    link: Option<String>,
 }
 
 #[derive(Default)]
@@ -56,6 +61,8 @@ struct Walker {
     bold: usize,
     italic: usize,
     mono: usize,
+    link: Option<String>,
+    links: Vec<(String, String)>,
 }
 
 impl Walker {
@@ -92,6 +99,12 @@ impl Walker {
             Event::End(TagEnd::Strong) => self.bold = self.bold.saturating_sub(1),
             Event::Start(Tag::Emphasis) => self.italic += 1,
             Event::End(TagEnd::Emphasis) => self.italic = self.italic.saturating_sub(1),
+            Event::Start(Tag::Link { dest_url, .. }) => {
+                let id = link_id(&dest_url);
+                self.links.push((id.clone(), dest_url.into_string()));
+                self.link = Some(id);
+            }
+            Event::End(TagEnd::Link) => self.link = None,
             Event::Text(t) => self.push_text(&t),
             Event::Code(t) => {
                 self.mono += 1;
@@ -113,7 +126,7 @@ impl Walker {
         let (bold, italic, mono) = (self.bold > 0 || self.heading, self.italic > 0, self.mono > 0);
         // Merge with the previous run if formatting matches.
         if let Some(last) = self.runs.last_mut() {
-            if last.bold == bold && last.italic == italic && last.mono == mono {
+            if last.bold == bold && last.italic == italic && last.mono == mono && last.link == self.link {
                 last.text.push_str(text);
                 return;
             }
@@ -123,6 +136,7 @@ impl Walker {
             bold,
             italic,
             mono,
+            link: self.link.clone(),
         });
     }
 
@@ -173,7 +187,19 @@ fn run_xml(run: &Run) -> String {
     } else {
         rpr.push_str("/>");
     }
+    if let Some(id) = &run.link {
+        let link = format!("<a:hlinkClick r:id=\"{id}\"/>");
+        if rpr.ends_with("/>") { rpr.truncate(rpr.len() - 2); rpr.push('>'); rpr.push_str(&link); rpr.push_str("</a:rPr>"); }
+        else { rpr = rpr.replace("</a:rPr>", &format!("{link}</a:rPr>")); }
+    }
     format!("<a:r>{rpr}<a:t>{}</a:t></a:r>", xml_escape(&run.text))
+}
+
+pub(crate) fn link_id(url: &str) -> String { format!("rIdLink{}", crate::identity::hash(url.as_bytes())) }
+
+pub(crate) fn linked_paragraph(text: &str, url: &str) -> String {
+    let run = Run { text: text.into(), bold: false, italic: false, mono: false, link: Some(link_id(url)) };
+    format!("<a:p><a:pPr><a:buNone/></a:pPr>{}</a:p>", run_xml(&run))
 }
 
 fn empty_paragraph() -> String {
@@ -187,6 +213,12 @@ pub fn plain_paragraph(text: &str) -> String {
         "<a:p><a:pPr marL=\"0\" indent=\"0\"><a:buNone/></a:pPr><a:r><a:rPr lang=\"en-US\"/><a:t>{}</a:t></a:r></a:p>",
         xml_escape(text)
     )
+}
+
+/// Speaker notes are plain text; render one paragraph per line so line breaks
+/// survive the round trip instead of being collapsed into a single run.
+pub fn notes_paragraphs(notes: &str) -> Vec<String> {
+    notes.lines().map(|line| plain_paragraph(line.trim())).filter(|p| !p.is_empty()).collect()
 }
 
 /// Reference a `HeadingLevel` so the import doesn't need its own copy; kept

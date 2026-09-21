@@ -19,6 +19,11 @@ pulldown-cmark = { version = "0.12", default-features = false }
 
 # OOXML parsing for round-trip import
 quick-xml = "0.36"
+# Namespace-aware bounded package validation; no DTD or network resolution.
+roxmltree = "0.20"
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
 
 # OOXML package = a ZIP of XML parts
 zip = { version = "2", default-features = false, features = ["deflate"] }

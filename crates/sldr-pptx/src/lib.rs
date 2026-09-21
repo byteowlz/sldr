@@ -38,11 +38,22 @@ use anyhow::{bail, Result};
 use sldr_renderer::{LayoutDef, Zone, ZoneRep};
 
 mod deck;
+mod flavor_report;
 mod import;
+mod identity;
 mod mdooxml;
+mod notes;
+mod package;
+mod preflight;
+mod report;
+#[cfg(test)]
+mod round_trip_tests;
 
-pub use deck::{build_deck, SlideInput, ZoneContent};
-pub use import::{import, ImportedImage, ImportedSlide};
+pub use deck::{build_deck, build_deck_with_report, SlideDetails, SlideInput, ZoneContent};
+pub use import::{import, import_with_report, ImportedImage, ImportedSlide};
+pub use flavor_report::flavor_report;
+pub use package::validate_package;
+pub use report::{Conversion, Disposition, Finding, Rejected, Report, Severity};
 
 /// 16:9 slide box in EMU (English Metric Units). `screen16x9`.
 pub(crate) const SLIDE_W_EMU: i64 = 12_192_000;
@@ -303,6 +314,7 @@ pub(crate) fn content_types(layout_count: usize, slide_count: usize) -> String {
 <Default Extension="png" ContentType="image/png"/>
 <Default Extension="jpeg" ContentType="image/jpeg"/>
 <Default Extension="jpg" ContentType="image/jpeg"/>
+<Default Extension="gif" ContentType="image/gif"/>
 <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
 <Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/>
 <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>

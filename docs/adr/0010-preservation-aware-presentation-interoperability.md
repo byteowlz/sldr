@@ -1,14 +1,16 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Preservation-aware presentation interoperability
 
-sldr should earn its place through reusable authored material and dependable transformations, not by competing with increasingly capable agents at composing one-off slides. We propose strengthening the existing PPTX integration into a preservation-aware interchange layer: convert the supported subset into editable content, retain unsupported material when explicitly requested, and report every fidelity limitation. Markdown, layouts, flavors and playlists remain the canonical authoring model; PowerPoint does not become sldr's core model.
+sldr should earn its place through reusable authored material and dependable transformations, not by competing with increasingly capable agents at composing one-off slides. We will strengthen the existing PPTX integration into a preservation-aware interchange layer: convert the supported subset into editable content, retain unsupported material when explicitly requested, and report every fidelity limitation. Markdown, layouts, flavors and playlists remain the canonical authoring model; PowerPoint does not become sldr's core model.
 
 ## Status and relationship to earlier decisions
 
-This ADR is **proposed**, not an assertion of implemented capabilities or approved unrestricted PowerPoint import. Accepting its template-backed export and preservation-oriented external import would narrowly revise item 3 of [ADR-0004](0004-what-sldr-is-not.md), which currently treats PPTX as an exit door and rules out a core importer. The historical decision remains in force until that scope change is explicitly accepted.
+This ADR is **accepted as scope policy**, not a claim that every capability is implemented. The maintainer explicitly approved immutable template-backed export and opt-in inert external-package preservation in the implementation session for `trx-4s9s.15` (2026-09-10), after being asked about that exact boundary. This narrowly supersedes item 3 of [ADR-0004](0004-what-sldr-is-not.md). Unrestricted foreign-deck conversion, automatic layout selection, a general Office editor and changes to canonical slide/layout/flavor formats remain out of scope.
+
+Portable provenance manifests are **source-asset metadata owned by the PPTX adapter**, not new canonical slide fields or privileged editor state. They must be readable without a UI, contain relative asset references, and travel with their immutable assets. Any canonical schema extension still requires separate review. See the [tested capability contract](../presentation-interoperability.md) for shipped versus pending behavior.
 
 [ADR-0001](0001-satellites-never-extend-core-formats.md), [ADR-0002](0002-edits-flow-back-along-provenance.md), [ADR-0003](0003-the-factoring-is-the-product.md), [ADR-0006](0006-artifacts-and-the-source-artifact-boundary.md), and [ADR-0008](0008-deck-chrome-as-frontmatter-fed-slots.md) still apply. The proposed interoperability work must not introduce privileged editor state, silently change shared layouts/flavors, or turn ordinary slides into OOXML documents. Any necessary canonical-format extension requires its own explicit review; it cannot arrive incidentally through the importer.
 
@@ -25,7 +27,7 @@ The source reflects the bounded implementation: `sldr-pptx` accepts text, Markdo
 
 Real decks, logos and organizational details are not public test fixtures. Reproduce with synthetic, redistributable assets.
 
-## Proposed contract
+## Accepted contract
 
 The terms below are interoperability vocabulary, not replacements for the glossary in `CONTEXT.md`.
 
@@ -76,7 +78,7 @@ Do not execute macros, OLE objects or embedded code, or fetch external relations
 
 ## Verification and rollout
 
-Ship trust fixes first: loss reporting, notes/assets, robust identifiers and safe writes. Approve the ADR's scope revision before implementing template-backed export or preservation-oriented external import. Extend graphics and region baking in bounded increments. Reuse the open PPTX epic `trx-4s9s` and region-bake issue `trx-v8td`; historical closed phases remain historical rather than being represented as current guarantees.
+Ship trust fixes first: loss reporting, notes/assets, robust identifiers and safe writes. The scope revision is approved; template-backed export and preservation-oriented external import still require implementation and their own acceptance evidence. Extend graphics and region baking in bounded increments. Reuse the open PPTX epic `trx-4s9s` and region-bake issue `trx-v8td`; historical closed phases remain historical rather than being represented as current guarantees.
 
 ### Tracked implementation slices
 

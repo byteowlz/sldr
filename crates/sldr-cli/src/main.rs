@@ -136,6 +136,9 @@ enum Commands {
         /// native editable export (fallback for un-annotated layouts)
         #[arg(long)]
         flatten: bool,
+
+        #[command(flatten)]
+        interchange: commands::interchange::Options,
     },
 
     /// Import a sldr-generated .pptx back into slide markdown (round-trip)
@@ -146,6 +149,9 @@ enum Commands {
         /// Output directory for slides (default: <slide_dir>/imported)
         #[arg(short, long)]
         out: Option<String>,
+
+        #[command(flatten)]
+        interchange: commands::interchange::Options,
     },
 
     /// Watch a presentation for changes and live-reload in browser
@@ -497,6 +503,7 @@ fn main() -> anyhow::Result<()> {
             format,
             template,
             flatten,
+            interchange,
         } => commands::export::run(
             playlist.as_deref(),
             flavor,
@@ -505,9 +512,10 @@ fn main() -> anyhow::Result<()> {
             &format,
             template,
             flatten,
+            &interchange,
         ),
 
-        Commands::Import { file, out } => commands::import::run(&file, out),
+        Commands::Import { file, out, interchange } => commands::import::run(&file, out, &interchange),
 
         Commands::Watch {
             playlist,

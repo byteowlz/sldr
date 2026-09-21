@@ -2027,17 +2027,23 @@ html:not(.dark) .sldr-edit-btn {
  * print-to-pdf honors @page size + margin; print-color-adjust forces the
  * flavor background and other colors to actually print.
  *
- * The page is 1920x1080: layouts size type/spacing with vw/vh, so the print
- * viewport must match a typical large authoring window. At a cramped width
- * (e.g. 1280) clamp() minimums crowd the content and it overflows; 1920
- * lands close to a maximized laptop browser. Output is vector, so the larger
- * page costs no sharpness. */
+ * The fixed print canvas is independent of the browser viewport. Print units
+ * below override the presenter's cached screen units on EVERY slide, including
+ * inactive and language variants. Output stays vector. Keep @page dimensions
+ * and the two canvas tokens together (CSS variables are not allowed in @page). */
 @page {
   size: 1920px 1080px;
   margin: 0;
 }
 
 @media print {
+  :root {
+    --sldr-print-width: 1920px;
+    --sldr-print-height: 1080px;
+    --sldr-u: calc(var(--sldr-print-width) / 100);
+    --sldr-uh: calc(var(--sldr-print-height) / 100);
+  }
+
   html, body {
     overflow: visible;
     width: auto;
@@ -2047,10 +2053,13 @@ html:not(.dark) .sldr-edit-btn {
     print-color-adjust: exact;
   }
 
-  .sldr-deck {
+  .sldr-deck,
+  .sldr-deck[data-aspect-lock="on"] {
     position: static;
     width: auto;
     height: auto;
+    margin: 0;
+    transform: none;
     overflow: visible;
   }
 
@@ -2061,9 +2070,15 @@ html:not(.dark) .sldr-edit-btn {
   .sldr-slide[aria-hidden="true"] {
     display: flex !important;
     flex-direction: column;
-    position: relative;
-    width: 1920px;
-    height: 1080px;
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    --sldr-u: calc(var(--sldr-print-width) / 100) !important;
+    --sldr-uh: calc(var(--sldr-print-height) / 100) !important;
+    width: var(--sldr-print-width);
+    height: var(--sldr-print-height);
     min-height: 0;
     margin: 0;
     overflow: hidden;
@@ -2073,9 +2088,18 @@ html:not(.dark) .sldr-edit-btn {
     print-color-adjust: exact;
   }
 
+  .sldr-slide[data-print-excluded] {
+    display: none !important;
+  }
+
+  .sldr-slide[data-print-last],
   .sldr-slide:last-child {
     page-break-after: auto;
     break-after: auto;
+  }
+
+  .sldr-deck > .sldr-logos {
+    display: none !important;
   }
 
   .sldr-slide::before,

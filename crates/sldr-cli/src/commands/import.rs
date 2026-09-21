@@ -9,7 +9,7 @@ use colored::Colorize;
 use sldr_core::config::Config;
 use sldr_pptx::ImportedSlide;
 
-pub fn run(file: &str, out: Option<String>) -> Result<()> {
+pub fn run(file: &str, out: Option<String>, options: &super::interchange::Options) -> Result<()> {
     let config = Config::load()?;
     let bytes = std::fs::read(file).with_context(|| format!("Failed to read {file}"))?;
 
@@ -19,25 +19,25 @@ pub fn run(file: &str, out: Option<String>) -> Result<()> {
         file.cyan()
     );
 
-    let slides = sldr_pptx::import(&bytes)?;
-    if slides.is_empty() {
-        anyhow::bail!("No slides found in {file}");
-    }
-
     let out_dir = match out {
         Some(o) => PathBuf::from(o),
         None => config.slide_dir().join("imported"),
     };
-    let media_dir = out_dir.join("media");
-    std::fs::create_dir_all(&out_dir)
-        .with_context(|| format!("Failed to create {}", out_dir.display()))?;
+    let slides = options.resolve(sldr_pptx::import_with_report(&bytes), &out_dir)?;
+    if slides.is_empty() { anyhow::bail!("No slides found in {file}"); }
+    // Import never overwrites a library or infers shared-source updates.
+    if out_dir.exists() { anyhow::bail!("Import destination already exists; choose a new --out directory"); }
+    let parent = out_dir.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(std::path::Path::new("."));
+    std::fs::create_dir_all(parent)?;
+    let staging = tempfile::tempdir_in(parent)?;
+    let media_dir = staging.path().join("media");
 
     let mut written = Vec::new();
     for (i, slide) in slides.iter().enumerate() {
         // Write any embedded images first, then point the body at them.
         let mut body = slide.body.clone();
         for img in &slide.images {
-            std::fs::create_dir_all(&media_dir).ok();
+            std::fs::create_dir_all(&media_dir)?;
             let img_path = media_dir.join(&img.file_name);
             std::fs::write(&img_path, &img.bytes)
                 .with_context(|| format!("Failed to write {}", img_path.display()))?;
@@ -45,11 +45,14 @@ pub fn run(file: &str, out: Option<String>) -> Result<()> {
         }
 
         let stem = slide_stem(slide, i);
-        let md_path = out_dir.join(format!("{stem}.md"));
+        let md_path = staging.path().join(format!("{stem}.md"));
         std::fs::write(&md_path, render_markdown(slide, &body))
             .with_context(|| format!("Failed to write {}", md_path.display()))?;
         written.push(md_path);
     }
+
+    std::fs::rename(staging.path(), &out_dir)
+        .with_context(|| format!("Failed to publish {}", out_dir.display()))?;
 
     println!(
         "\n{} {} slide(s) → {}",
@@ -94,7 +97,7 @@ fn render_markdown(slide: &ImportedSlide, body: &str) -> String {
     if let Some(s) = &slide.subtitle {
         fm.push_str(&format!("subtitle: {}\n", yaml_value(s)));
     }
-    fm.push_str(&format!("layout: {}\n", slide.layout));
+    fm.push_str(&format!("layout: {}\n", yaml_value(&slide.layout)));
     if let Some(f) = &slide.footer {
         fm.push_str(&format!("footer: {}\n", yaml_value(f)));
     }
@@ -106,19 +109,23 @@ fn render_markdown(slide: &ImportedSlide, body: &str) -> String {
     }
     fm.push_str("---\n\n");
     fm.push_str(body);
-    fm.push('\n');
+    if let Some(notes) = &slide.notes {
+        if !notes.trim().is_empty() {
+            fm.push_str("\n<!-- notes -->\n");
+            for line in notes.lines() { fm.push_str(&format!("<!-- notes: {} -->\n", line.trim())); }
+        }
+    }
     fm
 }
 
 /// Quote a YAML scalar when it could be misread (colons, leading specials);
 /// otherwise emit it bare.
 fn yaml_value(s: &str) -> String {
-    let needs_quote = s.contains(':')
-        || s.contains('#')
+    let needs_quote = s.contains([':', '#', '\n', '\r'])
         || s.starts_with(['-', '[', '{', '*', '&', '!', '|', '>', '\'', '"', '@', '`'])
         || s.trim() != s;
     if needs_quote {
-        format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+        format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r"))
     } else {
         s.to_string()
     }

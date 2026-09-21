@@ -80,6 +80,12 @@ test-v:
 test-one TEST:
     cargo test --workspace {{TEST}}
 
+# Synthetic PDF geometry proof (installed Chrome; uv supplies pinned test tools)
+check-print:
+    mkdir -p target/interop
+    cargo run -q -p sldr-renderer --example print_fixture -- target/interop/print.html
+    uv run scripts/check-print.py target/interop/print.html target/interop/print
+
 # === Code Quality ===
 
 # Format all code
