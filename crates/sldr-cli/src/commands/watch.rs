@@ -3,15 +3,19 @@
 //! Builds the presentation, serves it on a local port, watches for file
 //! changes, and triggers browser reload via Server-Sent Events (SSE).
 
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use axum::extract::{Query, State};
+use axum::http::{header, StatusCode};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::response::Html;
+use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use colored::Colorize;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use serde::Deserialize;
 use sldr_core::config::Config;
 use sldr_core::flavor::Flavor;
 use sldr_core::slide::SlideCollection;
@@ -26,12 +30,18 @@ const LIVE_RELOAD_SCRIPT: &str = r"
   var es = new EventSource('/__sldr_reload');
   es.onmessage = function(e) {
     if (e.data === 'reload') {
-      window.location.reload();
+      if (window.__sldrSourceDirty) {
+        window.dispatchEvent(new CustomEvent('sldr:remote-change'));
+      } else {
+        window.location.reload();
+      }
     }
   };
   es.onerror = function() {
-    // Reconnect on error (server restart)
-    setTimeout(function() { window.location.reload(); }, 1000);
+    // Reconnect on error (server restart), but never discard an open edit.
+    if (!window.__sldrSourceDirty) {
+      setTimeout(function() { window.location.reload(); }, 1000);
+    }
   };
 })();
 </script>
@@ -80,13 +90,7 @@ pub fn run(
     );
 
     // Determine port
-    let port = port.unwrap_or_else(|| {
-        config
-            .config
-            .dev_port
-            .parse::<u16>()
-            .unwrap_or(3030)
-    });
+    let port = port.unwrap_or_else(|| config.config.dev_port.parse::<u16>().unwrap_or(3030));
 
     // Initial build
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
@@ -147,9 +151,16 @@ pub fn run(
             .await
             .with_context(|| format!("Port {port} is already in use"))?;
 
-        // Build routes
+        // Build routes. Source editing is deliberately available only in
+        // watch mode; normal built decks remain static and self-contained.
         let html_for_route = Arc::clone(&html_state);
         let reload_tx_for_sse = Arc::clone(&reload_tx);
+        let source_state = SourceEditState {
+            root: Arc::new(
+                std::fs::canonicalize(config.slide_dir())
+                    .context("Could not resolve slide directory for source editing")?,
+            ),
+        };
 
         let app = Router::new()
             .route(
@@ -182,7 +193,12 @@ pub fn run(
                         .keep_alive(KeepAlive::default())
                     }
                 }),
-            );
+            )
+            .route(
+                "/__sldr_source",
+                get(get_slide_source).put(put_slide_source),
+            )
+            .with_state(source_state);
 
         println!(
             "\n  {} http://{}:{}",
@@ -292,7 +308,39 @@ fn build_html(
         renderer.load_layouts(&dir)?;
     }
     renderer.add_slides(slides)?;
-    renderer.render()
+    let html = renderer.render()?;
+    Ok(inject_source_paths(&html, slides))
+}
+
+/// Tag watch-mode slide sections with their source markdown path. Keeping this
+/// post-processing here avoids leaking local source information into normal
+/// builds or adding a development concern to the renderer API.
+fn inject_source_paths(html: &str, slides: &[sldr_core::slide::Slide]) -> String {
+    const NEEDLE: &str = "<section class=\"sldr-slide\"";
+    let mut output = String::with_capacity(html.len() + slides.len() * 48);
+    let mut rest = html;
+
+    for slide in slides {
+        let Some(pos) = rest.find(NEEDLE) else {
+            break;
+        };
+        let end = pos + NEEDLE.len();
+        output.push_str(&rest[..end]);
+        output.push_str(" data-sldr-src=\"");
+        output.push_str(&html_escape_attr(&slide.relative_path));
+        output.push('"');
+        rest = &rest[end..];
+    }
+    output.push_str(rest);
+    output
+}
+
+fn html_escape_attr(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn inject_live_reload(html: &str) -> String {
@@ -323,9 +371,7 @@ fn rebuild_presentation(
     }
 
     let playlist = sldr_core::presentation::Playlist::load(
-        &config
-            .playlist_dir()
-            .join(format!("{playlist_name}.toml")),
+        &config.playlist_dir().join(format!("{playlist_name}.toml")),
     )?;
 
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
@@ -343,6 +389,96 @@ fn rebuild_presentation(
     }
 
     build_html(render_config, &flavors, &resolved)
+}
+
+#[derive(Clone)]
+struct SourceEditState {
+    root: Arc<PathBuf>,
+}
+
+#[derive(Deserialize)]
+struct SourceQuery {
+    path: String,
+}
+
+async fn get_slide_source(
+    State(state): State<SourceEditState>,
+    Query(query): Query<SourceQuery>,
+) -> Response {
+    let path = match resolve_slide_source(&state.root, &query.path) {
+        Ok(path) => path,
+        Err(response) => return response,
+    };
+
+    match tokio::fs::read_to_string(path).await {
+        Ok(content) => (
+            [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+            content,
+        )
+            .into_response(),
+        Err(_) => source_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Could not read slide source",
+        ),
+    }
+}
+
+async fn put_slide_source(
+    State(state): State<SourceEditState>,
+    Query(query): Query<SourceQuery>,
+    body: String,
+) -> Response {
+    let path = match resolve_slide_source(&state.root, &query.path) {
+        Ok(path) => path,
+        Err(response) => return response,
+    };
+
+    match tokio::fs::write(path, body).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => source_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Could not save slide source",
+        ),
+    }
+}
+
+/// Resolve an existing markdown file beneath the configured slide root.
+/// Component validation blocks traversal before canonicalization; the prefix
+/// check also blocks symlinks that escape the root.
+fn resolve_slide_source(root: &Path, requested: &str) -> std::result::Result<PathBuf, Response> {
+    let relative = Path::new(requested);
+    if requested.is_empty()
+        || relative.extension().and_then(|ext| ext.to_str()) != Some("md")
+        || relative
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_)))
+    {
+        return Err(source_error(
+            StatusCode::BAD_REQUEST,
+            "Invalid slide source path",
+        ));
+    }
+
+    let candidate = match std::fs::canonicalize(root.join(relative)) {
+        Ok(path) => path,
+        Err(_) => {
+            return Err(source_error(
+                StatusCode::NOT_FOUND,
+                "Slide source not found",
+            ))
+        }
+    };
+    if !candidate.starts_with(root) || !candidate.is_file() {
+        return Err(source_error(
+            StatusCode::FORBIDDEN,
+            "Slide source is outside slide directory",
+        ));
+    }
+    Ok(candidate)
+}
+
+fn source_error(status: StatusCode, message: &'static str) -> Response {
+    (status, message).into_response()
 }
 
 fn spawn_file_watcher(
@@ -392,4 +528,59 @@ pub(crate) fn lan_ips() -> Vec<String> {
         }
     }
     ips
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_paths_are_injected_and_escaped() {
+        let slides = vec![
+            sldr_core::slide::Slide::from_str("one", "nested/one.md", "# One"),
+            sldr_core::slide::Slide::from_str("two", "two&more.md", "# Two"),
+        ];
+        let html = concat!(
+            "<section class=\"sldr-slide\" data-index=\"0\"></section>",
+            "<section class=\"sldr-slide\" data-index=\"1\"></section>"
+        );
+
+        let tagged = inject_source_paths(html, &slides);
+
+        assert!(tagged.contains("data-sldr-src=\"nested/one.md\""));
+        assert!(tagged.contains("data-sldr-src=\"two&amp;more.md\""));
+    }
+
+    #[test]
+    fn source_resolution_stays_inside_slide_root() {
+        let dir = tempfile::tempdir().expect("temp directory");
+        let root = dir.path().join("slides");
+        std::fs::create_dir_all(root.join("nested")).expect("slide directories");
+        std::fs::write(root.join("nested/slide.md"), "# Slide").expect("slide source");
+        std::fs::write(root.join("not-markdown.txt"), "nope").expect("other source");
+        let root = std::fs::canonicalize(root).expect("canonical root");
+
+        let resolved = resolve_slide_source(&root, "nested/slide.md").expect("valid source");
+        assert_eq!(resolved, root.join("nested/slide.md"));
+        assert!(resolve_slide_source(&root, "../outside.md").is_err());
+        assert!(resolve_slide_source(&root, "/etc/passwd").is_err());
+        assert!(resolve_slide_source(&root, "not-markdown.txt").is_err());
+        assert!(resolve_slide_source(&root, "missing.md").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn source_resolution_rejects_symlinks_outside_slide_root() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().expect("temp directory");
+        let root = dir.path().join("slides");
+        std::fs::create_dir_all(&root).expect("slide directory");
+        let outside = dir.path().join("outside.md");
+        std::fs::write(&outside, "# Outside").expect("outside source");
+        symlink(&outside, root.join("escape.md")).expect("source symlink");
+        let root = std::fs::canonicalize(root).expect("canonical root");
+
+        assert!(resolve_slide_source(&root, "escape.md").is_err());
+    }
 }

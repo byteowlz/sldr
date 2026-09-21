@@ -1703,6 +1703,113 @@ html:not(.dark) .sldr-edit-btn {
   color: #ef4444;
 }
 
+/* Watch-mode markdown source editor. It is inert in built decks because the
+ * presenter only creates it when a slide carries data-sldr-src. */
+.sldr-source-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 48px);
+  background: rgba(10, 12, 20, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.sldr-source-editor-open {
+  display: flex;
+}
+
+.sldr-source-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(1100px, 94vw);
+  height: min(820px, 90vh);
+  overflow: hidden;
+  color: var(--sldr-text);
+  background: var(--sldr-surface, #181825);
+  border: 1px solid var(--sldr-border, rgba(128, 128, 128, 0.3));
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.sldr-source-header,
+.sldr-source-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  font: 12px/1.4 var(--sldr-code-font, monospace);
+}
+
+.sldr-source-header {
+  border-bottom: 1px solid var(--sldr-border, rgba(128, 128, 128, 0.25));
+}
+
+.sldr-source-header strong {
+  color: var(--sldr-primary);
+  letter-spacing: 0.08em;
+}
+
+.sldr-source-status {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sldr-text-muted, #a1a1aa);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sldr-source-status-dirty {
+  color: #f59e0b;
+}
+
+.sldr-source-status-error {
+  color: #ef4444;
+}
+
+.sldr-source-textarea {
+  width: 100%;
+  height: 100%;
+  padding: clamp(16px, 2.5vw, 28px);
+  resize: none;
+  outline: none;
+  border: 0;
+  color: var(--sldr-text);
+  background: color-mix(in srgb, var(--sldr-surface, #181825) 88%, black);
+  font: 14px/1.65 var(--sldr-code-font, ui-monospace, monospace);
+  tab-size: 2;
+}
+
+.sldr-source-textarea:focus {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sldr-primary) 65%, transparent);
+}
+
+.sldr-source-textarea:disabled {
+  opacity: 0.6;
+}
+
+.sldr-source-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--sldr-border, rgba(128, 128, 128, 0.25));
+}
+
+.sldr-source-actions > span {
+  margin-right: auto;
+  color: var(--sldr-text-muted, #a1a1aa);
+}
+
+html:not(.dark) .sldr-source-panel {
+  color: #1f2937;
+  background: #ffffff;
+}
+
+html:not(.dark) .sldr-source-textarea {
+  color: #1f2937;
+  background: #f8fafc;
+}
+
 
 /* =========================================================================
  * Per-slide alignment overrides (data-align / data-valign on the slide)
