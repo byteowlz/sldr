@@ -40,6 +40,7 @@ sldr ls playlists                                    # List available playlists
 sldr ls flavors                                      # List available flavors
 sldr show flavor name_of_flavor                      # Print a flavor's resolved source (.toml)
 sldr show layout name_of_layout                      # Print a layout's resolved source (.html)
+sldr zones slide_name --json                         # Zone document: regions, bindings, write targets (ADR-0011)
 sldr new slide_name --scaffold two-cols              # Create a new slide
 sldr init                                            # Initialize sldr directories
 ```

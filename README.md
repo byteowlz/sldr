@@ -81,9 +81,12 @@ sldr ls playlists
 sldr ls flavors
 sldr show flavor aurora     # print a flavor's resolved source (the .toml)
 sldr show layout framed     # print a layout's resolved source (the .html)
+sldr zones my-slide         # what a visual editor sees: regions, bindings, write targets
 ```
 
 `ls` lists names; `show` prints the actual source a name resolves to — the authored flavor `.toml` or layout `.html` — honoring the build's resolution order (your library/config dirs override the built-ins). Source goes to stdout (pipeable: `sldr show layout framed > ~/sldr/layouts/mine.html`), the origin to stderr, `--json` for both.
+
+`zones` prints a slide's *zone document*: every region its layout declares (percent box), what fills it (a frontmatter field, a markdown segment with its byte range, an image, or a flavor field), and which file an edit to that region writes to — plus any slide input the layout shows nowhere. Geometry always belongs to the layout; there is no per-slide nudge. It is computed from the files as they stand and never stored, so it is safe to ask before any edit (`--json`, `--layout`, `--flavor`, `--lang`).
 
 ### Build a presentation
 

@@ -275,6 +275,31 @@ enum Commands {
         json: bool,
     },
 
+    /// Print a slide's zone document: every region its layout declares, what
+    /// fills it (frontmatter field, markdown segment, image, flavor field), and
+    /// which file an edit writes to. The one-door view of what a visual editor
+    /// shows; nothing is written. `--json` for the structured form.
+    Zones {
+        /// Slide (name, fuzzy name, or path)
+        slide: String,
+
+        /// Use this layout instead of the slide's `layout` field
+        #[arg(long)]
+        layout: Option<String>,
+
+        /// Flavor to resolve style chrome against (default: config default_flavor)
+        #[arg(long)]
+        flavor: Option<String>,
+
+        /// Language to resolve body and chrome for
+        #[arg(long)]
+        lang: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Search slides by content, tags, or metadata
     Search {
         /// Search query
@@ -537,6 +562,16 @@ fn main() -> anyhow::Result<()> {
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
 
         Commands::Show { what, name, json } => commands::show::run(&what, &name, json),
+
+        Commands::Zones { slide, layout, flavor, lang, json } => {
+            commands::zones::run(&commands::zones::ZonesArgs {
+                slide: &slide,
+                layout: layout.as_deref(),
+                flavor: flavor.as_deref(),
+                lang: lang.as_deref(),
+                json,
+            })
+        }
 
         Commands::Search {
             query,

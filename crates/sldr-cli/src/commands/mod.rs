@@ -22,3 +22,4 @@ pub mod show;
 pub mod playlist;
 pub mod slides;
 pub mod watch;
+pub mod zones;

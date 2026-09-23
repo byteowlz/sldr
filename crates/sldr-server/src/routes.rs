@@ -67,6 +67,7 @@ pub fn router(state: SldrState) -> Router {
     Router::new()
         .route("/slides", get(list_slides).post(create_slide))
         .route("/slides/{name}", get(get_slide).put(update_slide))
+        .route("/slides/{name}/zones", get(get_slide_zones))
         .route("/playlists", get(list_playlists).post(create_playlist))
         .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
@@ -119,6 +120,55 @@ async fn get_slide(
         content: slide.content,
         raw,
     }))
+}
+
+#[derive(Debug, Deserialize)]
+struct ZonesQuery {
+    #[serde(default)]
+    layout: Option<String>,
+    #[serde(default)]
+    flavor: Option<String>,
+    #[serde(default)]
+    lang: Option<String>,
+}
+
+/// The slide's zone document (ADR-0011): every layout region with its binding
+/// and the file an edit writes to. The editor overlay, the board, and PPTX
+/// round-trip all read this one shape. Computed on request, never stored.
+async fn get_slide_zones(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+    Query(q): Query<ZonesQuery>,
+) -> ApiResult<sldr_renderer::ZoneDocument> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &name)?;
+
+    let mut registry = sldr_renderer::LayoutRegistry::builtin();
+    for dir in state.config.layout_dirs() {
+        let _ = registry.load_dir(&dir);
+    }
+    let layout_name = q
+        .layout
+        .or_else(|| slide.metadata.layout.clone())
+        .unwrap_or_else(|| "default".to_string());
+    let layout = registry
+        .get(&layout_name)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, format!("Layout not found: {layout_name}")))?;
+    let layout_builtin = resolve_layout_source(&state, &layout.name).map(|(_, b)| b).unwrap_or(true);
+
+    let flavor_name = q.flavor.unwrap_or_else(|| state.config.config.default_flavor.clone());
+    let flavor = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
+        .ok()
+        .and_then(|c| c.find(&flavor_name).cloned());
+
+    let opts = sldr_renderer::ZoneOpts {
+        lang: q.lang.as_deref(),
+        default_lang: "en",
+        layout_builtin,
+        layout_used_by: None,
+    };
+    Ok(Json(sldr_renderer::zone_document(&slide, layout, flavor.as_ref(), &opts)))
 }
 
 async fn create_slide(
