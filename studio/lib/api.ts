@@ -2,6 +2,16 @@
 // Oqto's authFetch, so the section components port over unchanged — only the
 // token storage/shell differs.
 
+import type {
+  Hit,
+  LayoutUsage,
+  MediaIndex,
+  SlideUsage,
+  UsageIndex,
+  ZoneDocument,
+} from "./api-types";
+export type * from "./api-types";
+
 const TOKEN_KEY = "sldr:token";
 export const getToken = () => localStorage.getItem(TOKEN_KEY) ?? "";
 export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);
@@ -178,6 +188,53 @@ export const api = {
   layouts: () =>
     req<{ layouts: LayoutSummary[] }>("/layouts").then((r) => r.layouts),
   layout: (name: string) => req<LayoutDetail>(`/layouts/${name}`),
+  // --- ADR-0011 primitives: generated types, one ranking, one model ---
+  /** The slide's zone document: regions, bindings, write targets. */
+  zones: (slide: string, opts?: { layout?: string; flavor?: string; lang?: string }) => {
+    const q = new URLSearchParams();
+    if (opts?.layout) q.set("layout", opts.layout);
+    if (opts?.flavor) q.set("flavor", opts.flavor);
+    if (opts?.lang) q.set("lang", opts.lang);
+    const qs = q.toString();
+    return req<ZoneDocument>(`/slides/${encodeURIComponent(slide)}/zones${qs ? `?${qs}` : ""}`);
+  },
+  /** Which playlists reference a slide, and its last git touch. */
+  slideUsage: (slide: string) => req<SlideUsage>(`/slides/${encodeURIComponent(slide)}/usage`),
+  /** Slide → playlists for the whole library, in one call (board badges). */
+  usageIndex: () => req<UsageIndex>("/usage"),
+  /** Slides using a layout — the blast radius before a geometry edit. */
+  layoutUsage: (layout: string) => req<LayoutUsage>(`/layouts/${encodeURIComponent(layout)}/usage`),
+  /** Ranked search over names, title, tags, topic, description, body. */
+  find: (q: string, opts?: { tags?: string[]; topic?: string; limit?: number }) => {
+    const p = new URLSearchParams({ q });
+    if (opts?.tags?.length) p.set("tags", opts.tags.join(","));
+    if (opts?.topic) p.set("topic", opts.topic);
+    if (opts?.limit) p.set("limit", String(opts.limit));
+    return req<Hit[]>(`/find?${p.toString()}`);
+  },
+  /** Every media file with the slides that reference it. */
+  media: () => req<MediaIndex>("/media"),
+  /** URL for a listed media file (thumbnails). */
+  mediaUrl: (path: string) =>
+    `/api/media/${path.split("/").map(encodeURIComponent).join("/")}?token=${encodeURIComponent(getToken())}`,
+  /** Store a file beside `slide` (its media/ folder); returns the markdown reference. */
+  uploadMedia: async (slide: string, file: File, opts?: { name?: string; overwrite?: boolean }) => {
+    const p = new URLSearchParams({ slide, name: opts?.name ?? file.name });
+    if (opts?.overwrite) p.set("overwrite", "true");
+    const res = await fetch(`/api/media?${p.toString()}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${getToken()}` },
+      body: file,
+    });
+    if (!res.ok) throw new ApiError(res.status, await res.text());
+    return res.json() as Promise<{ path: string; reference: string; bytes: number }>;
+  },
+  /** Delete a media file; refused (409) while a slide references it unless force. */
+  deleteMedia: (path: string, force = false) =>
+    req<{ deleted: string }>(
+      `/media/${path.split("/").map(encodeURIComponent).join("/")}${force ? "?force=true" : ""}`,
+      { method: "DELETE" },
+    ),
   build: (playlist: string, flavor?: string) =>
     req<{ name: string; output_dir: string; html_path: string }>("/build", {
       method: "POST",

@@ -15,6 +15,7 @@
 //! the ones the HTML renderer and the PPTX exporter already apply — this
 //! module just makes them inspectable.
 
+use schemars::JsonSchema;
 use serde::Serialize;
 use sldr_core::flavor::Flavor;
 use sldr_core::slide::Slide;
@@ -24,7 +25,7 @@ use crate::markdown::{split_segments, MarkdownSegments};
 
 /// Where an edit to a zone's *content* is written. Geometry is never here —
 /// a zone's box always belongs to the layout (see [`ZoneDocument::geometry`]).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "target")]
 pub enum Writes {
     /// The slide's own markdown file.
@@ -35,7 +36,7 @@ pub enum Writes {
 }
 
 /// What fills a zone.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum Binding {
     /// A frontmatter field (`title`, `subtitle`, `footer`, `source`).
@@ -63,7 +64,7 @@ pub enum Binding {
 }
 
 /// One zone of the document: the layout's declaration plus what the join knows.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 pub struct ZoneEntry {
     pub name: String,
     /// Representation policy token (`placeholder-text`, `picture`, `shape`, `bake`).
@@ -88,14 +89,14 @@ pub struct ZoneEntry {
 /// Slide input that no zone of the current layout shows. Mirrors the PPTX
 /// exporter's accounting so nothing is silently invisible: a `::left::` body
 /// on a plain layout, a `subtitle` on a layout without a subheadline zone.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Unbound {
     pub name: String,
     pub binding: Binding,
 }
 
 /// Who owns the boxes. Always the layout: there is no per-slide geometry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Geometry {
     pub layout: String,
     /// `true` when the layout is an embedded built-in (editing its zones
@@ -106,7 +107,7 @@ pub struct Geometry {
     pub used_by: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 pub struct ZoneDocument {
     /// The slide's library-relative path.
     pub slide: String,

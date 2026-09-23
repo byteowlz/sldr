@@ -203,6 +203,10 @@ install-system:
 schemas:
     cargo run --bin schema-gen
 
+# Regenerate the studio's TypeScript API types from the Rust models
+studio-types: schemas
+    cd studio && bun run types
+
 # Copy schemas to byteowlz/schemas repository
 copy-schemas:
     ./scripts/copy_config_schema.sh

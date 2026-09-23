@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SlideMetadata",
+  "description": "Metadata from a slide's YAML frontmatter",
+  "type": "object",
+  "properties": {
+    "align": {
+      "description": "Horizontal alignment of slide content: \"left\", \"center\", \"right\".\nOverrides the layout's default. Applied as `data-align` on the\nslide section so CSS can pin alignment without changing markup.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "author": {
+      "description": "Author of the slide",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "created": {
+      "description": "Creation date",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "description": {
+      "description": "Brief description of the slide content",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "footer": {
+      "description": "Per-slide override for the deck footer line (the `{{footer}}` slot).\nFalls back to the flavor's `footer` when omitted.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "layout": {
+      "description": "Preferred layout",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "modified": {
+      "description": "Last modified date",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "research_area": {
+      "description": "Research area this slide belongs to",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "source": {
+      "description": "Source attribution for web-clipping slides — display text shown as\na \"Source: …\" line via the `{{source}}` slot. Pair with `source_url`\nto make it a link.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "source_url": {
+      "description": "Optional link target for `source`. When set, the source line becomes\na hyperlink (still self-contained; only resolved if the viewer clicks).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "subtitle": {
+      "description": "Subheadline — the smaller line under the headline in a framed\nlayout's chrome zone (exposed as the `{{subheadline}}` slot).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "tags": {
+      "description": "Tags for categorization",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "title": {
+      "description": "Slide title",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "topic": {
+      "description": "Topic or category",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "translations": {
+      "description": "Per-language overrides for the framed-chrome fields, keyed by language\ncode (e.g. `de`, `fr`). The top-level fields are the default language;\na `translations.<lang>` block overrides the chrome for that language,\nand any omitted field falls back to the top-level value. This is the\nfrontmatter analog of the body's `::lang:xx::` markers — so a deck\nbuilt with `--lang de` translates the headline/subtitle/source, not\njust the body. A slide with no `translations` block is unchanged.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ChromeTranslation"
+      },
+      "default": {}
+    },
+    "type_scale": {
+      "description": "Per-slide type scale: multiplies every `--sldr-type-scale`-aware font\nsize on this slide (body, lists, cards, timeline …). `0.85` squeezes a\ndense table or list onto the slide without dropping to raw HTML;\n`1.2` enlarges a sparse one. Clamped to 0.5–2 at render time.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double",
+      "default": null
+    },
+    "valign": {
+      "description": "Vertical alignment of slide content: \"top\", \"center\", \"bottom\".\nOverrides the layout's default. Applied as `data-valign` on the\nslide section.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    }
+  },
+  "$defs": {
+    "ChromeTranslation": {
+      "description": "Per-language overrides for the translatable framed-chrome fields. Any\nfield left unset falls back to the slide's top-level (default-language)\nvalue — so a translator only fills the fields that actually differ.",
+      "type": "object",
+      "properties": {
+        "footer": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "source_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "subtitle": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    }
+  }
+}

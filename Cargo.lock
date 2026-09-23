@@ -1513,6 +1513,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sldr-core",
+ "sldr-renderer",
 ]
 
 [[package]]
@@ -1783,6 +1784,7 @@ dependencies = [
  "base64",
  "image",
  "pulldown-cmark",
+ "schemars",
  "serde",
  "serde_json",
  "sldr-core",

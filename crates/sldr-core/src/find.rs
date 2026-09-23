@@ -8,6 +8,7 @@
 //! synonyms, no judgment — an agent enriching tags and topics improves the
 //! ranking, the tool itself never guesses.
 
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::config::MatchingConfig;
@@ -15,7 +16,7 @@ use crate::fuzzy::{MatchType, SldrMatcher};
 use crate::slide::{Slide, SlideCollection};
 
 /// Where a query matched inside one slide, with a short excerpt.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct FieldHit {
     /// `name`, `title`, `tags`, `topic`, `description`, or `body`.
     pub field: &'static str,
@@ -24,7 +25,7 @@ pub struct FieldHit {
     pub snippet: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Hit {
     pub relative_path: String,
     pub name: String,

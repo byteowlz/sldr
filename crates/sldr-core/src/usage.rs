@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::Command;
 
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::fuzzy::{ResolveResult, SldrMatcher};
@@ -22,7 +23,7 @@ use crate::presentation::Playlist;
 use crate::slide::SlideCollection;
 
 /// One playlist that references a slide.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PlaylistRef {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -36,7 +37,7 @@ pub struct PlaylistRef {
 }
 
 /// A playlist entry that did not resolve to exactly one slide.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Unresolved {
     pub playlist: String,
     pub entry: String,
@@ -44,7 +45,7 @@ pub struct Unresolved {
 }
 
 /// The last git commit that touched a path.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GitTouch {
     /// ISO-8601 committer date.
     pub date: String,
@@ -52,7 +53,7 @@ pub struct GitTouch {
 }
 
 /// Slide → playlists, for a whole library. Build once, look up many.
-#[derive(Debug, Default, Clone, Serialize)]
+#[derive(Debug, Default, Clone, Serialize, JsonSchema)]
 pub struct UsageIndex {
     /// Keyed by the slide's library-relative path (`genai/intro.md`).
     pub slides: BTreeMap<String, Vec<PlaylistRef>>,
@@ -206,7 +207,7 @@ pub fn git_last_touched(path: &Path) -> Option<GitTouch> {
 }
 
 /// Everything known about one slide's use.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct SlideUsage {
     pub slide: String,
     pub playlists: Vec<PlaylistRef>,
@@ -215,7 +216,7 @@ pub struct SlideUsage {
 }
 
 /// Everything known about one layout's use.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct LayoutUsage {
     pub layout: String,
     pub slides: Vec<String>,

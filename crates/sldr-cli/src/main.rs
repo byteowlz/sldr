@@ -275,6 +275,13 @@ enum Commands {
         json: bool,
     },
 
+    /// Library media: list every image/video with the slides that use it,
+    /// or store a file beside the slide that will reference it.
+    Media {
+        #[command(subcommand)]
+        command: MediaCommands,
+    },
+
     /// Where-used: which playlists reference a slide (and when it was last
     /// touched in git), or `--layout <name>` for which slides use a layout.
     /// The blast radius to look at before editing something shared.
@@ -405,6 +412,32 @@ enum Commands {
     Playlist {
         #[command(subcommand)]
         command: PlaylistCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum MediaCommands {
+    /// List media files and which slides use them
+    Ls {
+        /// Only files no slide references
+        #[arg(long)]
+        unused: bool,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Copy a file into the target slide's media/ folder and print the reference
+    Add {
+        /// Slide that will reference the file
+        slide: String,
+        /// File to store
+        file: std::path::PathBuf,
+        /// Store under a different file name
+        #[arg(long)]
+        name: Option<String>,
+        /// Replace an existing file of the same name
+        #[arg(long)]
+        overwrite: bool,
     },
 }
 
@@ -578,6 +611,13 @@ fn main() -> anyhow::Result<()> {
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
 
         Commands::Show { what, name, json } => commands::show::run(&what, &name, json),
+
+        Commands::Media { command } => match command {
+            MediaCommands::Ls { unused, json } => commands::media::ls(unused, json),
+            MediaCommands::Add { slide, file, name, overwrite } => {
+                commands::media::add(&slide, &file, name.as_deref(), overwrite)
+            }
+        },
 
         Commands::Where { slide, layout, json } => {
             commands::where_used::run(slide.as_deref(), layout.as_deref(), json)

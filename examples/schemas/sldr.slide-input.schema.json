@@ -111,6 +111,14 @@
             "$ref": "#/$defs/SlideTranslation"
           }
         },
+        "type_scale": {
+          "description": "Per-slide type scale (e.g. `0.85` for a dense table); see\n`SlideMetadata::type_scale`.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
         "valign": {
           "description": "Vertical alignment override: \"top\" | \"center\" | \"bottom\".\nOptional — when omitted, the layout's default applies.",
           "type": [

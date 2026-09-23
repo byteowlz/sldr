@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LayoutUsage",
+  "description": "Everything known about one layout's use.",
+  "type": "object",
+  "properties": {
+    "layout": {
+      "type": "string"
+    },
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "layout",
+    "slides"
+  ]
+}

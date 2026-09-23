@@ -45,7 +45,8 @@ pub struct ServeOptions {
 /// `/api/health` and the optional Bearer guard), and — when configured — the
 /// studio SPA at `/`.
 pub fn app(state: SldrState, opts: ServeOptions) -> Router {
-    let mut api = router(state);
+    // Uploads are raw bodies; allow phone photos and short clips.
+    let mut api = router(state).layer(axum::extract::DefaultBodyLimit::max(200 * 1024 * 1024));
     if let Some(token) = opts.token {
         api = api.layer(middleware::from_fn_with_state(
             AuthToken(token),

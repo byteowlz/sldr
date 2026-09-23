@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UsageIndex",
+  "description": "Slide → playlists, for a whole library. Build once, look up many.",
+  "type": "object",
+  "properties": {
+    "playlists": {
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "slides": {
+      "description": "Keyed by the slide's library-relative path (`genai/intro.md`).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/PlaylistRef"
+        }
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Unresolved"
+      }
+    }
+  },
+  "required": [
+    "slides",
+    "playlists",
+    "unresolved"
+  ],
+  "$defs": {
+    "PlaylistRef": {
+      "description": "One playlist that references a slide.",
+      "type": "object",
+      "properties": {
+        "flavor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "of": {
+          "description": "Total slides in that playlist.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "position": {
+          "description": "1-based position of the slide in the playlist.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "position",
+        "of"
+      ]
+    },
+    "Unresolved": {
+      "description": "A playlist entry that did not resolve to exactly one slide.",
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "string"
+        },
+        "playlist": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "playlist",
+        "entry",
+        "reason"
+      ]
+    }
+  }
+}

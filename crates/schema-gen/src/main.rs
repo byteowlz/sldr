@@ -36,6 +36,7 @@ fn main() {
     generate_playlist_schema(&schemas_dir);
     generate_slide_input_schema(&schemas_dir);
     generate_playlist_input_schema(&schemas_dir);
+    generate_api_schemas(&schemas_dir.join("api"));
 
     // Generate example configs
     println!("\n=== Generating Example Configs ===");
@@ -98,6 +99,28 @@ fn generate_playlist_schema(schemas_dir: &PathBuf) {
     let json = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
     fs::write(&output_path, json).expect("Failed to write playlist schema");
     println!("  ✓ Generated playlist schema: {:?}", output_path);
+}
+
+/// API response schemas (ADR-0011) — the source the studio's TypeScript
+/// types are generated from (`bun run types` in studio/), so the client can
+/// never drift from the Rust models.
+fn generate_api_schemas(dir: &PathBuf) {
+    fs::create_dir_all(dir).expect("Failed to create api schema directory");
+    let entries: Vec<(&str, schemars::Schema)> = vec![
+        ("ZoneDocument", schema_for!(sldr_renderer::ZoneDocument)),
+        ("UsageIndex", schema_for!(sldr_core::usage::UsageIndex)),
+        ("SlideUsage", schema_for!(sldr_core::usage::SlideUsage)),
+        ("LayoutUsage", schema_for!(sldr_core::usage::LayoutUsage)),
+        ("Hit", schema_for!(sldr_core::find::Hit)),
+        ("MediaIndex", schema_for!(sldr_core::media::MediaIndex)),
+        ("SlideMetadata", schema_for!(sldr_core::slide::SlideMetadata)),
+    ];
+    for (name, schema) in entries {
+        let path = dir.join(format!("{name}.schema.json"));
+        let json = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
+        fs::write(&path, json).expect("Failed to write api schema");
+        println!("  ✓ Generated api schema: {:?}", path);
+    }
 }
 
 /// Generate example config.toml

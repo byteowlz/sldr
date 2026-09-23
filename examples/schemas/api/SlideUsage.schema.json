@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SlideUsage",
+  "description": "Everything known about one slide's use.",
+  "type": "object",
+  "properties": {
+    "last_touched": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GitTouch"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "playlists": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PlaylistRef"
+      }
+    },
+    "slide": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "slide",
+    "playlists"
+  ],
+  "$defs": {
+    "GitTouch": {
+      "description": "The last git commit that touched a path.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "type": "string"
+        },
+        "date": {
+          "description": "ISO-8601 committer date.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "commit"
+      ]
+    },
+    "PlaylistRef": {
+      "description": "One playlist that references a slide.",
+      "type": "object",
+      "properties": {
+        "flavor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "of": {
+          "description": "Total slides in that playlist.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "position": {
+          "description": "1-based position of the slide in the playlist.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "position",
+        "of"
+      ]
+    }
+  }
+}

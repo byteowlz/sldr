@@ -243,7 +243,7 @@ impl SlideInput {
 }
 
 /// Metadata from a slide's YAML frontmatter
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct SlideMetadata {
     /// Slide title
     #[serde(default)]
@@ -335,7 +335,7 @@ pub struct SlideMetadata {
 /// Per-language overrides for the translatable framed-chrome fields. Any
 /// field left unset falls back to the slide's top-level (default-language)
 /// value — so a translator only fills the fields that actually differ.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct ChromeTranslation {
     #[serde(default)]
     pub title: Option<String>,

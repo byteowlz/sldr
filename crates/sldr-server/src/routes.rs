@@ -71,6 +71,8 @@ pub fn router(state: SldrState) -> Router {
         .route("/slides/{name}/usage", get(get_slide_usage))
         .route("/usage", get(get_usage_index))
         .route("/find", get(get_find))
+        .route("/media", get(list_media_files).put(upload_media))
+        .route("/media/{*path}", get(get_media_file).delete(delete_media_file))
         .route("/playlists", get(list_playlists).post(create_playlist))
         .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
@@ -242,6 +244,118 @@ async fn get_find(
         limit: q.limit,
     };
     Ok(Json(sldr_core::find::find(&q.q, &slides, &state.config.matching, &opts)))
+}
+
+/// Every media file in the library with the slides that reference it.
+async fn list_media_files(State(state): State<SldrState>) -> ApiResult<sldr_core::media::MediaIndex> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    Ok(Json(sldr_core::media::list_media(
+        &state.config.slide_dir(),
+        &state.config.library().join("media"),
+        &slides,
+    )))
+}
+
+#[derive(Debug, Deserialize)]
+struct UploadQuery {
+    /// Slide the file will be referenced from; it lands in that slide's media/.
+    slide: String,
+    name: String,
+    #[serde(default)]
+    overwrite: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UploadResponse {
+    pub path: String,
+    /// What to write into the slide's markdown.
+    pub reference: String,
+    pub bytes: usize,
+}
+
+/// Raw-body upload (`PUT /api/media?slide=…&name=…`, body = the file). No
+/// multipart: a `fetch(url, {method: "PUT", body: file})` is enough.
+async fn upload_media(
+    State(state): State<SldrState>,
+    Query(q): Query<UploadQuery>,
+    body: axum::body::Bytes,
+) -> ApiResult<UploadResponse> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &q.slide)?;
+    let (path, reference) = sldr_core::media::store_beside(&slide, &q.name, &body, q.overwrite).map_err(|e| {
+        let status = match e.kind() {
+            std::io::ErrorKind::AlreadyExists => StatusCode::CONFLICT,
+            std::io::ErrorKind::InvalidInput => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        ApiError::new(status, e.to_string())
+    })?;
+    info!("Stored media {} for {}", path.display(), slide.relative_path);
+    let rel = path
+        .strip_prefix(state.config.slide_dir())
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_else(|_| path.display().to_string());
+    Ok(Json(UploadResponse { path: rel, reference, bytes: body.len() }))
+}
+
+fn resolve_media(state: &SldrState, path: &str) -> Result<PathBuf, ApiError> {
+    sldr_core::media::resolve_listed(
+        &state.config.slide_dir(),
+        &state.config.library().join("media"),
+        path,
+    )
+    .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Media file not found"))
+}
+
+/// Serve one listed media file (the picker's thumbnails).
+async fn get_media_file(
+    State(state): State<SldrState>,
+    AxumPath(path): AxumPath<String>,
+) -> std::result::Result<Response, ApiError> {
+    let abs = resolve_media(&state, &path)?;
+    let bytes = fs::read(&abs).map_err(to_api_error("Failed to read media file"))?;
+    let mime = match sldr_core::media::media_kind(&path) {
+        sldr_core::media::MediaKind::Image => {
+            if path.to_lowercase().ends_with(".svg") { "image/svg+xml" }
+            else if path.to_lowercase().ends_with(".png") { "image/png" }
+            else if path.to_lowercase().ends_with(".gif") { "image/gif" }
+            else if path.to_lowercase().ends_with(".webp") { "image/webp" }
+            else { "image/jpeg" }
+        }
+        sldr_core::media::MediaKind::Video => "video/mp4",
+        sldr_core::media::MediaKind::Other => "application/octet-stream",
+    };
+    Ok(([(axum::http::header::CONTENT_TYPE, mime)], bytes).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+struct DeleteQuery {
+    #[serde(default)]
+    force: bool,
+}
+
+/// Delete a media file. Refused while any slide still references it unless
+/// `?force=true` — the where-used check is the safety, not a confirmation box.
+async fn delete_media_file(
+    State(state): State<SldrState>,
+    AxumPath(path): AxumPath<String>,
+    Query(q): Query<DeleteQuery>,
+) -> ApiResult<serde_json::Value> {
+    let abs = resolve_media(&state, &path)?;
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let index = sldr_core::media::list_media(&state.config.slide_dir(), &state.config.library().join("media"), &slides);
+    if let Some(f) = index.files.iter().find(|f| f.path == path) {
+        if !f.used_by.is_empty() && !q.force {
+            return Err(ApiError::new(StatusCode::CONFLICT, format!("Still referenced by {}", f.used_by.join(", ")))
+                .with_details(json!({ "used_by": f.used_by })));
+        }
+    }
+    fs::remove_file(&abs).map_err(to_api_error("Failed to delete media file"))?;
+    info!("Deleted media {}", abs.display());
+    Ok(Json(json!({ "deleted": path })))
 }
 
 async fn create_slide(

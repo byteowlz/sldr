@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 sldr-core = { path = "../sldr-core" }
+sldr-renderer = { path = "../sldr-renderer" }
 schemars = { workspace = true, features = ["derive"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

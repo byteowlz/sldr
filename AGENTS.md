@@ -42,6 +42,7 @@ sldr show flavor name_of_flavor                      # Print a flavor's resolved
 sldr show layout name_of_layout                      # Print a layout's resolved source (.html)
 sldr zones slide_name --json                         # Zone document: regions, bindings, write targets (ADR-0011)
 sldr where slide_name | --layout name_of_layout      # Where-used: referencing decks / slides using a layout
+sldr media ls [--unused] | add slide_name file       # Library media with usage; store a file beside a slide
 sldr new slide_name --scaffold two-cols              # Create a new slide
 sldr init                                            # Initialize sldr directories
 ```
