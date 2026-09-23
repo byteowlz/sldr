@@ -130,9 +130,12 @@ sldr preview slide-name     # Quick single-slide preview
 ### Search slides
 
 ```bash
-sldr search "machine learning"
-sldr search --tags "AI,intro"
+sldr search "machine learning"          # ranked: name, title, tags, topic, description, body
+sldr search "eval harness" --long       # show where each hit matched, with a body snippet
+sldr search agents --tags "AI,intro"
 ```
+
+Search is full text — body copy included, which is the thing you cannot do across a folder of PowerPoints. Every word of the query has to land somewhere in a slide; title and tag hits rank above body hits; an exact or fuzzy slide *name* match ranks above everything. The same ranking backs the studio finder and `GET /api/find`, so a human, an agent and the UI agree on the order.
 
 ## Presenter Shortcuts
 

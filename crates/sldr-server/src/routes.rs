@@ -70,6 +70,7 @@ pub fn router(state: SldrState) -> Router {
         .route("/slides/{name}/zones", get(get_slide_zones))
         .route("/slides/{name}/usage", get(get_slide_usage))
         .route("/usage", get(get_usage_index))
+        .route("/find", get(get_find))
         .route("/playlists", get(list_playlists).post(create_playlist))
         .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
@@ -211,6 +212,36 @@ async fn get_layout_usage(
         layout: name.clone(),
         slides: sldr_core::usage::slides_using_layout(&name, &slides).into_iter().map(String::from).collect(),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+struct FindQuery {
+    q: String,
+    #[serde(default)]
+    tags: Option<String>,
+    #[serde(default)]
+    topic: Option<String>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// Find slides (ADR-0011): the core ranking over names, title, tags, topic,
+/// description and body. Same order as `sldr search`.
+async fn get_find(
+    State(state): State<SldrState>,
+    Query(q): Query<FindQuery>,
+) -> ApiResult<Vec<sldr_core::find::Hit>> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let opts = sldr_core::find::FindOpts {
+        tags: q
+            .tags
+            .map(|t| t.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+            .unwrap_or_default(),
+        topic: q.topic,
+        limit: q.limit,
+    };
+    Ok(Json(sldr_core::find::find(&q.q, &slides, &state.config.matching, &opts)))
 }
 
 async fn create_slide(

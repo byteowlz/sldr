@@ -11,6 +11,7 @@ pub mod slide;
 pub mod presentation;
 pub mod flavor;
 pub mod usage;
+pub mod find;
 
 pub use config::Config;
 pub use error::{Error, Result};
