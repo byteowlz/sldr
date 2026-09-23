@@ -68,12 +68,15 @@ pub fn router(state: SldrState) -> Router {
         .route("/slides", get(list_slides).post(create_slide))
         .route("/slides/{name}", get(get_slide).put(update_slide))
         .route("/slides/{name}/zones", get(get_slide_zones))
+        .route("/slides/{name}/usage", get(get_slide_usage))
+        .route("/usage", get(get_usage_index))
         .route("/playlists", get(list_playlists).post(create_playlist))
         .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
         .route("/flavors/{name}", get(get_flavor).put(update_flavor))
         .route("/layouts", get(list_layouts))
         .route("/layouts/{name}", get(get_layout).put(update_layout))
+        .route("/layouts/{name}/usage", get(get_layout_usage))
         .route("/layouts/{name}/zones", put(update_layout_zones))
         .route("/build", post(build_presentation))
         .route("/preview/sample", get(preview_sample))
@@ -166,9 +169,48 @@ async fn get_slide_zones(
         lang: q.lang.as_deref(),
         default_lang: "en",
         layout_builtin,
-        layout_used_by: None,
+        layout_used_by: Some(sldr_core::usage::slides_using_layout(&layout.name, &slides).len()),
     };
     Ok(Json(sldr_renderer::zone_document(&slide, layout, flavor.as_ref(), &opts)))
+}
+
+/// Where-used for one slide (ADR-0011): referencing playlists + last git touch.
+async fn get_slide_usage(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+) -> ApiResult<sldr_core::usage::SlideUsage> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &name)?;
+    let matcher = SldrMatcher::new(state.config.matching.clone());
+    let index = sldr_core::usage::UsageIndex::build(&state.config.playlist_dir(), &slides, &matcher);
+    Ok(Json(sldr_core::usage::SlideUsage {
+        playlists: index.of(&slide.relative_path).to_vec(),
+        last_touched: sldr_core::usage::git_last_touched(&slide.path),
+        slide: slide.relative_path,
+    }))
+}
+
+/// The whole slide → playlists index in one call — what the deck board needs
+/// to badge every card without N requests.
+async fn get_usage_index(State(state): State<SldrState>) -> ApiResult<sldr_core::usage::UsageIndex> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let matcher = SldrMatcher::new(state.config.matching.clone());
+    Ok(Json(sldr_core::usage::UsageIndex::build(&state.config.playlist_dir(), &slides, &matcher)))
+}
+
+/// Slides using a layout — the blast radius shown before a geometry edit.
+async fn get_layout_usage(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+) -> ApiResult<sldr_core::usage::LayoutUsage> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    Ok(Json(sldr_core::usage::LayoutUsage {
+        layout: name.clone(),
+        slides: sldr_core::usage::slides_using_layout(&name, &slides).into_iter().map(String::from).collect(),
+    }))
 }
 
 async fn create_slide(

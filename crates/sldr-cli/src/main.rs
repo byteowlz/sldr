@@ -275,6 +275,22 @@ enum Commands {
         json: bool,
     },
 
+    /// Where-used: which playlists reference a slide (and when it was last
+    /// touched in git), or `--layout <name>` for which slides use a layout.
+    /// The blast radius to look at before editing something shared.
+    Where {
+        /// Slide (name, fuzzy name, or path)
+        slide: Option<String>,
+
+        /// Ask about a layout instead of a slide
+        #[arg(long, conflicts_with = "slide")]
+        layout: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Print a slide's zone document: every region its layout declares, what
     /// fills it (frontmatter field, markdown segment, image, flavor field), and
     /// which file an edit writes to. The one-door view of what a visual editor
@@ -562,6 +578,10 @@ fn main() -> anyhow::Result<()> {
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
 
         Commands::Show { what, name, json } => commands::show::run(&what, &name, json),
+
+        Commands::Where { slide, layout, json } => {
+            commands::where_used::run(slide.as_deref(), layout.as_deref(), json)
+        }
 
         Commands::Zones { slide, layout, flavor, lang, json } => {
             commands::zones::run(&commands::zones::ZonesArgs {

@@ -59,11 +59,14 @@ pub fn run(args: &ZonesArgs) -> Result<()> {
         Err(e) => return Err(e),
     };
 
+    let layout_used_by = SlideCollection::load_from_dir(&config.slide_dir())
+        .ok()
+        .map(|all| sldr_core::usage::slides_using_layout(&layout.name, &all).len());
     let opts = ZoneOpts {
         lang: args.lang,
         default_lang: "en",
         layout_builtin,
-        layout_used_by: None,
+        layout_used_by,
     };
     let doc = sldr_renderer::zone_document(&slide, layout, flavor.as_ref(), &opts);
 
@@ -75,7 +78,7 @@ pub fn run(args: &ZonesArgs) -> Result<()> {
     Ok(())
 }
 
-fn resolve_slide(config: &Config, name: &str) -> Result<Slide> {
+pub fn resolve_slide(config: &Config, name: &str) -> Result<Slide> {
     let slides = SlideCollection::load_from_dir(&config.slide_dir())?;
     if let Some(s) = slides.find(name) {
         return Ok(s.clone());
