@@ -28,10 +28,20 @@ bun run build                           # -> studio/dist
 SLDR_API_TOKEN=<token> \
 SLDR_STUDIO_DIR=studio/dist \
 SLDR_SERVER_ADDR=0.0.0.0:4100 \
+SLDR_TLS=1 \
 sldr-server
 ```
 
-Then open the server over Tailscale from any device and enter the token.
+Then open `https://<host>:4100` over Tailscale from any device, accept the
+certificate once, and enter the token.
+
+**HTTPS is required off-localhost.** Browsers treat `localhost` as a secure
+context but not a tailnet hostname over plain HTTP, and the editor relies on
+APIs that need one — over HTTP it hangs. `SLDR_TLS=1` generates a self-signed
+pair once (under the sldr data dir, `tls/`), covering `localhost`, the
+machine's hostnames and its non-loopback IPv4s, and reuses it on every start
+so the one-time acceptance sticks. Bring your own with `SLDR_TLS_CERT` and
+`SLDR_TLS_KEY` (e.g. a `tailscale cert` pair) to skip the warning entirely.
 
 ## Layout
 

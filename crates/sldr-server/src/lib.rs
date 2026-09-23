@@ -12,6 +12,7 @@
 pub mod models;
 pub mod preview;
 pub mod routes;
+pub mod tls;
 pub mod state;
 
 use std::path::PathBuf;

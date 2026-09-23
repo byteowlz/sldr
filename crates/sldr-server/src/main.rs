@@ -34,9 +34,31 @@ async fn main() -> Result<()> {
         None => info!("no SLDR_STUDIO_DIR — serving API only (no studio UI)"),
     }
     let app = app(state, ServeOptions { token, studio_dir });
-    info!("sldr-server listening on {}", addr);
 
-    axum::serve(tokio::net::TcpListener::bind(addr).await?, app)
-        .await
-        .context("Server error")
+    // HTTPS is what makes the studio usable from another device: a tailnet
+    // hostname over plain HTTP is not a secure context (ADR-0009/0011).
+    let tls = sldr_server::tls::TlsMode::from_env()
+        .config(&Config::data_dir())
+        .await?;
+    match tls {
+        Some(rustls) => {
+            info!("sldr-server listening on https://{}", addr);
+            axum_server::bind_rustls(addr, rustls)
+                .serve(app.into_make_service())
+                .await
+                .context("Server error")
+        }
+        None => {
+            if !addr.ip().is_loopback() {
+                warn!(
+                    "serving plain HTTP on a non-loopback address — the studio needs a secure \
+                     context; set SLDR_TLS=1 (self-signed) or SLDR_TLS_CERT/SLDR_TLS_KEY"
+                );
+            }
+            info!("sldr-server listening on http://{}", addr);
+            axum::serve(tokio::net::TcpListener::bind(addr).await?, app)
+                .await
+                .context("Server error")
+        }
+    }
 }
