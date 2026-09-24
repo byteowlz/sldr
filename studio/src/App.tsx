@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Presentation } from "lucide-react";
 import { api, ApiError, setToken } from "@/lib/api";
+import { useBackend } from "@/lib/backend";
 import { useDark, lockSession, type Chrome, type SectionId } from "./components/chrome";
 import { Composer } from "./sections/Composer";
 import { Flavors } from "./sections/Flavors";
@@ -61,13 +62,20 @@ export default function App() {
   const [dark, setDark] = useDark();
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [section, setSection] = useState<SectionId>("compose");
+  const backend = useBackend();
 
   useEffect(() => {
+    // Only the standalone backend has a token gate; a hosted mount is
+    // authenticated by its host.
+    if (backend.id !== "http") {
+      setAuthed(true);
+      return;
+    }
     api
       .slides()
       .then(() => setAuthed(true))
       .catch((e) => setAuthed(e instanceof ApiError && e.status === 401 ? false : true));
-  }, []);
+  }, [backend.id]);
 
   if (authed === null)
     return (

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Palette, Save, RefreshCw, Search } from "lucide-react";
-import { api, samplePreviewUrl, type Flavor } from "@/lib/api";
+import { type Flavor } from "@/lib/api";
+import { useBackend } from "@/lib/backend";
+import { useSamplePreview } from "@/lib/backend/preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -56,7 +58,8 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 export function Flavors({ chrome }: { chrome: Chrome }) {
-  const flavors = useQuery({ queryKey: ["flavors"], queryFn: api.flavors });
+  const backend = useBackend();
+  const flavors = useQuery({ queryKey: ["flavors"], queryFn: backend.flavors });
   const [name, setName] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [flavor, setFlavor] = useState<Flavor | null>(null);
@@ -64,7 +67,7 @@ export function Flavors({ chrome }: { chrome: Chrome }) {
   const [dirty, setDirty] = useState(false);
   const [bust, setBust] = useState(0);
 
-  const detail = useQuery({ queryKey: ["flavor", name], queryFn: () => api.getFlavor(name!), enabled: !!name });
+  const detail = useQuery({ queryKey: ["flavor", name], queryFn: () => backend.getFlavor(name!), enabled: !!name });
   useEffect(() => {
     if (detail.data) {
       setFlavor(detail.data.flavor);
@@ -75,7 +78,7 @@ export function Flavors({ chrome }: { chrome: Chrome }) {
   }, [detail.data]);
 
   const save = useMutation({
-    mutationFn: () => api.saveFlavor(name!, flavor!, css || null),
+    mutationFn: () => backend.saveFlavor(name!, flavor!, css || null),
     onSuccess: () => { setDirty(false); setBust(Date.now()); },
   });
 
@@ -207,7 +210,7 @@ export function Flavors({ chrome }: { chrome: Chrome }) {
         <div className="min-h-0 flex-1 p-3">
           {name ? (
             <div className="aspect-video w-full overflow-hidden border bg-card">
-              <iframe key={bust} src={samplePreviewUrl(name, bust)} title="preview" className="size-full border-0" />
+              <SamplePreview name={name} bust={bust} />
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -219,5 +222,15 @@ export function Flavors({ chrome }: { chrome: Chrome }) {
       </Stage>
     </div>
     </div>
+  );
+}
+
+function SamplePreview({ name, bust }: { name: string; bust: number }) {
+  const p = useSamplePreview(name, bust).data;
+  if (!p) return null;
+  return p.kind === "url" ? (
+    <iframe key={bust} src={p.url} title="preview" className="size-full border-0" />
+  ) : (
+    <iframe key={bust} srcDoc={p.html} title="preview" className="size-full border-0" />
   );
 }

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Moon, Sun, Lock, Presentation } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { api, clearToken } from "@/lib/api";
+import { clearToken } from "@/lib/api";
+import { useBackend } from "@/lib/backend";
+import { docs, docKey, useDocs } from "@/lib/docs/store";
 import { cn } from "@/lib/utils";
 
 export type SectionId = "compose" | "flavors" | "layouts";
@@ -58,6 +60,7 @@ export function TopBar({
         ))}
       </nav>
       {crumb}
+      <TabStrip />
       <span className="flex-1" />
       {extras}
       <button
@@ -84,7 +87,8 @@ export function FlavorChip({
   onChange: (f: string | null) => void;
   allowDefault?: boolean;
 }) {
-  const flavors = useQuery({ queryKey: ["flavors"], queryFn: api.flavors });
+  const backend = useBackend();
+  const flavors = useQuery({ queryKey: ["flavors"], queryFn: backend.flavors });
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -152,5 +156,41 @@ export function FlavorChip({
         </div>
       )}
     </div>
+  );
+}
+
+/** Open documents as tabs (ADR-0011): playlists, slides, layouts, flavors.
+ * Pure UI state from the docs store — closing a tab loses nothing. */
+export function TabStrip() {
+  const { docs: open, active } = useDocs();
+  if (!open.length) return null;
+  return (
+    <nav className="sl-tabs ml-3 min-w-0 overflow-x-auto" aria-label="open documents">
+      {open.map((d) => {
+        const key = docKey(d);
+        return (
+          <span
+            key={key}
+            className={cn("sl-tab inline-flex items-center gap-1 !normal-case !tracking-normal", active === key && "sl-tab-active")}
+            onClick={() => docs.activate(key)}
+            title={`${d.kind} · ${d.id}`}
+          >
+            <span style={{ color: d.dirty ? "var(--sl-warn)" : "var(--sl-dim)" }}>{d.dirty ? "●" : "○"}</span>
+            {d.title ?? d.id.split("/").pop()}
+            <button
+              className="ml-1 opacity-60 hover:opacity-100"
+              aria-label="close"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (d.dirty && !confirm(`Close ${d.title ?? d.id} with unsaved changes?`)) return;
+                docs.close(key);
+              }}
+            >
+              ×
+            </button>
+          </span>
+        );
+      })}
+    </nav>
   );
 }
