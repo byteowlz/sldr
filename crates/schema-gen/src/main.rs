@@ -108,6 +108,7 @@ fn generate_api_schemas(dir: &PathBuf) {
     fs::create_dir_all(dir).expect("Failed to create api schema directory");
     let entries: Vec<(&str, schemars::Schema)> = vec![
         ("ZoneDocument", schema_for!(sldr_renderer::ZoneDocument)),
+        ("Candidate", schema_for!(sldr_renderer::Candidate)),
         ("UsageIndex", schema_for!(sldr_core::usage::UsageIndex)),
         ("SlideUsage", schema_for!(sldr_core::usage::SlideUsage)),
         ("LayoutUsage", schema_for!(sldr_core::usage::LayoutUsage)),

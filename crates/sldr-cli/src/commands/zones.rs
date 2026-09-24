@@ -172,3 +172,43 @@ fn print_table(doc: &ZoneDocument) {
         .dimmed()
     );
 }
+
+/// `sldr layouts-for <slide>` — every layout ranked by fit, with what each
+/// would hide, collapse or leave empty. Deterministic; picks nothing.
+pub fn layouts_for(slide: &str, lang: Option<&str>, limit: Option<usize>, json: bool) -> Result<()> {
+    let config = Config::load()?;
+    let slide = resolve_slide(&config, slide)?;
+    let mut registry = LayoutRegistry::builtin();
+    for dir in config.layout_dirs() {
+        registry.load_dir(&dir)?;
+    }
+    let mut ranked = sldr_renderer::layout_candidates(&slide, &registry, lang, "en");
+    if let Some(n) = limit {
+        ranked.truncate(n);
+    }
+    if json {
+        println!("{}", serde_json::to_string_pretty(&ranked)?);
+        return Ok(());
+    }
+    println!("{} {}", "slide".dimmed(), slide.relative_path.cyan());
+    println!("{:<20} {:>5}  {}", "LAYOUT".bold(), "FIT".bold(), "NOTES".bold());
+    for c in &ranked {
+        let mut notes = Vec::new();
+        if !c.hides.is_empty() {
+            notes.push(format!("hides {}", c.hides.join(", ")).yellow().to_string());
+        }
+        if !c.collapses.is_empty() {
+            notes.push(format!("collapses {}", c.collapses.join(", ")).dimmed().to_string());
+        }
+        if !c.empty.is_empty() {
+            notes.push(format!("empty {}", c.empty.join(", ")).dimmed().to_string());
+        }
+        if c.pptx_zones {
+            notes.push("pptx".dimmed().to_string());
+        }
+        let name = if c.current { format!("{} *", c.layout).cyan().to_string() } else { c.layout.clone() };
+        println!("{:<20} {:>5}  {}", name, c.score, notes.join(" · "));
+    }
+    println!("{}", "* current · fit is arithmetic over slots vs inputs, not a recommendation".dimmed());
+    Ok(())
+}

@@ -204,6 +204,16 @@ impl LayoutDef {
     pub fn has_content_slot(&self) -> bool {
         self.structure.contains("{{content}}")
     }
+
+    /// The slot names this layout's markup places, out of the fixed set the
+    /// engine feeds (`headline`, `subheadline`, `footer`, `source`, `heading`,
+    /// `content`, `left`, `right`, `image`).
+    pub fn slots(&self) -> Vec<&'static str> {
+        ["headline", "subheadline", "footer", "source", "heading", "content", "left", "right", "image"]
+            .into_iter()
+            .filter(|s| self.structure.contains(&format!("{{{{{s}}}}}")))
+            .collect()
+    }
 }
 
 /// Extract a single-line `<!-- sldr:KEY VALUE -->` directive's value.

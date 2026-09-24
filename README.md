@@ -82,6 +82,7 @@ sldr ls flavors
 sldr show flavor aurora     # print a flavor's resolved source (the .toml)
 sldr show layout framed     # print a layout's resolved source (the .html)
 sldr zones my-slide         # what a visual editor sees: regions, bindings, write targets
+sldr layouts-for my-slide   # every layout ranked by fit: what it hides, folds, leaves empty
 sldr where my-slide         # which decks reference it, last git touch
 sldr where --layout framed  # which slides use a layout (blast radius before editing it)
 sldr media ls --unused      # media files no slide references

@@ -38,5 +38,5 @@ The zone document is computed on request and never stored. It is exposed as CLI 
 - Where-used and find become core functions with CLI and API surfaces; the existing composer search is replaced by them.
 - The `sldr:zone` directive gains nothing: bindings are derived from slot names and frontmatter fields as they stand.
 - ADR-0004 §3 is amended: "the core will never contain a PPTX importer" becomes "never an importer for arbitrary PPTX"; a deterministic inverse for sldr-generated decks lives in the `sldr-pptx` satellite crate.
-- ADR-0009 is amended: standalone `sldr studio` is a first-class deliverable alongside the Oqto app, served by `sldr-server`, and must be reachable over HTTPS (the browser APIs an editor needs require a secure context; a tailnet hostname over plain HTTP is not one).
+- ADR-0009 is amended: standalone `sldr studio` is a first-class deliverable alongside the Oqto app, served by `sldr-server`, optionally over HTTPS (self-signed or a provided pair); the studio avoids secure-context-only browser APIs so plain HTTP on a private network still works.
 - Studio work is re-sequenced: primitives first (zone document, where-used, find, media endpoints, generated types), then the board, the editor, the finder, the layout editor with blast radius, the flavor editor, and PPTX round-trip.

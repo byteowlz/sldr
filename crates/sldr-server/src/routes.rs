@@ -69,6 +69,7 @@ pub fn router(state: SldrState) -> Router {
         .route("/slides/{name}", get(get_slide).put(update_slide))
         .route("/slides/{name}/zones", get(get_slide_zones))
         .route("/slides/{name}/usage", get(get_slide_usage))
+        .route("/slides/{name}/layout-candidates", get(get_layout_candidates))
         .route("/usage", get(get_usage_index))
         .route("/find", get(get_find))
         .route("/media", get(list_media_files).put(upload_media))
@@ -175,6 +176,35 @@ async fn get_slide_zones(
         layout_used_by: Some(sldr_core::usage::slides_using_layout(&layout.name, &slides).len()),
     };
     Ok(Json(sldr_renderer::zone_document(&slide, layout, flavor.as_ref(), &opts)))
+}
+
+#[derive(Debug, Deserialize)]
+struct CandidatesQuery {
+    #[serde(default)]
+    lang: Option<String>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// Every layout ranked by fit for the slide (ADR-0011) — the visual layout
+/// picker and the "convert me" sheet render the same list.
+async fn get_layout_candidates(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+    Query(q): Query<CandidatesQuery>,
+) -> ApiResult<Vec<sldr_renderer::Candidate>> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &name)?;
+    let mut registry = sldr_renderer::LayoutRegistry::builtin();
+    for dir in state.config.layout_dirs() {
+        let _ = registry.load_dir(&dir);
+    }
+    let mut ranked = sldr_renderer::layout_candidates(&slide, &registry, q.lang.as_deref(), "en");
+    if let Some(n) = q.limit {
+        ranked.truncate(n);
+    }
+    Ok(Json(ranked))
 }
 
 /// Where-used for one slide (ADR-0011): referencing playlists + last git touch.
@@ -814,7 +844,7 @@ async fn preview_slide(
         .map_err(to_api_error("Failed to load slides"))?;
     // Previews are an iframe surface: an unresolved ref renders as a legible
     // warning tile (matching build's fail-loud), not a JSON blob.
-    let slide = match resolve_slide_ref(&state.config, &slides, slide_name) {
+    let mut slide = match resolve_slide_ref(&state.config, &slides, slide_name) {
         Ok(s) => s,
         Err(e) => {
             let msg = html_escape_min(&e.message);
@@ -823,6 +853,12 @@ async fn preview_slide(
             )));
         }
     };
+
+    // `?layout=` renders the same content under another layout — the
+    // contact sheet behind the visual layout picker. Nothing is written.
+    if let Some(l) = params.get("layout").filter(|l| !l.is_empty()) {
+        slide.metadata.layout = Some(l.clone());
+    }
 
     let flavor_name = params.get("flavor").map(String::as_str).unwrap_or("default");
     let flavors = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())

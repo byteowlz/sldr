@@ -3,6 +3,7 @@
 // token storage/shell differs.
 
 import type {
+  Candidate,
   Hit,
   LayoutUsage,
   MediaIndex,
@@ -122,10 +123,11 @@ export function samplePreviewUrl(flavor: string, bust?: number) {
 }
 
 /** URL for a single-slide preview thumbnail (auto-fits to the iframe). */
-export function slidePreviewUrl(slide: string, flavor?: string) {
+export function slidePreviewUrl(slide: string, flavor?: string, layout?: string) {
   const t = encodeURIComponent(getToken());
   const f = flavor ? `&flavor=${encodeURIComponent(flavor)}` : "";
-  return `/api/preview/slide?slide=${encodeURIComponent(slide)}&token=${t}${f}`;
+  const l = layout ? `&layout=${encodeURIComponent(layout)}` : "";
+  return `/api/preview/slide?slide=${encodeURIComponent(slide)}&token=${t}${f}${l}`;
 }
 
 /** URL for a full-deck (playlist) preview — the real presenter. */
@@ -197,6 +199,14 @@ export const api = {
     if (opts?.lang) q.set("lang", opts.lang);
     const qs = q.toString();
     return req<ZoneDocument>(`/slides/${encodeURIComponent(slide)}/zones${qs ? `?${qs}` : ""}`);
+  },
+  /** Every layout ranked by fit for the slide: hides / collapses / empty. */
+  layoutCandidates: (slide: string, opts?: { lang?: string; limit?: number }) => {
+    const p = new URLSearchParams();
+    if (opts?.lang) p.set("lang", opts.lang);
+    if (opts?.limit) p.set("limit", String(opts.limit));
+    const qs = p.toString();
+    return req<Candidate[]>(`/slides/${encodeURIComponent(slide)}/layout-candidates${qs ? `?${qs}` : ""}`);
   },
   /** Which playlists reference a slide, and its last git touch. */
   slideUsage: (slide: string) => req<SlideUsage>(`/slides/${encodeURIComponent(slide)}/usage`),

@@ -282,6 +282,26 @@ enum Commands {
         command: MediaCommands,
     },
 
+    /// Rank every layout by fit for a slide: what each would hide, fold into
+    /// the plain content slot, or leave empty. Arithmetic over slots, not a
+    /// recommendation — the visual layout picker shows the same list.
+    LayoutsFor {
+        /// Slide (name, fuzzy name, or path)
+        slide: String,
+
+        /// Language to resolve the body for
+        #[arg(long)]
+        lang: Option<String>,
+
+        /// Show only the best N
+        #[arg(long)]
+        limit: Option<usize>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Where-used: which playlists reference a slide (and when it was last
     /// touched in git), or `--layout <name>` for which slides use a layout.
     /// The blast radius to look at before editing something shared.
@@ -618,6 +638,10 @@ fn main() -> anyhow::Result<()> {
                 commands::media::add(&slide, &file, name.as_deref(), overwrite)
             }
         },
+
+        Commands::LayoutsFor { slide, lang, limit, json } => {
+            commands::zones::layouts_for(&slide, lang.as_deref(), limit, json)
+        }
 
         Commands::Where { slide, layout, json } => {
             commands::where_used::run(slide.as_deref(), layout.as_deref(), json)
