@@ -541,28 +541,59 @@ async fn update_playlist(
     Json(payload): Json<CreatePlaylistRequest>,
 ) -> ApiResult<serde_json::Value> {
     let playlist_dir = state.config.playlist_dir();
-    let path = playlist_dir.join(format!("{name}.toml"));
+    let path = find_playlist_path(&playlist_dir, &name)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Playlist not found"))?;
 
-    if !path.exists() {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Playlist not found"));
-    }
+    // Update the fields the studio edits; keep everything else the file
+    // already carries (default_lang, the name inside the file) so a save
+    // from a satellite never silently drops data (ADR-0001).
+    let mut playlist = Playlist::load(&path).map_err(to_api_error("Failed to read playlist"))?;
+    playlist.title = payload.title;
+    playlist.description = payload.description;
+    playlist.slides = payload.slides;
+    playlist.flavor = payload.flavor;
+    playlist.render = payload.render;
 
-    let playlist = Playlist {
-        name: name.clone(),
-        title: payload.title,
-        description: payload.description,
-        slides: payload.slides,
-        flavor: payload.flavor,
-        default_lang: None,
-        render: payload.render,
-    };
-
-    playlist
-        .save(&path)
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    let body = toml::to_string_pretty(&playlist)
+        .context("Failed to serialize playlist")
+        .map_err(to_api_error("Failed to update playlist"))?;
+    fs::write(&path, with_schema_line(&existing, body))
         .with_context(|| format!("Failed to update playlist {}", path.display()))
         .map_err(to_api_error("Failed to update playlist"))?;
 
-    Ok(Json(json!({ "name": name })))
+    Ok(Json(json!({ "name": playlist.name })))
+}
+
+/// A playlist's file: `<name>.toml`, else the file whose `name` field is
+/// `name` (a file may be named differently from the playlist inside it).
+fn find_playlist_path(dir: &std::path::Path, name: &str) -> Option<PathBuf> {
+    let direct = dir.join(format!("{name}.toml"));
+    if direct.is_file() {
+        return Some(direct);
+    }
+    fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).find(|p| {
+        p.extension().is_some_and(|e| e == "toml")
+            && Playlist::load(p).is_ok_and(|pl| pl.name == name)
+    })
+}
+
+/// Carry a leading schema directive (`#:schema …` or `"$schema" = …`) from
+/// the file being replaced onto the new body, so editor completion keeps
+/// working after a save.
+fn with_schema_line(existing: &str, body: String) -> String {
+    let first = existing.lines().next().unwrap_or("").trim();
+    let is_schema = first.starts_with("#:schema") || first.starts_with("\"$schema\"");
+    if is_schema && !body.contains(first) {
+        let body = body
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("\"$schema\"") && !l.trim_start().starts_with("\"\\$schema\""))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!("{first}\n{body}\n")
+    } else {
+        body
+    }
 }
 
 async fn list_flavors(State(state): State<SldrState>) -> ApiResult<FlavorsResponse> {

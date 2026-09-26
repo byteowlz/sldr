@@ -80,6 +80,12 @@
         "playlist": {
           "type": "string"
         },
+        "position": {
+          "description": "1-based position in the playlist; 0 when the playlist itself failed to load.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
         "reason": {
           "type": "string"
         }
@@ -87,6 +93,7 @@
       "required": [
         "playlist",
         "entry",
+        "position",
         "reason"
       ]
     }

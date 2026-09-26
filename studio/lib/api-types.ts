@@ -270,6 +270,10 @@ export interface UsageIndex {
 export interface Unresolved {
   entry: string;
   playlist: string;
+  /**
+   * 1-based position in the playlist; 0 when the playlist itself failed to load.
+   */
+  position: number;
   reason: string;
 }
 

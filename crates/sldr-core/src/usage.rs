@@ -41,6 +41,8 @@ pub struct PlaylistRef {
 pub struct Unresolved {
     pub playlist: String,
     pub entry: String,
+    /// 1-based position in the playlist; 0 when the playlist itself failed to load.
+    pub position: usize,
     pub reason: String,
 }
 
@@ -83,6 +85,7 @@ impl UsageIndex {
                     Err(e) => unresolved.push(Unresolved {
                         playlist: stem,
                         entry: String::new(),
+                        position: 0,
                         reason: format!("playlist did not load: {e}"),
                     }),
                 }
@@ -115,6 +118,7 @@ impl UsageIndex {
                     Err(reason) => unresolved.push(Unresolved {
                         playlist: stem.clone(),
                         entry: entry.clone(),
+                        position: i + 1,
                         reason,
                     }),
                 }
@@ -285,6 +289,7 @@ mod tests {
         assert_eq!(idx.of("genai/intro.md").len(), 1);
         assert_eq!(idx.unresolved.len(), 1);
         assert_eq!(idx.unresolved[0].entry, "does-not-exist-anywhere");
+        assert_eq!(idx.unresolved[0].position, 2);
         let unused = idx.unused(&lib);
         assert_eq!(unused, vec!["genai/loop.md", "shared/questions.md"]);
     }
