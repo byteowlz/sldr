@@ -1,0 +1,22 @@
+/* Deck board (ADR-0011) — columns of real renders, working deck pinned left. */
+.sl-board { display: flex; gap: 12px; padding: 12px; overflow-x: auto; overflow-y: hidden; min-height: 0; align-items: stretch; }
+.sl-board-col { flex: 0 0 236px; width: 236px; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--sl-panel); border: 1px solid var(--sl-border-strong); }
+.sl-board-col-working { flex-basis: 300px; width: 300px; border-color: var(--sl-primary); box-shadow: 0 0 0 1px var(--sl-primary-glow); }
+.sl-board-head { display: flex; flex-direction: column; gap: 3px; padding: 7px 9px; border-bottom: 1px solid var(--sl-border); }
+.sl-board-body { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; padding: 0 8px; }
+.sl-board-foot { padding: 5px 9px; border-top: 1px solid var(--sl-border); }
+.sl-board-gap { height: 8px; }
+.sl-board-gap-on { height: 14px; background: linear-gradient(var(--sl-primary), var(--sl-primary)) center / 100% 2px no-repeat; }
+.sl-board-add { flex: 0 0 200px; display: flex; flex-direction: column; gap: 6px; padding: 9px; border: 1px dashed var(--sl-border-strong); min-height: 0; }
+.sl-board-status { display: flex; align-items: center; gap: 12px; padding: 0 12px; border-top: 1px solid var(--sl-border); background: var(--sl-panel-strong); }
+
+.sl-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--sl-border-strong); background: var(--sl-bg); transition: opacity 120ms, border-color 120ms, outline-color 120ms; user-select: none; }
+.sl-card:hover { border-color: var(--sl-muted); }
+.sl-card-active { outline: 2px solid var(--sl-primary); outline-offset: -1px; }
+.sl-card-hover { outline: 2px solid var(--sl-primary); outline-offset: -1px; border-color: var(--sl-primary); }
+.sl-card-dim { opacity: 0.5; }
+.sl-card-in { opacity: 0.55; }
+.sl-card-in.sl-card-hover { opacity: 1; }
+.sl-card-badge { position: absolute; top: 5px; right: 5px; padding: 1px 5px; font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-primary); background: var(--sl-panel-strong); border: 1px solid var(--sl-primary-dim); }
+.sl-card-missing { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px; text-align: center; font-size: 10px; color: var(--sl-muted); background: var(--sl-panel-strong); }
+.sl-card-missing > span:first-child { color: var(--sl-warn); font-size: 18px; }

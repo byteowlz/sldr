@@ -6,7 +6,7 @@ import { useBackend } from "@/lib/backend";
 import { docs, docKey, useDocs } from "@/lib/docs/store";
 import { cn } from "@/lib/utils";
 
-export type SectionId = "compose" | "flavors" | "layouts";
+export type SectionId = "board" | "compose" | "flavors" | "layouts";
 export interface Chrome {
   section: SectionId;
   setSection: (s: SectionId) => void;
@@ -49,7 +49,7 @@ export function TopBar({
         sldr
       </span>
       <nav className="sl-tabs">
-        {(["compose", "flavors", "layouts"] as const).map((s) => (
+        {(["board", "compose", "flavors", "layouts"] as const).map((s) => (
           <button
             key={s}
             className={cn("sl-tab", chrome.section === s && "sl-tab-active")}

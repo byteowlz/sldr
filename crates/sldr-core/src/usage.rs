@@ -25,7 +25,11 @@ use crate::slide::SlideCollection;
 /// One playlist that references a slide.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PlaylistRef {
+    /// The playlist's file stem (what `sldr build <name>` takes).
     pub name: String,
+    /// The `name` field inside the file, when it differs from the stem.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub playlist_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -110,6 +114,7 @@ impl UsageIndex {
                 match resolve_entry(entry, slides, &names, matcher) {
                     Ok(rel) => index.entry(rel).or_default().push(PlaylistRef {
                         name: stem.clone(),
+                        playlist_name: (playlist.name != *stem).then(|| playlist.name.clone()),
                         title: playlist.title.clone(),
                         flavor: playlist.flavor.clone(),
                         position: i + 1,

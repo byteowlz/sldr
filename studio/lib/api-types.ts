@@ -237,11 +237,18 @@ export interface GitTouch {
 
 export interface PlaylistRef {
   flavor?: string | null;
+  /**
+   * The playlist's file stem (what `sldr build <name>` takes).
+   */
   name: string;
   /**
    * Total slides in that playlist.
    */
   of: number;
+  /**
+   * The `name` field inside the file, when it differs from the stem.
+   */
+  playlist_name?: string | null;
   /**
    * 1-based position of the slide in the playlist.
    */

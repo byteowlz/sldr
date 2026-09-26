@@ -4,6 +4,7 @@ import { api, ApiError, setToken } from "@/lib/api";
 import { useBackend } from "@/lib/backend";
 import { useDark, lockSession, type Chrome, type SectionId } from "./components/chrome";
 import { Composer } from "./sections/Composer";
+import { Board } from "./sections/Board";
 import { Flavors } from "./sections/Flavors";
 import { Layouts } from "./sections/Layouts";
 
@@ -61,7 +62,7 @@ function Login({ onAuthed }: { onAuthed: () => void }) {
 export default function App() {
   const [dark, setDark] = useDark();
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [section, setSection] = useState<SectionId>("compose");
+  const [section, setSection] = useState<SectionId>("board");
   const backend = useBackend();
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function App() {
   if (!authed) return <Login onAuthed={() => setAuthed(true)} />;
 
   const chrome: Chrome = { section, setSection, dark, setDark, onLock: lockSession };
+  if (section === "board") return <Board chrome={chrome} />;
   if (section === "compose") return <Composer chrome={chrome} />;
   if (section === "flavors") return <Flavors chrome={chrome} />;
   return <Layouts chrome={chrome} />;

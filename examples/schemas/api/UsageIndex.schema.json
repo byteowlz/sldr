@@ -43,6 +43,7 @@
           ]
         },
         "name": {
+          "description": "The playlist's file stem (what `sldr build <name>` takes).",
           "type": "string"
         },
         "of": {
@@ -50,6 +51,13 @@
           "type": "integer",
           "format": "uint",
           "minimum": 0
+        },
+        "playlist_name": {
+          "description": "The `name` field inside the file, when it differs from the stem.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "position": {
           "description": "1-based position of the slide in the playlist.",
