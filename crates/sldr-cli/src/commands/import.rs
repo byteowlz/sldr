@@ -25,6 +25,20 @@ pub fn run(file: &str, out: Option<String>, options: &super::interchange::Option
     };
     let slides = options.resolve(sldr_pptx::import_with_report(&bytes), &out_dir)?;
     if slides.is_empty() { anyhow::bail!("No slides found in {file}"); }
+    // Slides exported as a single picture (their layout had no PPTX zones)
+    // carry nothing editable back; the source slide stays authoritative.
+    let (pictured, slides): (Vec<_>, Vec<_>) = slides
+        .into_iter()
+        .partition(|s| s.layout == super::export::RASTER_LAYOUT);
+    for s in &pictured {
+        println!(
+            "  {} slide {} was exported as a picture of '{}' — not imported; the original is unchanged",
+            "note:".yellow(),
+            s.step + 1,
+            s.source_id.as_deref().unwrap_or("?")
+        );
+    }
+    if slides.is_empty() { anyhow::bail!("Every slide in {file} was exported as a picture; nothing to import"); }
     // Import never overwrites a library or infers shared-source updates.
     if out_dir.exists() { anyhow::bail!("Import destination already exists; choose a new --out directory"); }
     let parent = out_dir.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(std::path::Path::new("."));

@@ -186,6 +186,18 @@ pub struct Zone {
 }
 
 impl LayoutDef {
+    /// Parse a layout from its HTML source (directives, scoped CSS, slots) —
+    /// the same parser the registry uses for files on disk.
+    pub fn from_source(name: &str, source: &str) -> Self {
+        parse_layout(name, source)
+    }
+
+    /// Whether native PPTX export can represent this layout: it declares at
+    /// least one editable text placeholder or a picture zone.
+    pub fn pptx_eligible(&self) -> bool {
+        self.zones.iter().any(|z| (z.rep == ZoneRep::PlaceholderText && z.ph.is_some()) || z.rep == ZoneRep::Picture)
+    }
+
     /// Whether the layout places a dedicated image slot (`{{image}}`) — i.e.
     /// it expects the body to split via `::content::` / `::image::` markers.
     pub fn expects_image(&self) -> bool {

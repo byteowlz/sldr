@@ -347,12 +347,21 @@ fn build_native_deck(
     // screenshot path uses). Only look for it if the deck actually has any —
     // and if it's missing, fall back to the diagram source as text, loudly.
     let has_diagrams = slides.iter().any(|s| s.content.contains("```mermaid"));
-    let browser = if has_diagrams {
+    // Slides whose layout has no PPTX zones are rendered by the real renderer
+    // and placed as one full-slide picture (reported as baked), so one
+    // unannotated layout no longer blocks the whole deck.
+    let needs_raster = slides.iter().any(|s| {
+        let name = s.metadata.layout.as_deref().unwrap_or("default");
+        registry.get(name).is_some_and(|l| !l.pptx_eligible())
+    });
+    let raster_layout = sldr_renderer::LayoutDef::from_source(RASTER_LAYOUT, RASTER_LAYOUT_SOURCE);
+    let browser = if has_diagrams || needs_raster {
         match find_browser() {
             Ok(b) => Some(b),
             Err(_) => {
                 println!(
-                    "  {} no browser found — mermaid diagrams export as code text. \
+                    "  {} no browser found — mermaid diagrams export as code text and \
+                     slides on layouts without PPTX zones can't be pictured. \
                      Install Chrome/Chromium, or use --flatten.",
                     "note:".yellow()
                 );
@@ -364,6 +373,7 @@ fn build_native_deck(
     };
 
     let mut inputs: Vec<sldr_pptx::SlideInput> = Vec::new();
+    let mut rastered: Vec<(usize, String)> = Vec::new();
     for slide in slides {
         let layout_name = slide
             .metadata
@@ -371,6 +381,35 @@ fn build_native_deck(
             .clone()
             .unwrap_or_else(|| "default".to_string());
         let layout = registry.resolve(&layout_name)?;
+
+        if !layout.pptx_eligible() {
+            if let Some(br) = browser.as_deref() {
+                match raster_slide(slide, flavor, lang, default_lang, config, br) {
+                    Ok(png) => {
+                        rastered.push((inputs.len(), layout_name.clone()));
+                        inputs.push(sldr_pptx::SlideInput {
+                            layout: &raster_layout,
+                            fields: vec![(
+                                "image".into(),
+                                ZoneContent::Picture { bytes: png, ext: "png".into(), fit: None },
+                            )],
+                            details: sldr_pptx::SlideDetails {
+                                source_id: Some(slide.name.clone()),
+                                language: Some(lang.unwrap_or(default_lang).into()),
+                                notes: speaker_notes(&slide.content),
+                                ..Default::default()
+                            },
+                        });
+                        continue;
+                    }
+                    Err(e) => println!(
+                        "  {} slide '{}': picture fallback failed ({e})",
+                        "warning:".yellow(),
+                        slide.name
+                    ),
+                }
+            }
+        }
 
         let chrome = slide.metadata.chrome_for(lang, default_lang);
         let footer = chrome.footer.clone().or_else(|| flavor.footer.clone());
@@ -509,7 +548,99 @@ fn build_native_deck(
             }
         }
     }
+    for (i, layout) in &rastered {
+        let part = format!("ppt/slides/slide{}.xml", i + 1);
+        result.report.record(Some(&part), &part, layout, "slide_raster", sldr_pptx::Disposition::Baked,
+            "Layout has no PPTX zones: the slide is one picture of the real render. Annotate the layout with sldr:zone directives to make it editable; import keeps the original slide");
+    }
     Ok(result)
+}
+
+/// Layout used for slides exported as a single picture.
+pub(crate) const RASTER_LAYOUT: &str = "sldr-picture";
+const RASTER_LAYOUT_SOURCE: &str =
+    "<!-- sldr:zone name=image rep=picture x=0 y=0 w=100 h=100 -->\n<div class=\"sldr-content\">{{image}}</div>\n";
+
+/// Render one slide with the real renderer and screenshot it at 1920×1080.
+fn raster_slide(
+    slide: &Slide,
+    flavor: &sldr_core::flavor::Flavor,
+    lang: Option<&str>,
+    default_lang: &str,
+    config: &Config,
+    browser: &Path,
+) -> Result<Vec<u8>> {
+    let cfg = sldr_renderer::RenderConfig {
+        transition: "none".into(),
+        speaker_notes: false,
+        languages: lang.map(|l| vec![l.to_string()]).unwrap_or_default(),
+        default_language: default_lang.to_string(),
+        ..Default::default()
+    };
+    let mut renderer = sldr_renderer::HtmlRenderer::new(cfg).add_flavor(flavor.clone());
+    for dir in config.layout_dirs() {
+        renderer.load_layouts(&dir)?;
+    }
+    renderer.add_slide(slide)?;
+    // The picture is the slide, not the presenter: hide its UI chrome.
+    const HIDE_UI: &str = "<style>.sldr-toolbar,.sldr-nav,.sldr-progress{display:none!important}</style>";
+    let html = renderer.render()?.replacen("</head>", &format!("{HIDE_UI}</head>"), 1);
+
+    let dir = tempfile::tempdir()?;
+    let html_path = dir.path().join("slide.html");
+    let png_path = dir.path().join("slide.png");
+    std::fs::write(&html_path, html)?;
+    // Headless Chrome's viewport is shorter than the window it is given, so
+    // ask for a taller window, then crop to exactly 1920×1080.
+    let extra = viewport_shortfall(browser);
+    let status = std::process::Command::new(browser)
+        .args([
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-gpu",
+            "--hide-scrollbars",
+            "--virtual-time-budget=4000",
+        ])
+        .arg(format!("--window-size=1920,{}", 1080 + extra))
+        .arg(format!("--screenshot={}", png_path.display()))
+        .arg(format!("file://{}", html_path.display()))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .context("failed to launch browser for slide render")?;
+    if !status.success() || !png_path.exists() {
+        anyhow::bail!("browser did not produce a slide image");
+    }
+    let img = image::open(&png_path).context("slide screenshot unreadable")?;
+    let (w, h) = (img.width().min(1920), img.height().min(1080));
+    let mut buf = Vec::new();
+    img.crop_imm(0, 0, w, h)
+        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+        .context("re-encoding slide screenshot failed")?;
+    Ok(buf)
+}
+
+/// How many pixels shorter than its window headless Chrome's viewport is
+/// (e.g. 1080 → 993). Measured once per process by asking the page itself.
+fn viewport_shortfall(browser: &Path) -> u32 {
+    static CACHE: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *CACHE.get_or_init(|| {
+        let measure = || -> Option<u32> {
+            let dir = tempfile::tempdir().ok()?;
+            let page = dir.path().join("vp.html");
+            std::fs::write(&page, "<html><body><script>document.body.textContent='VP'+innerHeight+'VP'</script></body></html>").ok()?;
+            let out = std::process::Command::new(browser)
+                .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1920,1080", "--dump-dom"])
+                .arg(format!("file://{}", page.display()))
+                .stderr(std::process::Stdio::null())
+                .output()
+                .ok()?;
+            let text = String::from_utf8_lossy(&out.stdout);
+            let h: u32 = text.split("VP").nth(1)?.parse().ok()?;
+            Some(1080u32.saturating_sub(h))
+        };
+        measure().unwrap_or(0)
+    })
 }
 
 /// Extract speaker notes from a slide's markdown, mirroring the HTML renderer.
@@ -843,7 +974,11 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        // Screenshot each slide by navigating to #/N
+        // Screenshot each slide by navigating to #/N. The window is enlarged
+        // by headless Chrome's viewport shortfall and each shot cropped back
+        // to 1920×1080, so slides fill the frame instead of leaving a band.
+        let extra = viewport_shortfall(&browser);
+        let window = format!("--window-size=1920,{}", 1080 + extra);
         let mut image_paths = Vec::new();
         for i in 1..=slide_count {
             let url = format!("http://127.0.0.1:{port}/#{i}");
@@ -854,7 +989,7 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
                     "--headless",
                     "--disable-gpu",
                     "--no-sandbox",
-                    "--window-size=1920,1080",
+                    &window,
                     "--hide-scrollbars",
                     "--virtual-time-budget=3000",
                     &format!("--screenshot={}", img_path.display()),
@@ -868,6 +1003,12 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
 
             if !status.success() {
                 anyhow::bail!("Chrome screenshot failed for slide {i}");
+            }
+            if extra > 0 {
+                let img = image::open(&img_path).with_context(|| format!("slide {i} screenshot unreadable"))?;
+                img.crop_imm(0, 0, img.width().min(1920), img.height().min(1080))
+                    .save(&img_path)
+                    .with_context(|| format!("cropping slide {i} screenshot failed"))?;
             }
 
             image_paths.push(img_path);
@@ -928,12 +1069,51 @@ fn find_browser() -> Result<PathBuf> {
         }
     }
 
+    // Browsers installed by tooling rather than the system package manager
+    // (Playwright, agent-browser) — newest build first.
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        for pattern in [
+            (".cache/ms-playwright", "chromium-", &["chrome-linux64/chrome", "chrome-linux/chrome"][..]),
+            (".agent-browser/browsers", "chrome-", &["chrome"][..]),
+        ] {
+            if let Some(found) = newest_tool_browser(&home.join(pattern.0), pattern.1, pattern.2) {
+                return Ok(found);
+            }
+        }
+    }
+    for name in ["brave", "brave-browser"] {
+        if let Ok(output) = std::process::Command::new("which").arg(name).output() {
+            let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if output.status.success() && !found.is_empty() {
+                return Ok(PathBuf::from(found));
+            }
+        }
+    }
+
     anyhow::bail!(
         "No Chrome/Chromium browser found. Install one of:\n\
          - chromium\n\
          - google-chrome\n\
          Or set CHROME_BIN environment variable."
     );
+}
+
+/// `<dir>/<prefix>*/<rel>` for the highest-sorting version directory.
+fn newest_tool_browser(dir: &Path, prefix: &str, rels: &[&str]) -> Option<PathBuf> {
+    let mut versions: Vec<PathBuf> = std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(prefix)))
+        .collect();
+    versions.sort_by_key(|p| {
+        // Compare dotted/numeric versions numerically ("chrome-152.0" > "chrome-148.0").
+        p.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n[prefix.len()..].split(['.', '-']).map(|x| x.parse::<u64>().unwrap_or(0)).collect::<Vec<_>>())
+            .unwrap_or_default()
+    });
+    versions.iter().rev().flat_map(|v| rels.iter().map(move |r| v.join(r))).find(|p| p.is_file())
 }
 
 fn allocate_port() -> Result<u16> {
