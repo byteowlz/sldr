@@ -297,7 +297,12 @@ fn export_template(
         );
     }
 
-    let theme = sldr_pptx::Theme::from_flavor(&flavor);
+    let mut theme = sldr_pptx::Theme::from_flavor(&flavor);
+    let (brand, brand_warnings) = super::brand::resolve(&flavor, find_browser().ok().as_deref());
+    for w in &brand_warnings {
+        println!("  {} flavor {w}", "warning:".yellow());
+    }
+    theme.brand = brand;
     let bytes = sldr_pptx::build_template(&theme, &eligible)
         .context("Failed to generate PPTX template OOXML")?;
 
@@ -312,7 +317,7 @@ fn export_template(
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    options.finish(&sldr_pptx::flavor_report(&flavor), &out_path)?;
+    options.finish(&sldr_pptx::flavor_report(&flavor, &theme.brand), &out_path)?;
     super::interchange::atomic_write(&out_path, &bytes)?;
 
     let included: Vec<&str> = eligible.iter().map(|d| d.name.as_str()).collect();
@@ -537,9 +542,15 @@ fn build_native_deck(
         } });
     }
 
-    let theme = sldr_pptx::Theme::from_flavor(flavor);
+    let mut theme = sldr_pptx::Theme::from_flavor(flavor);
+    let brand_browser = browser.clone().or_else(|| find_browser().ok());
+    let (brand, brand_warnings) = super::brand::resolve(flavor, brand_browser.as_deref());
+    for w in &brand_warnings {
+        println!("  {} flavor {w}", "warning:".yellow());
+    }
+    theme.brand = brand;
     let mut result = sldr_pptx::build_deck_with_report(&theme, title, &inputs)?;
-    result.report.findings.extend(sldr_pptx::flavor_report(flavor).findings);
+    result.report.findings.extend(sldr_pptx::flavor_report(flavor, &theme.brand).findings);
     for (i, input) in inputs.iter().enumerate() {
         for (name, content) in &input.fields {
             if matches!(content, ZoneContent::Picture { fit: Some(_), .. }) {
@@ -558,7 +569,7 @@ fn build_native_deck(
 }
 
 /// Layout used for slides exported as a single picture.
-pub(crate) const RASTER_LAYOUT: &str = "sldr-picture";
+pub(crate) const RASTER_LAYOUT: &str = sldr_pptx::RASTER_LAYOUT_NAME;
 const RASTER_LAYOUT_SOURCE: &str =
     "<!-- sldr:zone name=image rep=picture x=0 y=0 w=100 h=100 -->\n<div class=\"sldr-content\">{{image}}</div>\n";
 
@@ -586,44 +597,16 @@ fn raster_slide(
     // The picture is the slide, not the presenter: hide its UI chrome.
     const HIDE_UI: &str = "<style>.sldr-toolbar,.sldr-nav,.sldr-progress{display:none!important}</style>";
     let html = renderer.render()?.replacen("</head>", &format!("{HIDE_UI}</head>"), 1);
-
-    let dir = tempfile::tempdir()?;
-    let html_path = dir.path().join("slide.html");
-    let png_path = dir.path().join("slide.png");
-    std::fs::write(&html_path, html)?;
-    // Headless Chrome's viewport is shorter than the window it is given, so
-    // ask for a taller window, then crop to exactly 1920×1080.
-    let extra = viewport_shortfall(browser);
-    let status = std::process::Command::new(browser)
-        .args([
-            "--headless=new",
-            "--no-sandbox",
-            "--disable-gpu",
-            "--hide-scrollbars",
-            "--virtual-time-budget=4000",
-        ])
-        .arg(format!("--window-size=1920,{}", 1080 + extra))
-        .arg(format!("--screenshot={}", png_path.display()))
-        .arg(format!("file://{}", html_path.display()))
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .context("failed to launch browser for slide render")?;
-    if !status.success() || !png_path.exists() {
-        anyhow::bail!("browser did not produce a slide image");
-    }
-    let img = image::open(&png_path).context("slide screenshot unreadable")?;
-    let (w, h) = (img.width().min(1920), img.height().min(1080));
+    let img = super::brand::screenshot(browser, &html, 1920, 1080, false)?;
     let mut buf = Vec::new();
-    img.crop_imm(0, 0, w, h)
-        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+    img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
         .context("re-encoding slide screenshot failed")?;
     Ok(buf)
 }
 
 /// How many pixels shorter than its window headless Chrome's viewport is
 /// (e.g. 1080 → 993). Measured once per process by asking the page itself.
-fn viewport_shortfall(browser: &Path) -> u32 {
+pub(crate) fn viewport_shortfall(browser: &Path) -> u32 {
     static CACHE: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
     *CACHE.get_or_init(|| {
         let measure = || -> Option<u32> {
@@ -724,7 +707,7 @@ fn bake_mermaid(
 }
 
 /// Crop the fully-transparent margins off a screenshot, leaving the diagram.
-fn trim_transparent(img: &image::RgbaImage) -> (image::RgbaImage, u32, u32) {
+pub(crate) fn trim_transparent(img: &image::RgbaImage) -> (image::RgbaImage, u32, u32) {
     let (w, h) = img.dimensions();
     let (mut x0, mut y0, mut x1, mut y1) = (w, h, 0u32, 0u32);
     let mut any = false;

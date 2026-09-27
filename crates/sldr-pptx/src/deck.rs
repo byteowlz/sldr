@@ -148,26 +148,28 @@ fn build_deck_bytes(theme: &crate::Theme, title: &str, slides: &[SlideInput]) ->
     parts.push(("ppt/theme/theme1.xml".into(), crate::theme_xml(theme)));
     parts.push((
         "ppt/slideMasters/_rels/slideMaster1.xml.rels".into(),
-        crate::slide_master_rels(n_layouts),
+        crate::slide_master_rels(n_layouts, &theme.brand),
     ));
     parts.push((
         "ppt/slideMasters/slideMaster1.xml".into(),
-        crate::slide_master_xml(n_layouts),
+        crate::slide_master_xml(n_layouts, &theme.brand),
     ));
 
     for (i, layout) in layouts.iter().enumerate() {
         let n1 = i + 1;
         parts.push((
             format!("ppt/slideLayouts/slideLayout{n1}.xml"),
-            crate::slide_layout_xml(layout),
+            crate::slide_layout_xml(layout, &theme.brand),
         ));
         parts.push((
             format!("ppt/slideLayouts/_rels/slideLayout{n1}.xml.rels"),
-            crate::slide_layout_rels(),
+            crate::slide_layout_rels(layout, &theme.brand),
         ));
     }
 
-    // Binary media (pictures), collected across all slides → ppt/media/.
+    // Binary media: brand artwork first (fixed names), then the pictures
+    // collected across all slides → ppt/media/.
+    let brand_media = crate::brand_media(&theme.brand, &layouts);
     let mut media: Vec<(String, Vec<u8>)> = Vec::new();
     for (i, slide) in slides.iter().enumerate() {
         let n1 = i + 1;
@@ -179,6 +181,7 @@ fn build_deck_bytes(theme: &crate::Theme, title: &str, slides: &[SlideInput]) ->
 
     crate::identity::attach(&mut parts, slides)?;
     crate::notes::attach(&mut parts, slides)?;
+    media.extend(brand_media);
     crate::zip_mixed(&parts, &media)
 }
 

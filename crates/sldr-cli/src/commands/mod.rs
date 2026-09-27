@@ -2,6 +2,7 @@
 
 pub mod add;
 pub mod build;
+pub mod brand;
 pub mod bundle;
 pub mod config;
 pub mod export;
