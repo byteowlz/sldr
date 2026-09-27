@@ -59,6 +59,28 @@ mod tests {
     }
 
     #[test]
+    fn test_round_trip_rich_text_is_exact() {
+        // Every construct the native text mapping claims survives export →
+        // import unchanged, so an untouched zone never shows up as an edit.
+        let md = "## Why it matters\n\n\
+3. third\n4. fourth\n\n\
+- bullet with [a link](https://example.com/x)\n  - nested *italic*\n\n\
+> a quoted line\n\n\
+~~struck~~ and `code` then a break  \nnext line";
+        let reg = LayoutRegistry::builtin();
+        let slides = vec![SlideInput { details: Default::default(),
+            layout: reg.get("default").unwrap(),
+            fields: vec![("content".into(), ZoneContent::Markdown(md.into()))],
+        }];
+        let bytes = build_deck(&theme(), "Deck", &slides).unwrap();
+        let conv = crate::import_with_report(&bytes).unwrap();
+        assert!(conv.report.findings.iter().all(|f| f.feature != "unsupported_xml" && f.feature != "unsupported_attribute"),
+            "{:?}", conv.report.findings.iter().filter(|f| f.feature.starts_with("unsupported")).collect::<Vec<_>>());
+        assert_eq!(conv.value[0].body, md);
+        assert!(conv.value[0].zones.iter().all(|z| z.changed == Some(false)));
+    }
+
+    #[test]
     fn test_import_rejects_non_sldr_deck() {
         // A zip without the sldr app marker.
         let parts = vec![("docProps/app.xml".to_string(), "<x/>".to_string())];

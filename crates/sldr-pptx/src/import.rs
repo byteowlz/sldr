@@ -148,7 +148,7 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
                 bytes: package.parts.get(&media.target).context("missing picture bytes")?.clone(),
             });
             "![](IMAGE)".to_string()
-        } else { paragraphs(shape) };
+        } else { paragraphs(shape, &rels) };
         let changed = mapped.map(|element| {
             if pic { None } else { Some(crate::identity::text_hash(shape) != element.content_hash) }
         }).flatten();
@@ -207,7 +207,7 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
         let name = node.tag_name().name();
         let known = match node.tag_name().namespace() {
             Some(P) => matches!(name, "sp" | "pic" | "nvSpPr" | "nvPicPr" | "cNvPr" | "cNvSpPr" | "cNvPicPr" | "nvPr" | "ph" | "spPr" | "txBody" | "blipFill"),
-            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "spLocks" | "picLocks" | "endParaRPr") ||
+            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr") ||
                 (picture && matches!(name, "blip" | "stretch" | "fillRect" | "xfrm" | "off" | "ext" | "prstGeom" | "avLst")),
             _ => false,
         };
@@ -217,14 +217,19 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
         }
         let allowed: &[&str] = match name {
             "cNvPr" => &["id", "name"], "ph" => &["type", "idx"],
-            "rPr" | "endParaRPr" => &["lang", "b", "i", "dirty"],
+            "rPr" | "endParaRPr" => &["lang", "b", "i", "dirty", "sz", "strike"],
+            "buAutoNum" => &["type", "startAt"], "hlinkClick" => &["id"],
             "pPr" => &["lvl", "marL", "indent"], "latin" | "buFont" => &["typeface"],
             "buChar" => &["char"], "spLocks" => &["noGrp"], "picLocks" => &["noChangeAspect"],
             "blip" => &["embed"], "off" => &["x", "y"], "ext" => &["cx", "cy"],
             "prstGeom" => &["prst"], _ => &[],
         };
         for attr in node.attributes() {
-            if !allowed.contains(&attr.name()) {
+            // A size is understood only as a heading level; any other size
+            // is a formatting edit markdown cannot carry.
+            let heading_size = attr.name() == "sz"
+                && attr.value().parse::<u32>().is_ok_and(|v| crate::mdooxml::HEADING_SIZES.contains(&v));
+            if !allowed.contains(&attr.name()) || (attr.name() == "sz" && !heading_size) {
                 report.record(Some(path), path, &format!("{id}/{name}@{}", attr.name()), "unsupported_attribute", Disposition::Unsupported,
                     "Formatting/property omitted; retain original or explicitly authorize loss");
             }
@@ -232,33 +237,81 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
     }
 }
 
-fn paragraphs(shape: Node<'_, '_>) -> String {
+/// A shape's paragraphs back to markdown — the inverse of `mdooxml`:
+/// bullets, auto-numbering (with its start), headings by size, block quotes
+/// by indent, bold/italic/strike/code runs, hard breaks and hyperlinks.
+fn paragraphs(shape: Node<'_, '_>, rels: &[crate::package::Relationship]) -> String {
     let mut out = String::new();
-    let mut was_bullet = false;
+    let mut prev_list = false;
+    let mut prev_ordered = false;
+    // Next number per nesting level for consecutive auto-numbered paragraphs.
+    let mut counters: Vec<u64> = Vec::new();
     for para in shape.descendants().filter(|n| n.has_tag_name((A, "p"))) {
+        let ppr = para.children().find(|n| n.has_tag_name((A, "pPr")));
         let bullet = para.descendants().any(|n| n.has_tag_name((A, "buChar")));
-        let level: usize = para.children().find(|n| n.has_tag_name((A, "pPr")))
-            .and_then(|n| n.attribute("lvl")).and_then(|v| v.parse().ok()).unwrap_or(0).min(8);
+        let autonum = para.descendants().find(|n| n.has_tag_name((A, "buAutoNum")));
+        let level: usize = ppr.and_then(|n| n.attribute("lvl")).and_then(|v| v.parse().ok()).unwrap_or(0).min(8);
+        let mar_l: i64 = ppr.and_then(|n| n.attribute("marL")).and_then(|v| v.parse().ok()).unwrap_or(0);
+        let runs: Vec<Node> = para.children().filter(|n| n.has_tag_name((A, "r")) || n.has_tag_name((A, "br"))).collect();
+        let sizes: Vec<u32> = runs.iter().filter(|n| n.has_tag_name((A, "r")))
+            .filter_map(|r| r.children().find(|n| n.has_tag_name((A, "rPr")))?.attribute("sz")?.parse().ok())
+            .collect();
+        let heading = (!sizes.is_empty() && sizes.len() == runs.iter().filter(|n| n.has_tag_name((A, "r"))).count())
+            .then(|| crate::mdooxml::HEADING_SIZES.iter().position(|&h| sizes.iter().all(|&s| s == h)))
+            .flatten();
+        let quote = !bullet && autonum.is_none() && heading.is_none() && mar_l >= crate::mdooxml::QUOTE_MARL;
+
         let mut text = String::new();
-        for run in para.children().filter(|n| n.has_tag_name((A, "r"))) {
+        for run in &runs {
+            if run.has_tag_name((A, "br")) { text.push_str("  \n"); continue; }
             let props = run.children().find(|n| n.has_tag_name((A, "rPr")));
-            let bold = props.and_then(|p| p.attribute("b")).is_some_and(|b| b == "1" || b == "true");
-            let italic = props.and_then(|p| p.attribute("i")).is_some_and(|b| b == "1" || b == "true");
+            let flag = |name: &str| props.and_then(|p| p.attribute(name)).is_some_and(|b| b == "1" || b == "true");
+            let bold = flag("b") && heading.is_none();
+            let italic = flag("i") && !quote;
+            let strike = props.and_then(|p| p.attribute("strike")).is_some_and(|v| v != "noStrike");
             let mono = run.descendants().any(|n| n.has_tag_name((A, "latin")) && n.attribute("typeface") == Some("Consolas"));
+            let link = props.and_then(|p| p.children().find(|n| n.has_tag_name((A, "hlinkClick"))))
+                .and_then(|h| h.attribute((R, "id")))
+                .and_then(|id| rels.iter().find(|r| r.id == id && r.external))
+                .map(|r| r.target.clone());
             let mut value = run.children().filter(|n| n.has_tag_name((A, "t")))
                 .filter_map(|n| n.text()).collect::<String>();
+            if value.is_empty() { continue; }
             if mono { value = format!("`{value}`"); }
             else {
                 if italic { value = format!("*{value}*"); }
                 if bold { value = format!("**{value}**"); }
+                if strike { value = format!("~~{value}~~"); }
             }
+            if let Some(url) = link { value = format!("[{value}]({url})"); }
             text.push_str(&value);
         }
         if text.is_empty() { continue; }
-        if !out.is_empty() { out.push_str(if bullet && was_bullet { "\n" } else { "\n\n" }); }
-        if bullet { out.push_str(&"  ".repeat(level)); out.push_str("- "); }
+        let is_list = bullet || autonum.is_some();
+        // Consecutive items of the same kind of list stay tight; a switch
+        // between numbered and bulleted starts a new list (blank line).
+        let same_list = is_list && prev_list && (autonum.is_some() == prev_ordered || level > 0);
+        if !out.is_empty() { out.push_str(if same_list { "\n" } else { "\n\n" }); }
+        if let Some(num) = autonum {
+            let start: u64 = num.attribute("startAt").and_then(|v| v.parse().ok()).unwrap_or(1);
+            counters.truncate(level + 1);
+            while counters.len() <= level { counters.push(0); }
+            if !prev_list || counters[level] == 0 { counters[level] = start; }
+            out.push_str(&"   ".repeat(level));
+            out.push_str(&format!("{}. ", counters[level]));
+            counters[level] += 1;
+        } else if bullet {
+            counters.truncate(level);
+            out.push_str(&"  ".repeat(level));
+            out.push_str("- ");
+        } else {
+            counters.clear();
+            if let Some(h) = heading { out.push_str(&"#".repeat(h + 1)); out.push(' '); }
+            if quote { out.push_str("> "); }
+        }
         out.push_str(&text);
-        was_bullet = bullet;
+        prev_list = is_list;
+        if level == 0 { prev_ordered = autonum.is_some(); }
     }
     out
 }

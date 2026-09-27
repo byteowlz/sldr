@@ -61,22 +61,17 @@ fn markdown(md: &str, part: &str, zone: &str, report: &mut Report) {
     for (event, range) in Parser::new_ext(md, Options::all()).into_offset_iter() {
         let feature = match event {
             Event::Start(Tag::Image { .. }) => "inline_image",
-            Event::Start(Tag::Link { .. }) => "hyperlink",
-            Event::Start(Tag::Heading { .. }) => "heading_depth_collapsed",
+            Event::Start(Tag::Heading { level, .. }) if level as u8 > 3 => "heading_depth_collapsed",
             Event::Start(Tag::CodeBlock(_)) => "code_block_structure",
-            Event::Start(Tag::List(Some(_))) => "ordered_list_numbering",
             Event::Start(Tag::Table(_)) => "table",
-            Event::Start(Tag::BlockQuote(_)) => "blockquote",
-            Event::Start(Tag::Strikethrough) => "strikethrough",
             Event::Start(Tag::FootnoteDefinition(_)) | Event::FootnoteReference(_) => "footnote",
             Event::Html(_) | Event::InlineHtml(_) => "html",
             Event::InlineMath(_) | Event::DisplayMath(_) => "math",
             Event::TaskListMarker(_) => "task_list",
             Event::Rule => "horizontal_rule",
-            Event::HardBreak => "hard_line_break",
             _ => continue,
         };
         report.record(Some(part), part, &format!("{zone}@{}", range.start), feature, D::Unsupported,
-            "Only paragraphs, unordered bullets, emphasis and inline code have native text mappings");
+            "Native text maps paragraphs, bullets, numbering, headings (h1–h3), quotes, emphasis, strikethrough, links, line breaks and inline code");
     }
 }
