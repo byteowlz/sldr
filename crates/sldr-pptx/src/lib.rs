@@ -50,7 +50,7 @@ mod report;
 mod round_trip_tests;
 
 pub use deck::{build_deck, build_deck_with_report, SlideDetails, SlideInput, ZoneContent};
-pub use import::{import, import_with_report, ImportedImage, ImportedSlide};
+pub use import::{import, import_with_report, ImportedImage, ImportedSlide, ImportedZone};
 pub use flavor_report::flavor_report;
 pub use package::validate_package;
 pub use report::{Conversion, Disposition, Finding, Rejected, Report, Severity};

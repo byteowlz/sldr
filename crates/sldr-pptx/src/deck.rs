@@ -58,6 +58,10 @@ pub struct SlideDetails {
     pub step: usize,
     pub notes: Option<String>,
     pub language: Option<String>,
+    /// Zone names whose content came from the flavor (e.g. a flavor footer),
+    /// not the slide. Recorded so import never copies them into the slide.
+    #[serde(default)]
+    pub flavor_owned: Vec<String>,
 }
 
 /// Generate an editable deck `.pptx` from `slides`. `title` becomes the

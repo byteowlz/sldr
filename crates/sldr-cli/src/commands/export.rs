@@ -394,7 +394,7 @@ fn build_native_deck(
                                 ZoneContent::Picture { bytes: png, ext: "png".into(), fit: None },
                             )],
                             details: sldr_pptx::SlideDetails {
-                                source_id: Some(slide.name.clone()),
+                                source_id: Some(slide.relative_path.clone()),
                                 language: Some(lang.unwrap_or(default_lang).into()),
                                 notes: speaker_notes(&slide.content),
                                 ..Default::default()
@@ -530,9 +530,10 @@ fn build_native_deck(
                 }
             }
         }
+        let flavor_owned = if chrome.footer.is_none() && footer.is_some() { vec!["footer".to_string()] } else { Vec::new() };
         inputs.push(sldr_pptx::SlideInput { layout, fields, details: sldr_pptx::SlideDetails {
-            source_id: Some(slide.name.clone()), language: Some(lang.unwrap_or(default_lang).into()),
-            notes: speaker_notes(&slide.content), ..Default::default()
+            source_id: Some(slide.relative_path.clone()), language: Some(lang.unwrap_or(default_lang).into()),
+            notes: speaker_notes(&slide.content), flavor_owned, ..Default::default()
         } });
     }
 

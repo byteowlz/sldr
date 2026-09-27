@@ -20,6 +20,9 @@ pub(crate) struct SlideRecord {
     pub source_id: String,
     pub step: usize,
     pub layout: String,
+    /// Language the slide was exported in (absent in older packages).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
     pub elements: BTreeMap<String, ElementRecord>,
 }
 #[derive(Debug, Serialize, Deserialize)]
@@ -33,6 +36,12 @@ pub(crate) struct ElementRecord {
 
 pub(crate) fn hash(bytes: &[u8]) -> String { format!("{:x}", Sha256::digest(bytes)) }
 
+/// Change detector for a shape's text: the hash of its runs' text in order.
+/// Equal at import ⇒ the zone was not edited since export.
+pub(crate) fn text_hash(shape: Node<'_, '_>) -> String {
+    hash(shape.descendants().filter(|n| n.has_tag_name((crate::package::A, "t"))).filter_map(|n| n.text()).collect::<String>().as_bytes())
+}
+
 pub(crate) fn attach(parts: &mut Vec<(String, String)>, slides: &[SlideInput]) -> Result<()> {
     let mut manifest = Manifest { version: 1, slides: Vec::new() };
     let mut occurrences = BTreeMap::<String, usize>::new();
@@ -44,16 +53,17 @@ pub(crate) fn attach(parts: &mut Vec<(String, String)>, slides: &[SlideInput]) -
         let id = hash(format!("sldr-v1:{source}:{}:{occurrence}", input.details.step).as_bytes());
         *occurrence += 1;
         let mut record = SlideRecord { id: id.clone(), source_id: source, step: input.details.step,
-            layout: input.layout.name.clone(), elements: BTreeMap::new() };
+            layout: input.layout.name.clone(), language: input.details.language.clone(), elements: BTreeMap::new() };
         let doc = Document::parse(xml)?;
         let mut replacements = Vec::new();
         for shape in doc.descendants().filter(|n| n.has_tag_name((P, "sp")) || n.has_tag_name((P, "pic"))) {
             let props = shape.descendants().find(|n| n.has_tag_name((P, "cNvPr"))).context("shape without cNvPr")?;
             let zone = props.attribute("name").context("shape without zone")?.to_lowercase();
             let element_id = hash(format!("{id}:{zone}").as_bytes());
+            let owner = if input.details.flavor_owned.iter().any(|z| z.eq_ignore_ascii_case(&zone)) { "flavor" } else { "slide" };
             record.elements.insert(element_id.clone(), ElementRecord {
-                zone, owner: "slide".into(), structure_hash: structure_hash(shape),
-                content_hash: hash(shape.descendants().filter(|n| n.has_tag_name((crate::package::A, "t"))).filter_map(|n| n.text()).collect::<String>().as_bytes()),
+                zone, owner: owner.into(), structure_hash: structure_hash(shape),
+                content_hash: text_hash(shape),
             });
             let range = props.range();
             let original = &xml[range.clone()];
@@ -106,7 +116,7 @@ pub(crate) fn load(package: &Package) -> Result<Option<Manifest>> {
     for slide in &manifest.slides {
         if !ids.insert(&slide.id) { bail!("duplicate provenance slide identity"); }
         for (id, element) in &slide.elements {
-            if !ids.insert(id) || element.owner != "slide" { bail!("invalid element identity/owner"); }
+            if !ids.insert(id) || !matches!(element.owner.as_str(), "slide" | "flavor") { bail!("invalid element identity/owner"); }
         }
     }
     Ok(Some(manifest))

@@ -114,9 +114,16 @@ Watches slide files, playlists, flavors, and layouts for changes (library and co
 ### Export
 
 ```bash
-sldr export my-talk --format pdf         # PDF via headless Chrome
-sldr export my-talk --format pptx        # PPTX (slide screenshots)
+sldr export my-talk --format pdf                   # PDF via headless Chrome
+sldr export my-talk --format pptx --allow-lossy    # editable PowerPoint (native text boxes + pictures)
+sldr export my-talk --format pptx --flatten        # one screenshot per slide instead
+sldr import my-talk.pptx --apply --dry-run         # what changed in PowerPoint, per slide and zone
+sldr import my-talk.pptx --apply                   # write those edits back into the original slides
 ```
+
+**PowerPoint round trip.** Native export writes each slide's text as editable text boxes and its images as pictures, and records in the package which slide and zone every element came from. A slide whose layout has no PPTX zones is exported as one picture of the real render (reported, never silent). Strict mode refuses any loss; `--allow-lossy` accepts what the report lists.
+
+Edit the deck in PowerPoint, then `sldr import deck.pptx --apply`: only the zones you changed are written back, each to where it belongs — titles and subtitles to frontmatter (the `translations.<lang>` block when you exported another language), body text into the matching language block and `::left::`/`::content::` segment, a replaced picture into the slide's `media/` with its alt text kept. Zones that came from the flavor (a deck footer) are never written into a slide. Other languages and anything PowerPoint cannot express stay as they were; review with `git diff`. Without `--apply`, `sldr import deck.pptx -o dir` writes fresh slide files instead.
 
 ### Add slides to a playlist
 

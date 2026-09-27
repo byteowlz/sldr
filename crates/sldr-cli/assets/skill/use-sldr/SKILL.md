@@ -77,7 +77,8 @@ sldr bundle talk                             # → talk.sldr (editable source bu
 sldr export talk --format pdf                # PDF exit door
 sldr export talk --format pptx               # native EDITABLE PowerPoint (--flatten = screenshot fallback)
 sldr export --template --format pptx --flavor X   # just theme + masters, to author in PowerPoint
-sldr import deck.pptx                         # round-trip a sldr-generated .pptx back to slides
+sldr import deck.pptx --apply --dry-run       # PowerPoint edits → which slides/zones would change
+sldr import deck.pptx --apply                 # write only the edited zones back into the ORIGINAL slides
 ```
 
 ## See also

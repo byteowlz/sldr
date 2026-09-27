@@ -147,8 +147,18 @@ enum Commands {
         file: String,
 
         /// Output directory for slides (default: <slide_dir>/imported)
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "apply")]
         out: Option<String>,
+
+        /// Write edits made in PowerPoint back into the ORIGINAL slides: only
+        /// zones changed since export, into the right frontmatter field or
+        /// language/segment block; flavor-owned zones are never written
+        #[arg(long)]
+        apply: bool,
+
+        /// With --apply: show what would change without writing
+        #[arg(long, requires = "apply")]
+        dry_run: bool,
 
         #[command(flatten)]
         interchange: commands::interchange::Options,
@@ -632,7 +642,13 @@ fn main() -> anyhow::Result<()> {
             &interchange,
         ),
 
-        Commands::Import { file, out, interchange } => commands::import::run(&file, out, &interchange),
+        Commands::Import { file, out, apply, dry_run, interchange } => {
+            if apply {
+                commands::import_apply::run(&file, dry_run, &interchange)
+            } else {
+                commands::import::run(&file, out, &interchange)
+            }
+        }
 
         Commands::Watch {
             playlist,

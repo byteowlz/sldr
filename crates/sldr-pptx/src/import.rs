@@ -20,9 +20,31 @@ pub struct ImportedSlide {
     pub source_id: Option<String>,
     pub step: usize,
     pub notes: Option<String>,
+    /// Language the slide was exported in, when the package records it.
+    pub language: Option<String>,
+    /// Every recognised zone with its value and whether it was edited since
+    /// export — what `import --apply` writes back, zone by zone.
+    pub zones: Vec<ImportedZone>,
 }
 #[derive(Debug, Clone)]
 pub struct ImportedImage { pub file_name: String, pub bytes: Vec<u8> }
+
+/// One zone as it came back from PowerPoint.
+#[derive(Debug, Clone)]
+pub struct ImportedZone {
+    /// Zone name (`headline`, `content`, `image`, …).
+    pub zone: String,
+    /// Text zones: plain text (chrome) or markdown (body). Pictures: empty.
+    pub value: String,
+    /// Picture zones: the embedded image.
+    pub image: Option<ImportedImage>,
+    /// `Some(true)` edited since export, `Some(false)` untouched, `None`
+    /// unknown (no identity record, or a picture whose bytes must be
+    /// compared against the source file by the caller).
+    pub changed: Option<bool>,
+    /// `slide` or `flavor` — who owned the content at export.
+    pub owner: String,
+}
 
 /// Strict by default. Use `import_with_report` and explicitly review its report
 /// to authorize lossy conversion. Neither operation writes source files.
@@ -74,8 +96,10 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
     let mut slide = ImportedSlide {
         layout: record.map(|r| r.layout.clone()).unwrap_or(layout),
         identity: record.map(|r| r.id.clone()), source_id: record.map(|r| r.source_id.clone()),
-        step: record.map(|r| r.step).unwrap_or(0), ..Default::default()
+        step: record.map(|r| r.step).unwrap_or(0), language: record.and_then(|r| r.language.clone()),
+        ..Default::default()
     };
+    let mut owners: BTreeMap<String, String> = BTreeMap::new();
     let mut zones = BTreeMap::new();
     let mut elements_seen = BTreeSet::new();
     let tree = doc.descendants().find(|n| n.has_tag_name((P, "spTree"))).context("slide has no shape tree")?;
@@ -125,6 +149,18 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
             });
             "![](IMAGE)".to_string()
         } else { paragraphs(shape) };
+        let changed = mapped.map(|element| {
+            if pic { None } else { Some(crate::identity::text_hash(shape) != element.content_hash) }
+        }).flatten();
+        let owner = mapped.map(|e| e.owner.clone()).unwrap_or_else(|| "slide".into());
+        owners.insert(zone.clone(), owner.clone());
+        slide.zones.push(ImportedZone {
+            zone: zone.clone(),
+            value: if pic { String::new() } else { value.clone() },
+            image: if pic { slide.images.last().cloned() } else { None },
+            changed,
+            owner,
+        });
         zones.insert(zone, value);
         report.record(Some(path), path, id, "zone_content", Disposition::Converted,
             "Text/image content converted; see separate geometry/style findings");
@@ -138,7 +174,9 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
     let chrome = |name: &str| zones.get(name).filter(|v| !v.is_empty()).cloned();
     slide.title = chrome("headline");
     slide.subtitle = chrome("subheadline");
-    slide.footer = chrome("footer");
+    // A flavor-owned footer is style chrome, not slide content (ADR-0008):
+    // never copy it into the slide's frontmatter.
+    slide.footer = chrome("footer").filter(|_| owners.get("footer").is_none_or(|o| o == "slide"));
     if let Some(source) = chrome("source") {
         let (label, url) = parse_source(&source);
         slide.source = Some(label);

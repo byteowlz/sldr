@@ -32,7 +32,8 @@ sldr watch name_of_playlist                          # Dev server with live-relo
 sldr watch name_of_playlist --flavor dark --port 8080
 sldr open name_of_presentation                       # Open built HTML in browser
 sldr export name_of_playlist --format pdf            # Export to PDF via headless Chrome
-sldr export name_of_playlist --format pptx           # Export to PPTX (slide screenshots)
+sldr export name_of_playlist --format pptx --allow-lossy  # Editable PPTX (native text + pictures; --flatten = screenshots)
+sldr import deck.pptx --apply [--dry-run]            # Write edits made in PowerPoint back into the original slides
 sldr preview slide_name                              # Quick single-slide preview
 sldr add name_of_presentation slide_names            # Append slides to a playlist
 sldr ls slides                                       # List available slides

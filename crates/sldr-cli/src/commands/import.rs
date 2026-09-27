@@ -134,7 +134,7 @@ fn render_markdown(slide: &ImportedSlide, body: &str) -> String {
 
 /// Quote a YAML scalar when it could be misread (colons, leading specials);
 /// otherwise emit it bare.
-fn yaml_value(s: &str) -> String {
+pub(crate) fn yaml_value(s: &str) -> String {
     let needs_quote = s.contains([':', '#', '\n', '\r'])
         || s.starts_with(['-', '[', '{', '*', '&', '!', '|', '>', '\'', '"', '@', '`'])
         || s.trim() != s;
