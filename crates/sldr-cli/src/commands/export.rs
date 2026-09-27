@@ -3,6 +3,7 @@
 //! Uses Chromium/Chrome in headless mode with --print-to-pdf.
 //! The presentation's built-in @media print CSS handles the layout.
 
+use std::collections::HashMap;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
@@ -360,6 +361,30 @@ fn build_native_deck(
         registry.get(name).is_some_and(|l| !l.pptx_eligible())
     });
     let raster_layout = sldr_renderer::LayoutDef::from_source(RASTER_LAYOUT, RASTER_LAYOUT_SOURCE);
+    // Layouts that show the flavor's footer/source overlay in HTML but
+    // declare no zone for them get overlay zones at the overlay's position
+    // (derived here from the flavor; the layout file is untouched).
+    let with_overlay: HashMap<String, sldr_renderer::LayoutDef> = slides
+        .iter()
+        .filter_map(|s| registry.get(s.metadata.layout.as_deref().unwrap_or("default")))
+        .filter(|l| l.pptx_eligible() && l.chrome_overlay(&flavor.chrome_layouts))
+        .filter_map(|l| {
+            let mut def = l.clone();
+            let has = |n: &str| def.zones.iter().any(|z| z.name == n);
+            let mut add = Vec::new();
+            if !has("source") {
+                add.push(overlay_zone("source", 21, 88.2, 86.0, 4.0));
+            }
+            if !has("footer") {
+                add.push(overlay_zone("footer", 22, 92.5, 80.0, 5.0));
+            }
+            if add.is_empty() {
+                return None;
+            }
+            def.zones.extend(add);
+            Some((l.name.clone(), def))
+        })
+        .collect();
     let browser = if has_diagrams || needs_raster {
         match find_browser() {
             Ok(b) => Some(b),
@@ -385,7 +410,11 @@ fn build_native_deck(
             .layout
             .clone()
             .unwrap_or_else(|| "default".to_string());
-        let layout = registry.resolve(&layout_name)?;
+        let layout = match with_overlay.get(&layout_name) {
+            Some(augmented) => augmented,
+            None => registry.resolve(&layout_name)?,
+        };
+        let overlay = layout.chrome_overlay(&flavor.chrome_layouts);
 
         if !layout.pptx_eligible() {
             if let Some(br) = browser.as_deref() {
@@ -522,6 +551,17 @@ fn build_native_deck(
 
         // Account for input fields even when the selected layout has no
         // compatible zone. Iterating only zones used to silently erase them.
+        // Report only what the HTML deck shows but PowerPoint can't: a field
+        // this layout doesn't display in HTML either (a frontmatter title on
+        // a plain layout, a footer where there is no overlay, body the layout
+        // has no slot for) is not a PowerPoint loss.
+        let slots = layout.slots();
+        let html_shows = |n: &str| match n {
+            "footer" | "source" => overlay || slots.contains(&n),
+            "headline" | "subheadline" => slots.contains(&n),
+            // Body segments without their own slot fold into `{{content}}`.
+            _ => slots.contains(&n) || slots.contains(&"content"),
+        };
         for (name, value) in [
             ("headline", chrome.title.as_ref()), ("subheadline", chrome.subtitle.as_ref()),
             ("footer", footer.as_ref()), ("source", source_text.as_ref()),
@@ -529,6 +569,9 @@ fn build_native_deck(
             ("left", segments.left.as_ref()), ("right", segments.right.as_ref()),
             ("image", segments.image.as_ref()),
         ] {
+            if !html_shows(name) {
+                continue;
+            }
             if let Some(value) = value.filter(|s| !s.trim().is_empty()) {
                 if !fields.iter().any(|(key, _)| key == name) {
                     fields.push((name.into(), ZoneContent::Markdown(value.clone())));
@@ -566,6 +609,21 @@ fn build_native_deck(
             "Layout has no PPTX zones: the slide is one picture of the real render. Annotate the layout with sldr:zone directives to make it editable; import keeps the original slide");
     }
     Ok(result)
+}
+
+/// A text zone for the flavor's bottom chrome overlay (percent geometry
+/// mirrors `.sldr-chrome` in base.css).
+fn overlay_zone(name: &str, idx: u32, y: f64, w: f64, h: f64) -> sldr_renderer::Zone {
+    sldr_renderer::Zone {
+        name: name.into(),
+        ph: Some("body".into()),
+        idx: Some(idx),
+        rep: sldr_renderer::ZoneRep::PlaceholderText,
+        x: 4.4,
+        y,
+        w,
+        h,
+    }
 }
 
 /// Layout used for slides exported as a single picture.

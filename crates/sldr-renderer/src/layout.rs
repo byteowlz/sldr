@@ -192,6 +192,23 @@ impl LayoutDef {
         parse_layout(name, source)
     }
 
+    /// Whether the persistent bottom chrome (footer + source overlay) shows
+    /// on this layout for a flavor with the given `chrome_layouts`. One rule
+    /// for the HTML renderer and every exporter: `all`, an explicit list, or
+    /// by default the framed *body* family (not its title/divider covers).
+    pub fn chrome_overlay(&self, chrome_layouts: &[String]) -> bool {
+        if self.chrome_none {
+            return false;
+        }
+        if chrome_layouts.iter().any(|l| l == "all") {
+            return true;
+        }
+        if !chrome_layouts.is_empty() {
+            return chrome_layouts.iter().any(|l| *l == self.name);
+        }
+        self.category.as_deref() == Some("framed") && !matches!(self.name.as_str(), "framed-cover" | "framed-section")
+    }
+
     /// Whether native PPTX export can represent this layout: it declares at
     /// least one editable text placeholder or a picture zone.
     pub fn pptx_eligible(&self) -> bool {
