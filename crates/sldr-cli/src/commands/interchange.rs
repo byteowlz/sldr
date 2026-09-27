@@ -43,11 +43,21 @@ impl Options {
         if let Some(path) = &self.report_json {
             // A report must never overwrite, or appear inside, the destination
             // whose immutability strict failure promises.
+            // Resolve through the deepest existing ancestor: neither the
+            // report nor the destination has to exist yet (a fresh --out
+            // directory is the normal case), and canonicalizing a missing
+            // parent used to fail with a bare "No such file or directory".
             let absolute = |p: &Path| -> Result<PathBuf> {
                 let p = std::path::absolute(p)?;
-                Ok(if p.exists() { p.canonicalize()? } else {
-                    p.parent().context("path has no parent")?.canonicalize()?.join(p.file_name().context("path has no name")?)
-                })
+                let mut base = p.as_path();
+                let mut rest = Vec::new();
+                while !base.exists() {
+                    rest.push(base.file_name().context("path has no name")?.to_owned());
+                    base = base.parent().context("path has no existing ancestor")?;
+                }
+                let mut out = base.canonicalize()?;
+                out.extend(rest.iter().rev());
+                Ok(out)
             };
             let report_path = absolute(path)?;
             let dest_path = absolute(destination)?;
