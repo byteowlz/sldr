@@ -2,7 +2,7 @@
 // backend's preview), with the source drawer under it. Text edits go to the
 // markdown file; the file is the truth and the preview follows it.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useBackend } from "@/lib/backend";
@@ -10,6 +10,9 @@ import { useSlidePreview } from "@/lib/backend/preview";
 import { SlideFrame } from "../../components/shell";
 import { CodeArea } from "../../components/code-area";
 import { baseName } from "./Browser";
+import { BackendError } from "@/lib/backend";
+import { ApiError } from "@/lib/api";
+import { isMediaFile, markdownFor, mediaNameFor } from "@/lib/media";
 
 export function Stage({
   name,
@@ -23,6 +26,7 @@ export function Stage({
   onAddToDeck,
   onNewDeck,
   onSaved,
+  onLog,
 }: {
   name: string | null;
   inDeck: boolean;
@@ -35,6 +39,7 @@ export function Stage({
   onAddToDeck?: () => void;
   onNewDeck: () => void;
   onSaved: (name: string) => void;
+  onLog?: (text: string, ref?: string) => void;
 }) {
   const backend = useBackend();
   const qc = useQueryClient();
@@ -59,6 +64,61 @@ export function Stage({
       qc.invalidateQueries({ queryKey: ["slides"] });
       onSaved(d.name);
     },
+  });
+
+  // ---- paste / drop an image → stored beside the slide, reference inserted ----
+  // Uses the paste event (not the async Clipboard API) so it works over
+  // plain HTTP on a tailnet.
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const [dropping, setDropping] = useState(false);
+  const attach = async (file: File) => {
+    if (!name) return;
+    let stored: { reference: string } | null = null;
+    for (let attempt = 0; attempt < 5 && !stored; attempt++) {
+      try {
+        stored = await backend.uploadMedia(name, file, { name: mediaNameFor(name, file, attempt) });
+      } catch (e) {
+        const conflict =
+          (e instanceof BackendError && e.code === "conflict") || (e instanceof ApiError && e.status === 409);
+        if (!conflict) {
+          onLog?.(`media upload failed: ${(e as Error).message}`);
+          return;
+        }
+      }
+    }
+    if (!stored) return;
+    const md = markdownFor(stored.reference);
+    const ta = taRef.current;
+    if (ta && document.activeElement === ta) {
+      // Insert at the caret; the user saves with the rest of their edit.
+      const at = ta.selectionStart ?? raw.length;
+      const next = raw.slice(0, at) + md + raw.slice(ta.selectionEnd ?? at);
+      setRaw(next);
+      setRawDirty(true);
+      requestAnimationFrame(() => ta.setSelectionRange(at + md.length, at + md.length));
+    } else if (!rawDirty) {
+      // Nothing pending: append and save straight away.
+      const next = `${raw.trimEnd()}\n\n${md}\n`;
+      const saved = await backend.saveSlideRaw(name, next);
+      qc.invalidateQueries({ queryKey: ["slides"] });
+      qc.invalidateQueries({ queryKey: ["media"] });
+      onSaved(saved.name);
+    } else {
+      setRaw(`${raw.trimEnd()}\n\n${md}\n`);
+      setRawDirty(true);
+    }
+    onLog?.(`added ${stored.reference} to ${baseName(name)}`, name);
+  };
+  useEffect(() => {
+    if (!name) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const files = [...(e.clipboardData?.files ?? [])].filter(isMediaFile);
+      if (!files.length) return;
+      e.preventDefault();
+      files.forEach((f) => void attach(f));
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
   });
 
   // ⌘S inside the source editor saves the slide.
@@ -109,7 +169,23 @@ export function Stage({
         </button>
       </div>
 
-      <div className="sl-viewport">
+      <div
+        className={cn("sl-viewport", dropping && "outline outline-2 -outline-offset-4 outline-[var(--sl-primary)]")}
+        onDragOver={(e) => {
+          if (name && [...e.dataTransfer.types].includes("Files")) {
+            e.preventDefault();
+            setDropping(true);
+          }
+        }}
+        onDragLeave={() => setDropping(false)}
+        onDrop={(e) => {
+          const files = [...e.dataTransfer.files].filter(isMediaFile);
+          setDropping(false);
+          if (!name || !files.length) return;
+          e.preventDefault();
+          files.forEach((f) => void attach(f));
+        }}
+      >
         {name ? (
           <div className="sl-slide-shell">
             {inDeck && <span className="sl-slide-num">{String(index + 1).padStart(2, "0")}</span>}
@@ -124,7 +200,7 @@ export function Stage({
             </button>
             , or click any slide to inspect it.
             <div className="mt-3" style={{ color: "var(--sl-dim)" }}>
-              ←/→ navigate · ⌘S save · ⌘B build · ⌘/ source
+              ←/→ navigate · ⌘S save · ⌘B build · ⌘/ source · paste or drop an image onto a slide
             </div>
           </div>
         )}
@@ -145,6 +221,7 @@ export function Stage({
           </button>
         </div>
         <CodeArea
+          textareaRef={taRef}
           value={raw}
           onChange={(val) => {
             setRaw(val);

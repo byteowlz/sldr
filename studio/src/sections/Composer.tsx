@@ -188,6 +188,7 @@ export function Composer({ chrome }: { chrome: Chrome }) {
             bump(n);
             d.pushLog("action", `saved ${baseName(n)}`, n);
           }}
+          onLog={(text, ref) => d.pushLog("action", text, ref)}
         />
         <Inspector
           name={stageName}
