@@ -371,12 +371,17 @@ fn build_native_deck(
         .filter_map(|l| {
             let mut def = l.clone();
             let has = |n: &str| def.zones.iter().any(|z| z.name == n);
+            // Indices just above the layout's own (some readers, LibreOffice
+            // among them, don't resolve high placeholder indices).
+            let mut idx = def.zones.iter().filter_map(|z| z.idx).max().unwrap_or(0);
             let mut add = Vec::new();
             if !has("source") {
-                add.push(overlay_zone("source", 21, 88.2, 86.0, 4.0));
+                idx += 1;
+                add.push(overlay_zone("source", idx, 88.2, 86.0, 4.0));
             }
             if !has("footer") {
-                add.push(overlay_zone("footer", 22, 92.5, 80.0, 5.0));
+                idx += 1;
+                add.push(overlay_zone("footer", idx, 92.5, 80.0, 5.0));
             }
             if add.is_empty() {
                 return None;
@@ -466,14 +471,20 @@ fn build_native_deck(
         }
         let segments = sldr_renderer::split_segments(&lang_sel.content);
 
-        // The rendered "Source: …" chrome line (+ optional URL), built once.
-        let source_text = chrome.source.as_ref().map(|src| {
-            let label = source_label(lang, default_lang);
-            match chrome.source_url.as_ref() {
-                Some(u) => format!("{label} {src} ({u})"),
-                None => format!("{label} {src}"),
-            }
-        });
+        // The "Source: …" chrome line, as in HTML: the label is the visible
+        // text and, with a source_url, a real hyperlink — never the raw URL
+        // printed into the slide.
+        let source_text = chrome
+            .source
+            .as_ref()
+            .map(|src| format!("{} {src}", source_label(lang, default_lang)));
+        let source_content = || -> Option<ZoneContent> {
+            let text = source_text.clone()?;
+            Some(match chrome.source_url.as_ref() {
+                Some(url) => ZoneContent::Link { text, url: url.clone() },
+                None => ZoneContent::Text(text),
+            })
+        };
 
         // A body segment that is a mermaid block bakes to a flavor-themed PNG
         // (rendered in the browser); otherwise it's markdown. Falls back to the
@@ -534,7 +545,7 @@ fn build_native_deck(
                         "headline" => chrome.title.clone().map(ZoneContent::Text),
                         "subheadline" => chrome.subtitle.clone().map(ZoneContent::Text),
                         "footer" => footer.clone().map(ZoneContent::Text),
-                        "source" => source_text.clone().map(ZoneContent::Text),
+                        "source" => source_content(),
                         "heading" => bake(segments.heading.as_ref()),
                         "content" => bake(segments.content.as_ref()),
                         "left" => bake(segments.left.as_ref()),

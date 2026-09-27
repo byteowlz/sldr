@@ -238,6 +238,11 @@ fn set_nested(fm: &str, path: &[&str], value: &str) -> String {
 }
 
 fn strip_source_label(v: &str) -> String {
+    // `[Source: label](url)` — the current export form.
+    let v = match v.strip_prefix('[').and_then(|i| i.strip_suffix(')')).and_then(|b| b.rsplit_once("](")) {
+        Some((text, _url)) => text,
+        None => v,
+    };
     let body = v.strip_prefix("Source: ").or_else(|| v.strip_prefix("Quelle: ")).unwrap_or(v);
     match body.strip_suffix(')').and_then(|b| b.rsplit_once(" (")) {
         Some((text, url)) if url.starts_with("http") => text.to_string(),

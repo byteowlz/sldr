@@ -326,6 +326,14 @@ fn assemble_body(zones: &BTreeMap<String, String>) -> String {
     else { format!("{}\n\n{body}", get("heading")).trim().into() }
 }
 fn parse_source(source: &str) -> (String, Option<String>) {
+    // Current form: the label is a hyperlink — `[Source: label](url)`.
+    if let Some(inner) = source.strip_prefix('[') {
+        if let Some((text, url)) = inner.strip_suffix(')').and_then(|b| b.rsplit_once("](")) {
+            let label = text.strip_prefix("Source: ").or_else(|| text.strip_prefix("Quelle: ")).unwrap_or(text);
+            return (label.into(), Some(url.into()));
+        }
+    }
+    // Older packages printed the URL: `Source: label (url)`.
     let body = source.strip_prefix("Source: ").or_else(|| source.strip_prefix("Quelle: ")).unwrap_or(source);
     if let Some((text, url)) = body.strip_suffix(')').and_then(|b| b.rsplit_once(" (")) {
         if url.starts_with("https://") || url.starts_with("http://") { return (text.into(), Some(url.into())); }

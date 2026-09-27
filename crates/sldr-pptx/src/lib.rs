@@ -543,10 +543,17 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
             None => String::new(),
         };
         let label = xml_escape(&title_case(&zone.name));
+        // Deck chrome is small, flush text in HTML (footer ≈1.25u, source
+        // ≈1.1u of a 13.33in slide); style it on the layout so slides inherit.
+        let (body_pr, lst) = match zone.name.as_str() {
+            "footer" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1200\"/></a:lvl1pPr></a:lstStyle>"),
+            "source" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1050\"/></a:lvl1pPr></a:lstStyle>"),
+            _ => ("<a:bodyPr/>", "<a:lstStyle/>"),
+        };
         sps.push_str(&format!(
             r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
 <p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm></p:spPr>
-<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>{label}</a:t></a:r></a:p></p:txBody></p:sp>"#,
+<p:txBody>{body_pr}{lst}<a:p><a:r><a:rPr lang="en-US"/><a:t>{label}</a:t></a:r></a:p></p:txBody></p:sp>"#,
             x = emu_x(zone.x),
             y = emu_y(zone.y),
             cx = emu_x(zone.w),
@@ -570,6 +577,10 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
         name = xml_escape(layout.name),
     )
 }
+
+/// Footer/source text frames: no insets, one line, top-anchored — the HTML
+/// chrome is flush text, not a padded box.
+const CHROME_BODY_PR: &str = "<a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" wrap=\"none\" anchor=\"t\"/>";
 
 pub(crate) fn slide_layout_rels(layout: &TemplateLayout, brand: &Brand) -> String {
     let mut logos = String::new();
