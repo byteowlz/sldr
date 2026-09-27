@@ -44,6 +44,7 @@ sldr zones slide_name --json                         # Zone document: regions, b
 sldr layouts-for slide_name [--limit 5]              # Layouts ranked by fit (hides / collapses / empty); no recommendation
 sldr where slide_name | --layout name_of_layout      # Where-used: referencing decks / slides using a layout
 sldr media ls [--unused] | add slide_name file       # Library media with usage; store a file beside a slide
+sldr skill [show|install]                            # Print / install the embedded use-sldr agent skill
 sldr new slide_name --scaffold two-cols              # Create a new slide
 sldr init                                            # Initialize sldr directories
 ```

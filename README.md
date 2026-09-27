@@ -87,6 +87,7 @@ sldr where my-slide         # which decks reference it, last git touch
 sldr where --layout framed  # which slides use a layout (blast radius before editing it)
 sldr media ls --unused      # media files no slide references
 sldr media add my-slide ~/Downloads/chart.png   # store beside the slide, print the reference
+sldr skill install          # install the agent skill that matches this binary
 ```
 
 `ls` lists names; `show` prints the actual source a name resolves to — the authored flavor `.toml` or layout `.html` — honoring the build's resolution order (your library/config dirs override the built-ins). Source goes to stdout (pipeable: `sldr show layout framed > ~/sldr/layouts/mine.html`), the origin to stderr, `--json` for both.

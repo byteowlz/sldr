@@ -203,6 +203,10 @@ install-system:
 schemas:
     cargo run --bin schema-gen
 
+# Refresh the vendored agent skill from byteowlz/skillissues (embedded by `sldr skill`)
+sync-skill src="../skillissues/skills/use-sldr":
+    cp {{src}}/SKILL.md {{src}}/REFERENCE.md {{src}}/EXAMPLES.md crates/sldr-cli/assets/skill/use-sldr/
+
 # Regenerate the studio's TypeScript API types from the Rust models
 studio-types: schemas
     cd studio && bun run types

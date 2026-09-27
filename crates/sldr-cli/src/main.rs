@@ -275,6 +275,14 @@ enum Commands {
         json: bool,
     },
 
+    /// The agent skill for driving sldr, embedded in this binary so it always
+    /// matches the CLI. `sldr skill` prints it; `sldr skill install` puts it
+    /// where agents load skills (~/.agents/skills, ~/.claude/skills).
+    Skill {
+        #[command(subcommand)]
+        command: Option<SkillCommands>,
+    },
+
     /// Library media: list every image/video with the slides that use it,
     /// or store a file beside the slide that will reference it.
     Media {
@@ -432,6 +440,21 @@ enum Commands {
     Playlist {
         #[command(subcommand)]
         command: PlaylistCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum SkillCommands {
+    /// Print a skill file (skill | reference | examples)
+    Show {
+        /// Which file (default: skill)
+        file: Option<String>,
+    },
+    /// Install the skill for agents; a differing file is replaced and kept as .bak
+    Install {
+        /// Install into these directories instead of the defaults
+        #[arg(long = "dir")]
+        dirs: Vec<std::path::PathBuf>,
     },
 }
 
@@ -631,6 +654,12 @@ fn main() -> anyhow::Result<()> {
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
 
         Commands::Show { what, name, json } => commands::show::run(&what, &name, json),
+
+        Commands::Skill { command } => match command {
+            None => commands::skill::show(None),
+            Some(SkillCommands::Show { file }) => commands::skill::show(file.as_deref()),
+            Some(SkillCommands::Install { dirs }) => commands::skill::install(&dirs),
+        },
 
         Commands::Media { command } => match command {
             MediaCommands::Ls { unused, json } => commands::media::ls(unused, json),
