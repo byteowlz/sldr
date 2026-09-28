@@ -7,7 +7,13 @@ use sha2::{Digest, Sha256};
 use crate::{package::{Package, P}, Disposition as D, Report, SlideInput};
 
 pub(crate) const NS: &str = "https://sldr.dev/pptx/identity/v1";
-const PART: &str = "customXml/sldr.xml";
+/// Where the manifest lives: a standard Office custom-XML data-store item
+/// related to the presentation part. PowerPoint preserves these on save; it
+/// silently discarded the earlier root-related `customXml/sldr.xml`.
+const ITEM: &str = "customXml/item1.xml";
+const ITEM_PROPS: &str = "customXml/itemProps1.xml";
+/// Pre-2026-09-28 packages (not preserved by PowerPoint, still readable).
+const LEGACY_PART: &str = "customXml/sldr.xml";
 const EXT: &str = "{3A4FAD9F-7390-4FD1-A48A-B34F786773ED}";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,9 +81,22 @@ pub(crate) fn attach(parts: &mut Vec<(String, String)>, slides: &[SlideInput]) -
         manifest.slides.push(record);
     }
     let json = serde_json::to_string(&manifest)?;
-    parts.push((PART.into(), format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?><sldr:manifest xmlns:sldr=\"{NS}\" version=\"1\">{}</sldr:manifest>", crate::xml_escape(&json))));
-    let rels = &mut parts.iter_mut().find(|(p, _)| p == "_rels/.rels").context("missing root relationships")?.1;
-    *rels = rels.replace("</Relationships>", &format!("<Relationship Id=\"sldrIdentity\" Type=\"{}/customXml\" Target=\"{PART}\"/></Relationships>", crate::package::R));
+    let item = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?><sldr:manifest xmlns:sldr=\"{NS}\" version=\"1\">{}</sldr:manifest>", crate::xml_escape(&json));
+    // Deterministic data-store GUID from the manifest content.
+    let h = hash(item.as_bytes());
+    let guid = format!("{{{}-{}-{}-{}-{}}}", &h[0..8], &h[8..12], &h[12..16], &h[16..20], &h[20..32]).to_uppercase();
+    parts.push((ITEM.into(), item));
+    parts.push((ITEM_PROPS.into(), format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><ds:datastoreItem ds:itemID=\"{guid}\" xmlns:ds=\"http://schemas.openxmlformats.org/officeDocument/2006/customXml\"><ds:schemaRefs><ds:schemaRef ds:uri=\"{NS}\"/></ds:schemaRefs></ds:datastoreItem>"
+    )));
+    parts.push(("customXml/_rels/item1.xml.rels".into(), format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"{}/customXmlProps\" Target=\"itemProps1.xml\"/></Relationships>",
+        crate::package::R
+    )));
+    let rels = &mut parts.iter_mut().find(|(p, _)| p == "ppt/_rels/presentation.xml.rels").context("missing presentation relationships")?.1;
+    *rels = rels.replace("</Relationships>", &format!("<Relationship Id=\"rIdSldrManifest\" Type=\"{}/customXml\" Target=\"../{ITEM}\"/></Relationships>", crate::package::R));
+    let ct = &mut parts.iter_mut().find(|(p, _)| p == "[Content_Types].xml").context("missing content types")?.1;
+    *ct = ct.replace("</Types>", &format!("<Override PartName=\"/{ITEM_PROPS}\" ContentType=\"application/vnd.openxmlformats-officedocument.customXmlProperties+xml\"/></Types>"));
     Ok(())
 }
 fn extension(id: &str, prefix: &str) -> String {
@@ -106,9 +125,22 @@ pub(crate) fn structure_hash(shape: Node<'_, '_>) -> String {
     let mut value = String::new(); visit(shape, &mut value); hash(value.as_bytes())
 }
 
+/// The part holding the manifest: whichever custom-XML item has a
+/// `sldr:manifest` root (editors may renumber items), else the legacy part.
+fn manifest_part(package: &Package) -> Option<String> {
+    let mut candidates: Vec<&String> = package.parts.keys()
+        .filter(|k| k.starts_with("customXml/") && k.ends_with(".xml") && !k.contains("/_rels/") && !k.contains("itemProps"))
+        .collect();
+    candidates.sort();
+    candidates.into_iter()
+        .find(|k| package.xml(k).is_ok_and(|d| d.root_element().has_tag_name((NS, "manifest"))))
+        .cloned()
+        .or_else(|| package.parts.contains_key(LEGACY_PART).then(|| LEGACY_PART.to_string()))
+}
+
 pub(crate) fn load(package: &Package) -> Result<Option<Manifest>> {
-    if !package.parts.contains_key(PART) { return Ok(None); }
-    let doc = package.xml(PART)?;
+    let Some(part) = manifest_part(package) else { return Ok(None) };
+    let doc = package.xml(&part)?;
     if !doc.root_element().has_tag_name((NS, "manifest")) { bail!("forged identity manifest root"); }
     let manifest: Manifest = serde_json::from_str(doc.root_element().text().context("empty identity manifest")?)?;
     if manifest.version != 1 { bail!("unsupported sldr identity version {}", manifest.version); }

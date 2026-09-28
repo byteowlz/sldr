@@ -119,9 +119,17 @@ impl Package {
                     if !owner.is_empty() && !self.parts.contains_key(&owner) { bail!("orphan relationships: {part}"); }
                     for rel in self.rels(&owner)? {
                         if !rel.external && !self.parts.contains_key(&rel.target) { bail!("missing relationship target {} in {part}", rel.target); }
-                        let disposition = if rel.external { Disposition::Unsupported } else { Disposition::Converted };
-                        report.record(None, part, &rel.id, &format!("relationship:{}", rel.kind), disposition,
-                            if rel.external { "External target not fetched; import does not preserve this relationship" } else { "Internal target validated" });
+                        // External hyperlinks are read back as markdown links
+                        // (never fetched); any other external target is not.
+                        let hyperlink = rel.external && rel.kind.ends_with("/hyperlink");
+                        let (disposition, note) = if hyperlink {
+                            (Disposition::Converted, "External hyperlink read back as a markdown link (never fetched)")
+                        } else if rel.external {
+                            (Disposition::Unsupported, "External target not fetched; import does not preserve this relationship")
+                        } else {
+                            (Disposition::Converted, "Internal target validated")
+                        };
+                        report.record(None, part, &rel.id, &format!("relationship:{}", rel.kind), disposition, note);
                     }
                 } else {
                     let rels = self.rels(part)?;

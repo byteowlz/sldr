@@ -77,7 +77,7 @@ pub fn import_with_report(bytes: &[u8]) -> Result<Conversion<Vec<ImportedSlide>>
     if let Some(manifest) = &manifest {
         for record in &manifest.slides {
             if !seen.contains(&record.id) {
-                report.record(Some(&record.id), "customXml/sldr.xml", &record.id, "missing_slide", Disposition::Conflicting,
+                report.record(Some(&record.id), "customXml", &record.id, "missing_slide", Disposition::Conflicting,
                     "A recorded source slide is missing; reconcile deletion explicitly");
             }
         }

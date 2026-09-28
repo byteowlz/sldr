@@ -81,6 +81,34 @@ mod tests {
     }
 
     #[test]
+    fn test_manifest_is_an_office_custom_xml_item() {
+        // PowerPoint discards root-related custom parts on save but keeps
+        // data-store items related to the presentation part.
+        let reg = LayoutRegistry::builtin();
+        let slides = vec![SlideInput { details: Default::default(), layout: reg.get("default").unwrap(),
+            fields: vec![("content".into(), ZoneContent::Markdown("x".into()))] }];
+        let bytes = build_deck(&theme(), "Deck", &slides).unwrap();
+        let pkg = crate::package::Package::read(&bytes).unwrap();
+        assert!(pkg.parts.contains_key("customXml/item1.xml"));
+        assert!(pkg.parts.contains_key("customXml/itemProps1.xml"));
+        let rels = pkg.text("ppt/_rels/presentation.xml.rels").unwrap();
+        assert!(rels.contains("../customXml/item1.xml"));
+        assert!(!pkg.text("_rels/.rels").unwrap().contains("customXml"));
+        crate::validate_package(&bytes).unwrap();
+        // An editor renumbering the item (item1 → item3) must not lose it.
+        let renamed: Vec<(String, Vec<u8>)> = pkg.parts.iter().map(|(k, v)| {
+            let k = k.replace("customXml/item1.xml", "customXml/item3.xml").replace("_rels/item1.xml.rels", "_rels/item3.xml.rels");
+            let v = String::from_utf8(v.clone()).map(|t| t.replace("customXml/item1.xml", "customXml/item3.xml").into_bytes()).unwrap_or_else(|e| e.into_bytes());
+            (k, v)
+        }).collect();
+        let text: Vec<(String, String)> = renamed.iter().filter_map(|(k, v)| String::from_utf8(v.clone()).ok().map(|t| (k.clone(), t))).collect();
+        let media: Vec<(String, Vec<u8>)> = renamed.iter().filter(|(_, v)| String::from_utf8(v.clone()).is_err()).cloned().collect();
+        let bytes = crate::zip_mixed(&text, &media).unwrap();
+        let imported = import(&bytes).unwrap();
+        assert!(imported[0].identity.is_some(), "manifest found after renumbering");
+    }
+
+    #[test]
     fn test_import_rejects_non_sldr_deck() {
         // A zip without the sldr app marker.
         let parts = vec![("docProps/app.xml".to_string(), "<x/>".to_string())];
