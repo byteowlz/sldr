@@ -150,10 +150,6 @@ default_flavor = "default"
 # Port for the local dev/watch server (sldr watch)
 dev_port = "3030"
 
-# Preferred AI agent for slide generation
-# Possible values: "opencode", "claude code", "codex"
-agent = "opencode"
-
 [presentations]
 # Directory containing individual slide markdown files
 slide_dir = "~/sldr/slides"

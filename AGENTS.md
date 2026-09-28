@@ -82,7 +82,6 @@ scaffold_dir = "~/.config/sldr/scaffolds"
 flavor_dir = "~/.config/sldr/flavors"
 default_flavor = "default"
 dev_port = "3030"           # Port for sldr watch dev server
-agent = "opencode"          # AI agent: "opencode", "claude code", "codex"
 
 [presentations]
 slide_dir = "~/sldr/slides"
