@@ -4,8 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-29
+
 ### Added
-- **Studio** — a self-contained slide-management UI served at `sldr serve` → `/studio`. Browse the library as live thumbnails (scaled iframes of `/slide/{name}`, vector, no rasterization), search, switch flavor, compose an ordered deck (click to add, reorder, remove), and preview it in a new tab. Vanilla JS, no build step, no CDN, no external deps — a thin client over the existing serve API plus a new `POST /api/deck` (render an ad-hoc ordered slide set as a self-contained deck). For rapid dogfooding; the full curation platform stays a separate product.
+- Preservation-aware PPTX export and import for the supported subset: strict loss reports, stable round-trip identities, notes, links, branding, native text and pictures, and `import --apply` for source edits. Diagram regions can be baked while surrounding text stays editable; unsupported layouts use a reported picture fallback. External-deck conversion and arbitrary PowerPoint fidelity are not promised.
+- Studio deck board, composer, media paste/drop, and HTTP/Oqto backend integration.
+- Zone documents, where-used and full-text find queries, layout-fit candidates, media inventory, and an embedded `sldr skill` for agent authoring.
+- Presenter editing in watch mode, HTTPS for the server, additional layouts, and flavor type-scale controls.
+
+### Fixed
+- PDF print-unit sizing, PPTX manifest retention after a PowerPoint save, linked sources and chrome in native PPTX, and layout/logo sizing.
 
 ## [0.8.0] - 2026-06-23
 
