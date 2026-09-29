@@ -46,7 +46,7 @@ impl TlsMode {
         if !matches!(self, Self::Off) {
             // One provider, chosen explicitly: rcgen and axum-server could
             // otherwise each pull a different one and rustls refuses to guess.
-            let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+            let _ = rustls::crypto::ring::default_provider().install_default();
         }
         match self {
             Self::Off => Ok(None),
@@ -119,4 +119,22 @@ fn subject_names() -> Vec<String> {
         }
     }
     names
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn self_signed_tls_loads_and_reuses_the_same_pair() {
+        let dir = tempfile::tempdir().expect("temp data dir");
+        let mode = TlsMode::SelfSigned;
+        assert!(mode.config(dir.path()).await.expect("TLS config").is_some());
+        let (cert, key) = self_signed_pair(dir.path()).expect("certificate pair");
+        let original = std::fs::read(&cert).expect("certificate bytes");
+        assert!(String::from_utf8_lossy(&original).contains("BEGIN CERTIFICATE"));
+        assert!(std::fs::read_to_string(key).expect("private key").contains("PRIVATE KEY"));
+        assert!(mode.config(dir.path()).await.expect("reloaded TLS config").is_some());
+        assert_eq!(std::fs::read(cert).expect("reloaded certificate"), original);
+    }
 }
