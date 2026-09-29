@@ -57,9 +57,23 @@ Author a slide once; reuse it in any deck, restyle with any flavor, rebuild byte
 - Title/section: `cover` `section` `intro` `statement` `hero-stat` `contact` `end`
 - Body: `default` `two-cols` `two-cols-header` `pillars` `agenda` `timeline` `versus` `quote` `terminal` `split-accent`
 - Image: `image` `image-center` `image-left` `image-right` `feature-image` `image-grid` `image-row` `image-portraits` `image-stack`
-- Branded (persistent chrome): `framed` `framed-cols` `framed-image` `framed-figure` `framed-gallery` `framed-scatter` `framed-cover` `framed-section` `framed-full`
+- Branded (persistent chrome): `framed` `framed-cols` `framed-image` `framed-figure` `framed-gallery` `framed-scatter` `framed-cover` `framed-section` `framed-full` — and the diagram bodies `framed-cards` (N options/questions as cards, optional logos on top) `framed-flow` (a process as boxes and arrows) `framed-timeline` (dated milestones on an axis) `framed-quote` (one big quotation) `framed-strip` (2–5 captioned images side by side) `framed-contact` (closing slide)
 
-These four are the `sldr ls layouts` **categories** (Title&section / Body / Image / Branded). A second axis is **register**: most layouts are `classic` (predictable, boring-but-effective placement); `statement` `hero-stat` `quote` `versus` `split-accent` `terminal` `framed-scatter` are `expressive` (dramatic). Pick by *content shape*; use register as the taste filter (e.g. keep a corporate deck classic). `sldr ls layouts` prints them grouped with these tags; `--json` carries `category`+`tags`.
+These four are the `sldr ls layouts` **categories** (Title&section / Body / Image / Branded). A second axis is **register**: most layouts are `classic` (predictable, boring-but-effective placement); `statement` `hero-stat` `quote` `versus` `split-accent` `terminal` `framed-scatter` `framed-quote` are `expressive` (dramatic). The list above can lag the binary — `sldr ls layouts` is the truth. Pick by *content shape*; use register as the taste filter (e.g. keep a corporate deck classic). `sldr ls layouts` prints them grouped with these tags; `--json` carries `category`+`tags`.
+
+## A deck worth watching — not a template
+
+Most agent decks fail the same way: every slide is title + five bullets. Avoid it deliberately.
+
+- **Headline = the claim, not the topic.** "A classifier is not a firewall", not "Security results". The subtitle carries the context (who, when, sample size).
+- **Map the content's shape to a layout, every slide:** a process → `framed-flow` (mark the key step `- [x] **Step**`) · dated events → `framed-timeline` · N options, players or open questions → `framed-cards` · one number → `hero-stat` · one thesis → `statement` · two approaches → `versus` · one quote → `framed-quote` · an article as evidence → `framed-image` (clip right, 3–4 bullets *interpreting* it left) · several articles → `framed-scatter` · commands/demo → `terminal`. Plain `framed` bullets are the fallback, never three in a row.
+- **Give it rhythm:** section dividers (`framed-section`) between acts; alternate dense and sparse; each act gets one piece of evidence, one punch (stat or statement) and one diagram; end on questions (`framed-cards`), then contact.
+- **Every number carries its source** (`source` + `source_url`), and the honest caveat sits on the same slide ("BM25 gets 51% at 85× the speed"). Credibility is the style.
+- **Clips (article screenshots):** capture at 2× — `agent-browser set viewport 1440 900 2`, then `open URL` and `screenshot /absolute/path.png` (relative paths fail silently). Crop to headline + the paragraph or figure that matters (`magick in.png -crop WxH+X+Y +repage out.png`). **Open every PNG and look**: cookie banners and "Just a moment…" bot walls produce a screenshot that is useless — dismiss (`find text "Reject" click`) or pick another source.
+- **Logos:** dark flavor → light variants (svgl `*_dark`/`*_white` files, raw from `github.com/pheralb/svgl/…/static/library/<name>.svg`; simple-icons as fallback — recolor unfilled/`currentColor` marks). Rasterize to PNG (`rsvg-convert -h 256`) — PowerPoint export skips SVG. Put ≤ 3 logos at the start of a `framed-cards` item.
+- **Length budgets** (they are what keeps layouts intact): headline ≤ ~45 characters (PowerPoint does not shrink it) · timeline item ≤ ~70 · card body ≤ ~35 words · terminal lines ≤ ~60 · `framed-scatter` right side 3 images looks best.
+- **Reuse and translate, don't copy:** `sldr search`, then add `translations.<lang>` + `::lang::` blocks to the existing slide so the library gains a language.
+- **Verify every slide as images, not just the build:** `sldr export deck --format pdf`, then `pdftoppm -r 60 -png deck.pdf s && magick montage s-*.png -tile 3x4 -geometry +4+4 sheet.png` and read the sheet. For PowerPoint: `soffice --headless --convert-to pdf deck.pptx` and look again. Common defects: text overflowing into the footer, tiny collage images, logos wrapping, a clip that is a cookie wall.
 
 ## Build & share
 

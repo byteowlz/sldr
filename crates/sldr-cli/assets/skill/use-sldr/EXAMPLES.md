@@ -196,6 +196,41 @@ Mermaid is bundled and runs client-side (offline; inlined only into decks that u
 
 ---
 
+## 4d. An expert talk with rhythm (layout per slide)
+
+A 24-slide, three-act workshop deck on a branded flavor — every slide's layout chosen for its content's shape, no two bullet slides in a row:
+
+```text
+framed-cover     Title · track · venue/date
+framed-flow      Run of show (round 1 → round 2 → wrap-up)
+framed-cards     "Who builds the stack?" — 4 cards, 3 vendor logos each
+statement        The thesis in one sentence
+framed-section   01 · Topic A
+framed-image     Clip of the launch article + 4 bullets interpreting it
+hero-stat        The one number ($0.042 / M tokens)
+framed-image     Clip of an independent teardown + what it means
+framed-image     Clip of a benchmark table + the honest caveat
+versus           Old way vs new way, one line each
+framed-quote     The sharpest quote from an independent evaluation
+framed-cards     Ecosystem in 4 cards (projects, numbers)
+framed-section   02 · Topic B
+framed-timeline  8 dated milestones of an incident
+framed-scatter   3 article clips + the pattern in 4 bullets
+framed           Reused library slide (translated in place, not copied)
+framed-flow      The reference architecture, key step highlighted
+framed-image     Clip of the industry response
+framed-section   03 · Topic C
+framed-image     Clip of a spec + what it does and does not solve
+framed-flow      Layers (vertical chain left, commentary right)
+terminal         Live-demo commands
+framed-cards     Five discussion questions
+framed           Reused contact slide
+```
+
+Build the HTML for the room, export PDF for handouts and PPTX for colleagues who edit in PowerPoint: `sldr export talk --format pptx --allow-lossy` prints what PowerPoint cannot represent — read it.
+
+---
+
 ## 5. Sharing
 
 ```bash
