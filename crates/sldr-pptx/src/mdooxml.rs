@@ -23,8 +23,12 @@ const SQUARE_BULLET: &str = "&#9642;";
 /// ready to drop inside a `<p:txBody>`. Returns at least one (possibly empty)
 /// paragraph so a placeholder is never structurally empty.
 pub fn to_paragraphs(markdown: &str) -> Vec<String> {
+    to_paragraphs_with_links(markdown).0
+}
+
+pub(crate) fn to_paragraphs_with_links(markdown: &str) -> (Vec<String>, Vec<(String, String)>) {
     let mut w = Walker::default();
-    let parser = Parser::new_ext(markdown, Options::empty());
+    let parser = Parser::new_ext(markdown, Options::ENABLE_STRIKETHROUGH);
     for ev in parser {
         w.event(ev);
     }
@@ -32,44 +36,69 @@ pub fn to_paragraphs(markdown: &str) -> Vec<String> {
     if w.out.is_empty() {
         w.out.push(empty_paragraph());
     }
-    w.out
+    (w.out, w.links)
 }
 
-/// One inline run: text plus the emphasis flags active when it was emitted.
+/// One inline run: text plus the formatting active when it was emitted.
+/// A `\n` inside `text` is a hard line break (`<a:br/>`).
 struct Run {
     text: String,
     bold: bool,
     italic: bool,
     mono: bool,
+    strike: bool,
+    /// Font size in hundredths of a point (headings), `None` = inherit.
+    size: Option<u32>,
+    link: Option<String>,
 }
+
+/// Heading sizes (hundredths of a pt) — the depth survives the round trip
+/// through the size; body text inherits the master's 18 pt.
+pub(crate) const HEADING_SIZES: [u32; 3] = [2400, 2200, 2000];
+/// Left margin of a block quote paragraph.
+pub(crate) const QUOTE_MARL: i64 = INDENT_EMU * 2;
 
 #[derive(Default)]
 struct Walker {
     out: Vec<String>,
     runs: Vec<Run>,
-    /// Bullet nesting depth: 0 = not in a list (→ buNone), ≥1 = list level.
-    list_level: usize,
+    /// Open lists, innermost last: `Some(start)` ordered, `None` bulleted.
+    lists: Vec<Option<u64>>,
     /// Whether the current paragraph is a list item (gets a bullet).
     in_item: bool,
-    /// Heading paragraphs render bold, bullet-less.
-    heading: bool,
+    /// Heading level of the current paragraph (1–6), 0 = none.
+    heading: u8,
+    quote: usize,
     bold: usize,
     italic: usize,
     mono: usize,
+    strike: usize,
+    link: Option<String>,
+    links: Vec<(String, String)>,
 }
 
 impl Walker {
     fn event(&mut self, ev: Event) {
         match ev {
-            Event::Start(Tag::List(_)) => {
+            Event::Start(Tag::List(start)) => {
                 // Flush the parent item's own text (at the current level)
                 // before descending — otherwise it inherits the deeper indent.
                 self.flush_paragraph();
-                self.list_level += 1;
+                self.lists.push(start);
             }
             Event::End(TagEnd::List(_)) => {
-                self.list_level = self.list_level.saturating_sub(1);
+                self.lists.pop();
             }
+            Event::Start(Tag::BlockQuote(_)) => {
+                self.flush_paragraph();
+                self.quote += 1;
+            }
+            Event::End(TagEnd::BlockQuote(_)) => {
+                self.flush_paragraph();
+                self.quote = self.quote.saturating_sub(1);
+            }
+            Event::Start(Tag::Strikethrough) => self.strike += 1,
+            Event::End(TagEnd::Strikethrough) => self.strike = self.strike.saturating_sub(1),
             Event::Start(Tag::Item) => {
                 self.flush_paragraph();
                 self.in_item = true;
@@ -83,22 +112,29 @@ impl Walker {
                     self.flush_paragraph();
                 }
             }
-            Event::Start(Tag::Heading { .. }) => self.heading = true,
+            Event::Start(Tag::Heading { level, .. }) => self.heading = level as u8,
             Event::End(TagEnd::Heading(_)) => {
                 self.flush_paragraph();
-                self.heading = false;
+                self.heading = 0;
             }
             Event::Start(Tag::Strong) => self.bold += 1,
             Event::End(TagEnd::Strong) => self.bold = self.bold.saturating_sub(1),
             Event::Start(Tag::Emphasis) => self.italic += 1,
             Event::End(TagEnd::Emphasis) => self.italic = self.italic.saturating_sub(1),
+            Event::Start(Tag::Link { dest_url, .. }) => {
+                let id = link_id(&dest_url);
+                self.links.push((id.clone(), dest_url.into_string()));
+                self.link = Some(id);
+            }
+            Event::End(TagEnd::Link) => self.link = None,
             Event::Text(t) => self.push_text(&t),
             Event::Code(t) => {
                 self.mono += 1;
                 self.push_text(&t);
                 self.mono -= 1;
             }
-            Event::SoftBreak | Event::HardBreak => self.push_text(" "),
+            Event::SoftBreak => self.push_text(" "),
+            Event::HardBreak => self.push_text("\n"),
             // Code blocks: emit each line as a plain paragraph.
             Event::Start(Tag::CodeBlock(_)) => self.flush_paragraph(),
             Event::End(TagEnd::CodeBlock) => self.flush_paragraph(),
@@ -110,10 +146,15 @@ impl Walker {
         if text.is_empty() {
             return;
         }
-        let (bold, italic, mono) = (self.bold > 0 || self.heading, self.italic > 0, self.mono > 0);
+        let heading = self.heading > 0;
+        let (bold, italic, mono, strike) =
+            (self.bold > 0 || heading, self.italic > 0 || self.quote > 0, self.mono > 0, self.strike > 0);
+        let size = heading.then(|| HEADING_SIZES[usize::from(self.heading.clamp(1, 3)) - 1]);
         // Merge with the previous run if formatting matches.
         if let Some(last) = self.runs.last_mut() {
-            if last.bold == bold && last.italic == italic && last.mono == mono {
+            if last.bold == bold && last.italic == italic && last.mono == mono && last.strike == strike
+                && last.size == size && last.link == self.link
+            {
                 last.text.push_str(text);
                 return;
             }
@@ -123,6 +164,9 @@ impl Walker {
             bold,
             italic,
             mono,
+            strike,
+            size,
+            link: self.link.clone(),
         });
     }
 
@@ -132,18 +176,26 @@ impl Walker {
             self.in_item = false;
             return;
         }
-        let bullet = self.in_item && self.list_level > 0;
+        let bullet = self.in_item && !self.lists.is_empty();
         let ppr = if bullet {
-            let level = self.list_level.max(1);
+            let level = self.lists.len().max(1);
             let mar_l = INDENT_EMU * level as i64;
             let lvl = if level > 1 {
                 format!(" lvl=\"{}\"", level - 1)
             } else {
                 String::new()
             };
-            format!(
-                "<a:pPr marL=\"{mar_l}\" indent=\"-{INDENT_EMU}\"{lvl}><a:buFont typeface=\"Arial\"/><a:buChar char=\"{SQUARE_BULLET}\"/></a:pPr>"
-            )
+            let marker = match self.lists.last().copied().flatten() {
+                // Ordered: PowerPoint auto-numbering, keeping a custom start.
+                Some(start) => {
+                    let at = if start != 1 { format!(" startAt=\"{start}\"") } else { String::new() };
+                    format!("<a:buFont typeface=\"+mj-lt\"/><a:buAutoNum type=\"arabicPeriod\"{at}/>")
+                }
+                None => format!("<a:buFont typeface=\"Arial\"/><a:buChar char=\"{SQUARE_BULLET}\"/>"),
+            };
+            format!("<a:pPr marL=\"{mar_l}\" indent=\"-{INDENT_EMU}\"{lvl}>{marker}</a:pPr>")
+        } else if self.quote > 0 {
+            format!("<a:pPr marL=\"{QUOTE_MARL}\" indent=\"0\"><a:buNone/></a:pPr>")
         } else {
             "<a:pPr marL=\"0\" indent=\"0\"><a:buNone/></a:pPr>".to_string()
         };
@@ -161,11 +213,17 @@ impl Walker {
 
 fn run_xml(run: &Run) -> String {
     let mut rpr = String::from("<a:rPr lang=\"en-US\"");
+    if let Some(sz) = run.size {
+        rpr.push_str(&format!(" sz=\"{sz}\""));
+    }
     if run.bold {
         rpr.push_str(" b=\"1\"");
     }
     if run.italic {
         rpr.push_str(" i=\"1\"");
+    }
+    if run.strike {
+        rpr.push_str(" strike=\"sngStrike\"");
     }
     if run.mono {
         // Close the attributes, add a monospace latin typeface child.
@@ -173,7 +231,24 @@ fn run_xml(run: &Run) -> String {
     } else {
         rpr.push_str("/>");
     }
-    format!("<a:r>{rpr}<a:t>{}</a:t></a:r>", xml_escape(&run.text))
+    if let Some(id) = &run.link {
+        let link = format!("<a:hlinkClick r:id=\"{id}\"/>");
+        if rpr.ends_with("/>") { rpr.truncate(rpr.len() - 2); rpr.push('>'); rpr.push_str(&link); rpr.push_str("</a:rPr>"); }
+        else { rpr = rpr.replace("</a:rPr>", &format!("{link}</a:rPr>")); }
+    }
+    // Hard line breaks inside a run become <a:br/> between runs.
+    run.text
+        .split('\n')
+        .map(|part| format!("<a:r>{rpr}<a:t>{}</a:t></a:r>", xml_escape(part)))
+        .collect::<Vec<_>>()
+        .join("<a:br><a:rPr lang=\"en-US\"/></a:br>")
+}
+
+pub(crate) fn link_id(url: &str) -> String { format!("rIdLink{}", crate::identity::hash(url.as_bytes())) }
+
+pub(crate) fn linked_paragraph(text: &str, url: &str) -> String {
+    let run = Run { text: text.into(), bold: false, italic: false, mono: false, strike: false, size: None, link: Some(link_id(url)) };
+    format!("<a:p><a:pPr><a:buNone/></a:pPr>{}</a:p>", run_xml(&run))
 }
 
 fn empty_paragraph() -> String {
@@ -187,6 +262,12 @@ pub fn plain_paragraph(text: &str) -> String {
         "<a:p><a:pPr marL=\"0\" indent=\"0\"><a:buNone/></a:pPr><a:r><a:rPr lang=\"en-US\"/><a:t>{}</a:t></a:r></a:p>",
         xml_escape(text)
     )
+}
+
+/// Speaker notes are plain text; render one paragraph per line so line breaks
+/// survive the round trip instead of being collapsed into a single run.
+pub fn notes_paragraphs(notes: &str) -> Vec<String> {
+    notes.lines().map(|line| plain_paragraph(line.trim())).filter(|p| !p.is_empty()).collect()
 }
 
 /// Reference a `HeadingLevel` so the import doesn't need its own copy; kept
@@ -262,6 +343,24 @@ mod tests {
         let ps = to_paragraphs("");
         assert_eq!(ps.len(), 1);
         assert!(ps[0].contains("<a:buNone/>"));
+    }
+
+    #[test]
+    fn test_ordered_list_autonumbers_with_start() {
+        let ps = to_paragraphs("3. three\n4. four");
+        assert_eq!(ps.len(), 2);
+        assert!(ps[0].contains("buAutoNum type=\"arabicPeriod\" startAt=\"3\""));
+        let ps = to_paragraphs("1. one");
+        assert!(ps[0].contains("<a:buAutoNum type=\"arabicPeriod\"/>"));
+    }
+
+    #[test]
+    fn test_heading_depth_by_size_quote_strike_break() {
+        let ps = to_paragraphs("## Sub\n\n> quoted\n\n~~gone~~ line  \nnext");
+        assert!(ps[0].contains("sz=\"2200\"") && ps[0].contains("b=\"1\""));
+        assert!(ps[1].contains(&format!("marL=\"{QUOTE_MARL}\"")) && ps[1].contains("i=\"1\""));
+        assert!(ps[2].contains("strike=\"sngStrike\""));
+        assert!(ps[2].contains("<a:br>"));
     }
 
     #[test]

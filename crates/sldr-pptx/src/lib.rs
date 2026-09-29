@@ -38,11 +38,27 @@ use anyhow::{bail, Result};
 use sldr_renderer::{LayoutDef, Zone, ZoneRep};
 
 mod deck;
+mod brand;
+mod flavor_report;
 mod import;
+mod identity;
 mod mdooxml;
+mod notes;
+mod package;
+mod preflight;
+mod report;
+#[cfg(test)]
+mod round_trip_tests;
 
-pub use deck::{build_deck, SlideInput, ZoneContent};
-pub use import::{import, ImportedImage, ImportedSlide};
+pub use deck::{build_deck, build_deck_with_report, SlideDetails, SlideInput, ZoneContent};
+pub use import::{import, import_with_report, ImportedImage, ImportedSlide, ImportedZone};
+pub use flavor_report::flavor_report;
+pub use brand::{css_hex, Brand, BrandImage, BrandLogo};
+
+/// Layout name for slides exported as one picture (no PPTX zones).
+pub const RASTER_LAYOUT_NAME: &str = "sldr-picture";
+pub use package::validate_package;
+pub use report::{Conversion, Disposition, Finding, Rejected, Report, Severity};
 
 /// 16:9 slide box in EMU (English Metric Units). `screen16x9`.
 pub(crate) const SLIDE_W_EMU: i64 = 12_192_000;
@@ -80,6 +96,8 @@ pub struct Theme {
     pub major_font: String,
     /// `+mn-lt` minor (body) latin typeface.
     pub minor_font: String,
+    /// Background artwork + logos (resolved by the caller).
+    pub brand: Brand,
 }
 
 impl Theme {
@@ -109,6 +127,7 @@ impl Theme {
             accent4: norm_hex(accent4).unwrap_or_else(|| "94A3B8".into()),
             major_font: clean_font(major_font),
             minor_font: clean_font(minor_font),
+            brand: Brand::default(),
         }
     }
 
@@ -124,14 +143,26 @@ impl Theme {
             .as_deref()
             .unwrap_or(&flavor.name)
             .to_string();
+        // CSS colors (rgba(), #rrggbbaa) become real hex, alpha blended over
+        // the background — never the fallback palette.
+        let bg = c.background.as_deref().and_then(|b| brand::css_hex(b, None));
+        let hex = |v: Option<&str>| v.and_then(|v| brand::css_hex(v, bg.as_deref()));
+        let (dk1, lt1, a1, a2, lt2, a4) = (
+            bg.clone(),
+            hex(c.text.as_deref()),
+            hex(c.accent.or_ref(&c.primary)),
+            hex(c.secondary.or_ref(&c.accent)),
+            hex(c.surface.as_deref()),
+            hex(c.text_dim.or_ref(&c.muted)),
+        );
         Theme::from_parts(
             name,
-            c.background.as_deref(),
-            c.text.as_deref(),
-            c.accent.or_ref(&c.primary),
-            c.secondary.or_ref(&c.accent),
-            c.surface.as_deref(),
-            c.text_dim.or_ref(&c.muted),
+            dk1.as_deref(),
+            lt1.as_deref(),
+            a1.as_deref(),
+            a2.as_deref(),
+            lt2.as_deref(),
+            a4.as_deref(),
             t.heading_font.as_deref(),
             t.body_font.as_deref(),
         )
@@ -245,26 +276,26 @@ pub fn build_template(theme: &Theme, layouts: &[&LayoutDef]) -> Result<Vec<u8>> 
     parts.push(("ppt/theme/theme1.xml".into(), theme_xml(theme)));
     parts.push((
         "ppt/slideMasters/_rels/slideMaster1.xml.rels".into(),
-        slide_master_rels(n),
+        slide_master_rels(n, &theme.brand),
     ));
     parts.push((
         "ppt/slideMasters/slideMaster1.xml".into(),
-        slide_master_xml(n),
+        slide_master_xml(n, &theme.brand),
     ));
 
     for (i, layout) in selected.iter().enumerate() {
         let n1 = i + 1;
         parts.push((
             format!("ppt/slideLayouts/slideLayout{n1}.xml"),
-            slide_layout_xml(layout),
+            slide_layout_xml(layout, &theme.brand),
         ));
         parts.push((
             format!("ppt/slideLayouts/_rels/slideLayout{n1}.xml.rels"),
-            slide_layout_rels(),
+            slide_layout_rels(layout, &theme.brand),
         ));
     }
 
-    zip_parts(&parts)
+    zip_mixed(&parts, &brand_media(&theme.brand, &selected))
 }
 
 /// PPTX slideLayout `type` token: `twoObj` when ≥2 body placeholders sit
@@ -303,6 +334,7 @@ pub(crate) fn content_types(layout_count: usize, slide_count: usize) -> String {
 <Default Extension="png" ContentType="image/png"/>
 <Default Extension="jpeg" ContentType="image/jpeg"/>
 <Default Extension="jpg" ContentType="image/jpeg"/>
+<Default Extension="gif" ContentType="image/gif"/>
 <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
 <Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/>
 <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
@@ -442,11 +474,20 @@ pub(crate) fn theme_xml(t: &Theme) -> String {
     )
 }
 
-pub(crate) fn slide_master_rels(layout_count: usize) -> String {
+/// Relationship id of the master's background picture, when there is one.
+pub(crate) const MASTER_BG_RID: &str = "rIdBrandBg";
+
+pub(crate) fn slide_master_rels(layout_count: usize, brand: &Brand) -> String {
     let mut rels = String::new();
     for n in 1..=layout_count {
         rels.push_str(&format!(
             "<Relationship Id=\"rId{n}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout\" Target=\"../slideLayouts/slideLayout{n}.xml\"/>"
+        ));
+    }
+    if let Some(bg) = &brand.background {
+        let target = brand::background_part(bg).replace("ppt/", "../");
+        rels.push_str(&format!(
+            "<Relationship Id=\"{MASTER_BG_RID}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"{target}\"/>"
         ));
     }
     let theme_id = layout_count + 1;
@@ -459,7 +500,7 @@ pub(crate) fn slide_master_rels(layout_count: usize) -> String {
     )
 }
 
-pub(crate) fn slide_master_xml(layout_count: usize) -> String {
+pub(crate) fn slide_master_xml(layout_count: usize, brand: &Brand) -> String {
     let mut layout_ids = String::new();
     for n in 1..=layout_count {
         let id = 2147483648u64 + n as u64;
@@ -470,7 +511,7 @@ pub(crate) fn slide_master_xml(layout_count: usize) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
-<p:cSld><p:bg><p:bgPr><a:solidFill><a:schemeClr val="dk1"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>
+<p:cSld>{bg}
 <p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
 <p:sp><p:nvSpPr><p:cNvPr id="2" name="Title Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr>
 <p:spPr><a:xfrm><a:off x="{title_x}" y="{title_y}"/><a:ext cx="{title_cx}" cy="{title_cy}"/></a:xfrm></p:spPr>
@@ -484,6 +525,7 @@ pub(crate) fn slide_master_xml(layout_count: usize) -> String {
 <p:otherStyle><a:defPPr><a:defRPr lang="en-US"/></a:defPPr></p:otherStyle>
 </p:txStyles>
 </p:sldMaster>"#,
+        bg = brand::master_background(brand.background.as_ref().map(|_| MASTER_BG_RID)),
         title_x = emu_x(4.4),
         title_y = emu_y(6.3),
         title_cx = emu_x(70.0),
@@ -491,7 +533,7 @@ pub(crate) fn slide_master_xml(layout_count: usize) -> String {
     )
 }
 
-pub(crate) fn slide_layout_xml(layout: &TemplateLayout) -> String {
+pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String {
     let mut sps = String::new();
     for (i, zone) in layout.placeholders.iter().enumerate() {
         let id = i + 2; // id 1 is the group shape
@@ -501,15 +543,27 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout) -> String {
             None => String::new(),
         };
         let label = xml_escape(&title_case(&zone.name));
+        // Deck chrome is small, flush text in HTML (footer ≈1.25u, source
+        // ≈1.1u of a 13.33in slide); style it on the layout so slides inherit.
+        let (body_pr, lst) = match zone.name.as_str() {
+            "footer" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1200\"/></a:lvl1pPr></a:lstStyle>"),
+            "source" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1050\"/></a:lvl1pPr></a:lstStyle>"),
+            _ => ("<a:bodyPr/>", "<a:lstStyle/>"),
+        };
         sps.push_str(&format!(
             r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
 <p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm></p:spPr>
-<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>{label}</a:t></a:r></a:p></p:txBody></p:sp>"#,
+<p:txBody>{body_pr}{lst}<a:p><a:r><a:rPr lang="en-US"/><a:t>{label}</a:t></a:r></a:p></p:txBody></p:sp>"#,
             x = emu_x(zone.x),
             y = emu_y(zone.y),
             cx = emu_x(zone.w),
             cy = emu_y(zone.h),
         ));
+    }
+    let mut next = layout.placeholders.len() + 2;
+    for logo in brand.logos.iter().filter(|l| l.applies_to(layout.name)) {
+        sps.push_str(&brand::logo_pic(logo, next, &format!("rIdLogo{}", logo.index + 1)));
+        next += 1;
     }
     format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -524,12 +578,40 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout) -> String {
     )
 }
 
-pub(crate) fn slide_layout_rels() -> String {
-    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+/// Footer/source text frames: no insets, one line, top-anchored — the HTML
+/// chrome is flush text, not a padded box.
+const CHROME_BODY_PR: &str = "<a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" wrap=\"none\" anchor=\"t\"/>";
+
+pub(crate) fn slide_layout_rels(layout: &TemplateLayout, brand: &Brand) -> String {
+    let mut logos = String::new();
+    for logo in brand.logos.iter().filter(|l| l.applies_to(layout.name)) {
+        let target = brand::logo_part(logo).replace("ppt/", "../");
+        logos.push_str(&format!(
+            "<Relationship Id=\"rIdLogo{}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"{target}\"/>",
+            logo.index + 1
+        ));
+    }
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+{logos}
 </Relationships>"#
-        .into()
+    )
+}
+
+/// Media parts for the brand (background + every logo that some layout uses).
+pub(crate) fn brand_media(brand: &Brand, layouts: &[TemplateLayout]) -> Vec<(String, Vec<u8>)> {
+    let mut out = Vec::new();
+    if let Some(bg) = &brand.background {
+        out.push((brand::background_part(bg), bg.bytes.clone()));
+    }
+    for logo in &brand.logos {
+        if layouts.iter().any(|l| logo.applies_to(l.name)) {
+            out.push((brand::logo_part(logo), logo.image.bytes.clone()));
+        }
+    }
+    out
 }
 
 /// Pack the named XML parts into a deflated zip — a `.pptx` package.

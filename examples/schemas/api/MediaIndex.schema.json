@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MediaIndex",
+  "type": "object",
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MediaFile"
+      }
+    }
+  },
+  "required": [
+    "files"
+  ],
+  "$defs": {
+    "MediaFile": {
+      "description": "One file in a media folder.",
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "folder": {
+          "description": "The slide folder this belongs to; empty for the library-level folder.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/MediaKind"
+        },
+        "path": {
+          "description": "Path relative to the slide directory: `genai/media/x.png`, or\n`../media/logo.svg` for the library-level folder (which sits beside\n`slides/`). A slide in `genai/` references the latter as\n`../../media/logo.svg`.",
+          "type": "string"
+        },
+        "used_by": {
+          "description": "Slides (relative paths) whose body references this file.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "path",
+        "folder",
+        "file_name",
+        "kind",
+        "bytes",
+        "used_by"
+      ]
+    },
+    "MediaKind": {
+      "type": "string",
+      "enum": [
+        "image",
+        "video",
+        "other"
+      ]
+    }
+  }
+}

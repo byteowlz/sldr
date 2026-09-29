@@ -32,7 +32,8 @@ sldr watch name_of_playlist                          # Dev server with live-relo
 sldr watch name_of_playlist --flavor dark --port 8080
 sldr open name_of_presentation                       # Open built HTML in browser
 sldr export name_of_playlist --format pdf            # Export to PDF via headless Chrome
-sldr export name_of_playlist --format pptx           # Export to PPTX (slide screenshots)
+sldr export name_of_playlist --format pptx --allow-lossy  # Editable PPTX (native text + pictures; --flatten = screenshots)
+sldr import deck.pptx --apply [--dry-run]            # Write edits made in PowerPoint back into the original slides
 sldr preview slide_name                              # Quick single-slide preview
 sldr add name_of_presentation slide_names            # Append slides to a playlist
 sldr ls slides                                       # List available slides
@@ -40,6 +41,11 @@ sldr ls playlists                                    # List available playlists
 sldr ls flavors                                      # List available flavors
 sldr show flavor name_of_flavor                      # Print a flavor's resolved source (.toml)
 sldr show layout name_of_layout                      # Print a layout's resolved source (.html)
+sldr zones slide_name --json                         # Zone document: regions, bindings, write targets (ADR-0011)
+sldr layouts-for slide_name [--limit 5]              # Layouts ranked by fit (hides / collapses / empty); no recommendation
+sldr where slide_name | --layout name_of_layout      # Where-used: referencing decks / slides using a layout
+sldr media ls [--unused] | add slide_name file       # Library media with usage; store a file beside a slide
+sldr skill [show|install]                            # Print / install the embedded use-sldr agent skill
 sldr new slide_name --scaffold two-cols              # Create a new slide
 sldr init                                            # Initialize sldr directories
 ```
@@ -76,7 +82,6 @@ scaffold_dir = "~/.config/sldr/scaffolds"
 flavor_dir = "~/.config/sldr/flavors"
 default_flavor = "default"
 dev_port = "3030"           # Port for sldr watch dev server
-agent = "opencode"          # AI agent: "opencode", "claude code", "codex"
 
 [presentations]
 slide_dir = "~/sldr/slides"

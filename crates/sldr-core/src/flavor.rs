@@ -514,7 +514,8 @@ pub struct LogoPlacement {
     pub opacity: f32,
 
     /// Which layouts this logo appears on.
-    /// Use ["all"] for every slide, or specific layouts like ["default", "two-cols"].
+    /// Use ["all"] for every slide, specific layouts like ["default", "two-cols"],
+    /// or a trailing-`*` prefix like ["framed*"] for a whole layout family.
     #[serde(default = "default_logo_layouts")]
     pub layouts: Vec<String>,
 }
@@ -529,6 +530,15 @@ fn default_logo_width() -> String {
 
 fn default_logo_opacity() -> f32 {
     0.8
+}
+
+/// Whether a flavor layout list (`all`, exact names, or `prefix*`) covers `layout`.
+pub fn layout_pattern_matches(patterns: &[String], layout: &str) -> bool {
+    patterns.iter().any(|t| {
+        t == "all"
+            || t == layout
+            || t.strip_suffix('*').is_some_and(|p| !p.is_empty() && layout.starts_with(p))
+    })
 }
 
 fn default_logo_layouts() -> Vec<String> {
@@ -569,7 +579,7 @@ impl LogoPlacement {
 
     /// Check if this logo should appear on a given layout
     pub fn applies_to_layout(&self, layout: &str) -> bool {
-        self.layouts.iter().any(|t| t == "all" || t == layout)
+        layout_pattern_matches(&self.layouts, layout)
     }
 }
 
@@ -933,6 +943,18 @@ impl FlavorCollection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn logo_layout_patterns() {
+        let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(layout_pattern_matches(&p(&["all"]), "cover"));
+        assert!(layout_pattern_matches(&p(&["framed", "cover"]), "cover"));
+        assert!(!layout_pattern_matches(&p(&["framed"]), "framed-cards"));
+        assert!(layout_pattern_matches(&p(&["framed*"]), "framed-cards"));
+        assert!(layout_pattern_matches(&p(&["framed*"]), "framed"));
+        assert!(!layout_pattern_matches(&p(&["framed*"]), "two-cols"));
+        assert!(!layout_pattern_matches(&p(&["*"]), "cover"), "a bare * is not a wildcard; use all");
+    }
 
     #[test]
     fn curation_roundtrip_via_toml() {

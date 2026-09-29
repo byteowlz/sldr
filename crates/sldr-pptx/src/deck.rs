@@ -25,6 +25,8 @@ pub enum ZoneContent {
     /// A markdown body segment (content / left / right / heading) — converted
     /// to bulleted/plain OOXML paragraphs.
     Markdown(String),
+    /// Plain attribution text with a real external hyperlink (never fetched).
+    Link { text: String, url: String },
     /// A raster image embedded as a positioned `<p:pic>`. The caller resolves
     /// the bytes; `ext` is the media extension (`png` / `jpeg` / `gif`).
     /// `fit` carries the image's intrinsic `(width, height)` in pixels when the
@@ -46,6 +48,25 @@ pub struct SlideInput<'a> {
     pub layout: &'a LayoutDef,
     /// `(zone_name, content)` pairs. Zones without an entry render empty.
     pub fields: Vec<(String, ZoneContent)>,
+    /// Source ownership and per-slide notes; never an absolute file path.
+    pub details: SlideDetails,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SlideDetails {
+    pub source_id: Option<String>,
+    pub step: usize,
+    pub notes: Option<String>,
+    pub language: Option<String>,
+    /// Zone names whose content came from the flavor (e.g. a flavor footer),
+    /// not the slide. Recorded so import never copies them into the slide.
+    #[serde(default)]
+    pub flavor_owned: Vec<String>,
+    /// Zone names exported as a picture of the rendered layout (`rep=bake`):
+    /// a diagram the slide's markdown generates, not content of its own.
+    /// Recorded so import never writes that picture back into the slide.
+    #[serde(default)]
+    pub rendered: Vec<String>,
 }
 
 /// Generate an editable deck `.pptx` from `slides`. `title` becomes the
@@ -53,6 +74,21 @@ pub struct SlideInput<'a> {
 /// `placeholder-text` zone; otherwise this fails loud (use `--flatten` for the
 /// screenshot path, or annotate the layout with zones).
 pub fn build_deck(theme: &crate::Theme, title: &str, slides: &[SlideInput]) -> Result<Vec<u8>> {
+    let report = crate::preflight::deck(slides);
+    report.enforce(false)?;
+    build_deck_bytes(theme, title, slides)
+}
+
+/// Generate with explicit diagnostics. Call `report.enforce` before publishing;
+/// conflicting/unsafe inputs are rejected even when lossy output is requested.
+pub fn build_deck_with_report(theme: &crate::Theme, title: &str, slides: &[SlideInput]) -> Result<crate::Conversion<Vec<u8>>> {
+    let report = crate::preflight::deck(slides);
+    report.enforce(true)?;
+    let value = build_deck_bytes(theme, title, slides)?;
+    Ok(crate::Conversion { value, report })
+}
+
+fn build_deck_bytes(theme: &crate::Theme, title: &str, slides: &[SlideInput]) -> Result<Vec<u8>> {
     if slides.is_empty() {
         bail!("PPTX deck needs at least one slide");
     }
@@ -117,26 +153,28 @@ pub fn build_deck(theme: &crate::Theme, title: &str, slides: &[SlideInput]) -> R
     parts.push(("ppt/theme/theme1.xml".into(), crate::theme_xml(theme)));
     parts.push((
         "ppt/slideMasters/_rels/slideMaster1.xml.rels".into(),
-        crate::slide_master_rels(n_layouts),
+        crate::slide_master_rels(n_layouts, &theme.brand),
     ));
     parts.push((
         "ppt/slideMasters/slideMaster1.xml".into(),
-        crate::slide_master_xml(n_layouts),
+        crate::slide_master_xml(n_layouts, &theme.brand),
     ));
 
     for (i, layout) in layouts.iter().enumerate() {
         let n1 = i + 1;
         parts.push((
             format!("ppt/slideLayouts/slideLayout{n1}.xml"),
-            crate::slide_layout_xml(layout),
+            crate::slide_layout_xml(layout, &theme.brand),
         ));
         parts.push((
             format!("ppt/slideLayouts/_rels/slideLayout{n1}.xml.rels"),
-            crate::slide_layout_rels(),
+            crate::slide_layout_rels(layout, &theme.brand),
         ));
     }
 
-    // Binary media (pictures), collected across all slides → ppt/media/.
+    // Binary media: brand artwork first (fixed names), then the pictures
+    // collected across all slides → ppt/media/.
+    let brand_media = crate::brand_media(&theme.brand, &layouts);
     let mut media: Vec<(String, Vec<u8>)> = Vec::new();
     for (i, slide) in slides.iter().enumerate() {
         let n1 = i + 1;
@@ -146,6 +184,9 @@ pub fn build_deck(theme: &crate::Theme, title: &str, slides: &[SlideInput]) -> R
         parts.push((format!("ppt/slides/_rels/slide{n1}.xml.rels"), rels));
     }
 
+    crate::identity::attach(&mut parts, slides)?;
+    crate::notes::attach(&mut parts, slides)?;
+    media.extend(brand_media);
     crate::zip_mixed(&parts, &media)
 }
 
@@ -167,6 +208,7 @@ fn build_slide(
 
     let mut shapes = String::new();
     let mut image_rels = String::new();
+    let mut links = std::collections::BTreeMap::new();
     let mut next_id = 2; // id 1 is the group shape
     let mut next_rel = 2; // rId1 is the slideLayout
 
@@ -228,7 +270,15 @@ fn build_slide(
             let label = crate::xml_escape(&crate::title_case(&zone.name));
             let paragraphs = match content {
                 Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t),
-                Some(ZoneContent::Markdown(m)) => mdooxml::to_paragraphs(m).join(""),
+                Some(ZoneContent::Markdown(m)) => {
+                    let (paras, found) = mdooxml::to_paragraphs_with_links(m);
+                    links.extend(found);
+                    paras.join("")
+                }
+                Some(ZoneContent::Link { text, url }) => {
+                    links.insert(mdooxml::link_id(url), url.clone());
+                    mdooxml::linked_paragraph(text, url)
+                },
                 _ => mdooxml::plain_paragraph(""),
             };
             shapes.push_str(&format!(
@@ -247,6 +297,9 @@ fn build_slide(
 </p:spTree></p:cSld></p:sld>"#
     );
 
+    for (id, url) in links {
+        image_rels.push_str(&format!("<Relationship Id=\"{id}\" Type=\"{}/hyperlink\" Target=\"{}\" TargetMode=\"External\"/>", crate::package::R, crate::xml_escape(&url)));
+    }
     let rels = format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -283,7 +336,7 @@ mod tests {
     fn test_build_deck_framed_slide() {
         let reg = LayoutRegistry::builtin();
         let framed = reg.get("framed").unwrap();
-        let slides = vec![SlideInput {
+        let slides = vec![SlideInput { details: Default::default(),
             layout: framed,
             fields: vec![
                 ("headline".into(), ZoneContent::Text("My Title".into())),
@@ -319,11 +372,11 @@ mod tests {
         let reg = LayoutRegistry::builtin();
         let framed = reg.get("framed").unwrap();
         let slides = vec![
-            SlideInput {
+            SlideInput { details: Default::default(),
                 layout: framed,
                 fields: vec![("headline".into(), ZoneContent::Text("A".into()))],
             },
-            SlideInput {
+            SlideInput { details: Default::default(),
                 layout: framed,
                 fields: vec![("headline".into(), ZoneContent::Text("B".into()))],
             },
@@ -343,7 +396,7 @@ mod tests {
     fn test_picture_zone_embeds_media_and_pic() {
         let reg = LayoutRegistry::builtin();
         let image_left = reg.get("image-left").unwrap();
-        let slides = vec![SlideInput {
+        let slides = vec![SlideInput { details: Default::default(),
             layout: image_left,
             fields: vec![
                 ("content".into(), ZoneContent::Markdown("- a point".into())),
@@ -381,7 +434,7 @@ mod tests {
         // should emit a positioned, aspect-fit <p:pic> — not a text placeholder.
         let reg = LayoutRegistry::builtin();
         let framed = reg.get("framed").unwrap();
-        let slides = vec![SlideInput {
+        let slides = vec![SlideInput { details: Default::default(),
             layout: framed,
             fields: vec![
                 ("headline".into(), ZoneContent::Text("Title".into())),
@@ -413,7 +466,7 @@ mod tests {
     fn test_layout_without_zones_fails_loud() {
         let reg = LayoutRegistry::builtin();
         let collage = reg.get("image-grid").unwrap(); // multi-image, no zones yet
-        let slides = vec![SlideInput {
+        let slides = vec![SlideInput { details: Default::default(),
             layout: collage,
             fields: vec![("content".into(), ZoneContent::Markdown("hi".into()))],
         }];

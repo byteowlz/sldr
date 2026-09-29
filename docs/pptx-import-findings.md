@@ -1,7 +1,6 @@
 # PPTX → sldr: findings from a real-deck port
 
-Source: a 46-slide Fraunhofer IEM talk (*Generative AI*, Goerdeler-Gymnasium,
-April 2026) ported by hand into 44 sldr slides + 5 new framed layouts.
+Source: a 46-slide presentation ported by hand into 44 sldr slides + 5 new framed layouts.
 The port is the feasibility test for "replace PowerPoint"; this document
 records what the port taught us about a future **automated** `pptx → sldr`
 importer (and what an exporter must preserve for the round trip).
@@ -24,7 +23,7 @@ Companion: `docs/pptx-spike/FINDINGS.md` covers the export direction
 
 The theme (`ppt/theme/theme1.xml`) carries the corporate palette; the master
 carries logos, footer text and the dune-photo background — i.e. exactly the
-things a sldr **flavor** owns. The port used `flavors/fraunhofer-ea`, which
+things a sldr **flavor** owns. The port used a custom flavor, which
 already mirrored the master (background image, 4 logos, © footer).
 
 ## 2. Mapping that worked (deterministic)

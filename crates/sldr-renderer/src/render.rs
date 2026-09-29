@@ -393,20 +393,9 @@ impl HtmlRenderer {
         // Persistent bottom chrome (footer + source) shows on the layouts the
         // flavor opts in via `chrome_layouts`; empty (default) = the framed
         // family only, preserving the clean look of cover/statement/image.
-        let chrome_overlay = {
-            let cfg = self.flavors.first().map(|f| f.chrome_layouts.as_slice());
-            match cfg {
-                Some(list) if list.iter().any(|l| l == "all") => true,
-                Some(list) if !list.is_empty() => list.iter().any(|l| l == layout),
-                // Default: the framed *body* family — not the title/divider
-                // covers, which are meant to be clean (a flavor can still opt
-                // them in via chrome_layouts).
-                _ => {
-                    def.category.as_deref() == Some("framed")
-                        && !matches!(layout, "framed-cover" | "framed-section")
-                }
-            }
-        };
+        let chrome_overlay = def.chrome_overlay(
+            self.flavors.first().map(|f| f.chrome_layouts.as_slice()).unwrap_or(&[]),
+        );
 
         let html = wrap_slide(
             SlideOpts {

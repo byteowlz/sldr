@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidate",
+  "type": "object",
+  "properties": {
+    "category": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "collapses": {
+      "description": "Inputs folded into the plain content slot (columns or image without\ntheir own slot) — shown, but not as authored.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "current": {
+      "description": "The slide's current layout.",
+      "type": "boolean"
+    },
+    "empty": {
+      "description": "Body slots this layout places that the slide has nothing for.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hides": {
+      "description": "Slide inputs this layout shows nowhere.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "layout": {
+      "type": "string"
+    },
+    "pptx_zones": {
+      "description": "Whether the layout declares PPTX zones (native editable export).",
+      "type": "boolean"
+    },
+    "score": {
+      "description": "Higher fits better; 100 means every input has a home and nothing is empty.",
+      "type": "integer",
+      "format": "int32"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "layout",
+    "tags",
+    "score",
+    "current",
+    "hides",
+    "collapses",
+    "empty",
+    "pptx_zones"
+  ]
+}

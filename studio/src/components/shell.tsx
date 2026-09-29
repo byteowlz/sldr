@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import type { Preview } from "@/lib/backend/types";
 
 /** A slide preview iframe rendered at full logical resolution (1280×720) and
  * CSS-scaled to fit its container — so slides look exactly as presented
  * instead of reflowing/cropping at thumbnail size. */
 export function SlideFrame({
   src,
+  preview,
   className,
   interactive = false,
   eager = false,
 }: {
-  src: string;
+  /** A preview URL (standalone). Prefer `preview`. */
+  src?: string;
+  /** A backend Preview: URL or HTML for a srcdoc frame (hosted). */
+  preview?: Preview;
   className?: string;
   interactive?: boolean;
   eager?: boolean;
@@ -26,9 +31,9 @@ export function SlideFrame({
   }, []);
   return (
     <div ref={ref} className={cn("relative aspect-video overflow-hidden", className)}>
-      {scale > 0 && (
+      {scale > 0 && (preview || src) && (
         <iframe
-          src={src}
+          {...(preview?.kind === "html" ? { srcDoc: preview.html } : { src: preview?.kind === "url" ? preview.url : src })}
           title="slide"
           loading={eager ? "eager" : "lazy"}
           tabIndex={-1}

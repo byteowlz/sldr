@@ -2,14 +2,18 @@
 
 pub mod add;
 pub mod build;
+pub mod brand;
 pub mod bundle;
 pub mod config;
 pub mod export;
 pub mod flavor_builder;
 pub mod import;
+pub mod import_apply;
+pub mod interchange;
 pub mod init;
 pub mod json_output;
 pub mod list;
+pub mod media;
 pub mod new;
 pub mod open;
 pub mod preview;
@@ -18,6 +22,9 @@ pub mod sample;
 pub mod search;
 pub mod serve;
 pub mod show;
+pub mod skill;
 pub mod playlist;
 pub mod slides;
 pub mod watch;
+pub mod where_used;
+pub mod zones;

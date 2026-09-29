@@ -285,6 +285,7 @@
   var darkBtn = null;
   var flavorBtn = null;
   var flavorPanel = null;
+  var sourceBtn = null;
 
   function createToolbar() {
     toolbar = document.createElement("div");
@@ -302,6 +303,21 @@
     });
 
     toolbar.appendChild(darkBtn);
+
+    // Source editing exists only in watch-mode builds, identified by the
+    // source-path attribute injected by the watch server.
+    if (deck.querySelector("[data-sldr-src]")) {
+      sourceBtn = document.createElement("button");
+      sourceBtn.className = "sldr-toolbar-btn sldr-source-btn";
+      sourceBtn.setAttribute("aria-label", "Edit slide markdown (Shift+E)");
+      sourceBtn.setAttribute("title", "Edit slide markdown (Shift+E)");
+      sourceBtn.innerHTML = getSourceIcon();
+      sourceBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openSourceEditor();
+      });
+      toolbar.appendChild(sourceBtn);
+    }
 
     // Flavor selector - only show if there are multiple flavors
     if (flavorNames.length > 1) {
@@ -401,6 +417,10 @@
 
   function getPaletteIcon() {
     return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.04-.23-.29-.38-.63-.38-1.02 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.17-4.36-8.94-10-8.94z"/></svg>';
+  }
+
+  function getSourceIcon() {
+    return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>';
   }
 
   function escapeHtml(s) {
@@ -676,6 +696,17 @@
     renderMermaid(slides[current]);
   }
 
+  // A flavor logo's layout list: exact names, "all", or a trailing-* prefix
+  // ("framed*" covers every framed layout, including ones added later).
+  function logoApplies(list, layout) {
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i];
+      if (t === "all" || t === layout) return true;
+      if (t.length > 1 && t.charAt(t.length - 1) === "*" && layout.indexOf(t.slice(0, -1)) === 0) return true;
+    }
+    return false;
+  }
+
   // Persistent deck-level logos: show those whose data-logo-layouts list
   // includes the active layout (or "all"). Idempotent — a logo already on
   // for the previous slide simply stays on, so there is no flicker.
@@ -688,7 +719,7 @@
     var bare = slide.getAttribute("data-chrome") === "none";
     for (var i = 0; i < deckLogos.length; i++) {
       var list = (deckLogos[i].getAttribute("data-logo-layouts") || "").split(/\s+/);
-      var on = !bare && (list.indexOf("all") !== -1 || list.indexOf(layout) !== -1);
+      var on = !bare && logoApplies(list, layout);
       deckLogos[i].classList.toggle("sldr-logo-on", on);
     }
   }
@@ -726,7 +757,7 @@
   // Set on the slide element so its own padding picks it up too. Must run
   // before fitSlide (which measures the now-correctly-sized content).
   function setUnit(slide) {
-    if (!slide) return;
+    if (!slide || window.matchMedia('print').matches) return;
     var w = slide.clientWidth, h = slide.clientHeight;
     if (w > 0 && h > 0) {
       slide.style.setProperty("--sldr-u", w / 100 + "px");
@@ -777,6 +808,45 @@
       fitSlide(slides[i]);
     }
   };
+
+  // One print preparation path for CLI PDF and the browser's Print command.
+  // CSS owns print geometry; this hook measures body fit only after that
+  // geometry is active. Chrome's beforeprint event is synchronous.
+  function preparePrint() {
+    var overlay = deck.querySelector(':scope > .sldr-logos');
+    allSlides.forEach(function (slide) {
+      slide.toggleAttribute('data-print-excluded', slides.indexOf(slide) === -1);
+      slide.toggleAttribute('data-print-last', slide === slides[slides.length - 1]);
+      if (slide.querySelector('[data-print-logos]') || !overlay) return;
+      var holder = document.createElement('div');
+      holder.className = 'sldr-logos';
+      holder.setAttribute('data-print-logos', '');
+      overlay.querySelectorAll('.sldr-logo').forEach(function (logo) {
+        var layouts = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
+        if (!logoApplies(layouts, slide.dataset.layout || '')) return;
+        var clone = logo.cloneNode(true);
+        clone.classList.add('sldr-logo-on');
+        holder.appendChild(clone);
+      });
+      slide.appendChild(holder);
+    });
+    window.__sldrFitAll();
+  }
+
+  function finishPrint() {
+    deck.querySelectorAll('[data-print-logos]').forEach(function (el) { el.remove(); });
+    allSlides.forEach(function (slide) {
+      slide.removeAttribute('data-print-excluded');
+      slide.removeAttribute('data-print-last');
+      slide.querySelectorAll('.sldr-content, .sldr-frame-body').forEach(function (el) {
+        el.style.transform = '';
+      });
+    });
+    setUnit(slides[current]);
+    fitSlide(slides[current]);
+  }
+  window.addEventListener('beforeprint', preparePrint);
+  window.addEventListener('afterprint', finishPrint);
 
   function showSlide(index, dir, prevIndex) {
     // Clean up any in-flight animations first to prevent stuck states.
@@ -982,7 +1052,11 @@
       case "E":
         if (!e.ctrlKey && !e.metaKey) {
           e.preventDefault();
-          toggleEditMode();
+          if (e.shiftKey && slides[current].dataset.sldrSrc) {
+            openSourceEditor();
+          } else {
+            toggleEditMode();
+          }
         }
         break;
 
@@ -1266,6 +1340,18 @@
       bar.appendChild(btn);
     }
 
+    if (deck.querySelector("[data-sldr-src]")) {
+      var sourceEditBtn = document.createElement("button");
+      sourceEditBtn.className = "sldr-edit-btn sldr-edit-save";
+      sourceEditBtn.setAttribute("title", "Edit current slide markdown (Shift+E)");
+      sourceEditBtn.textContent = "Source";
+      sourceEditBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        openSourceEditor();
+      });
+      bar.appendChild(sourceEditBtn);
+    }
+
     // Separator
     var sep = document.createElement("span");
     sep.className = "sldr-edit-sep";
@@ -1345,11 +1431,124 @@
 
   // Intercept Ctrl+S in edit mode for save
   document.addEventListener("keydown", function (e) {
-    if (editMode && (e.ctrlKey || e.metaKey) && e.key === "s") {
+    var sourceOpen = sourceEditor && sourceEditor.classList.contains("sldr-source-editor-open");
+    if (editMode && !sourceOpen && (e.ctrlKey || e.metaKey) && e.key === "s") {
       e.preventDefault();
       downloadModifiedHtml();
     }
   });
+
+  // ---------------------------------------------------------------------------
+  // Watch-mode markdown source editor
+  // ---------------------------------------------------------------------------
+  var sourceEditor = null;
+  var sourceTextarea = null;
+  var sourceStatus = null;
+  var sourcePath = null;
+
+  function setSourceStatus(message, kind) {
+    if (!sourceStatus) return;
+    sourceStatus.textContent = message;
+    sourceStatus.className = "sldr-source-status" + (kind ? " sldr-source-status-" + kind : "");
+  }
+
+  function openSourceEditor() {
+    var slide = slides[current];
+    if (!slide || !slide.dataset.sldrSrc) return;
+    sourcePath = slide.dataset.sldrSrc;
+    if (!sourceEditor) createSourceEditor();
+    sourceEditor.classList.add("sldr-source-editor-open");
+    sourceEditor.setAttribute("aria-hidden", "false");
+    sourceTextarea.value = "";
+    sourceTextarea.disabled = true;
+    window.__sldrSourceDirty = false;
+    setSourceStatus("Loading " + sourcePath + "…");
+
+    fetch("/__sldr_source?" + new URLSearchParams({ path: sourcePath }))
+      .then(function (response) {
+        if (!response.ok) return response.text().then(function (text) { throw new Error(text); });
+        return response.text();
+      })
+      .then(function (markdown) {
+        sourceTextarea.value = markdown;
+        sourceTextarea.disabled = false;
+        setSourceStatus(sourcePath);
+        sourceTextarea.focus();
+      })
+      .catch(function (err) {
+        setSourceStatus(err.message || "Could not load slide source", "error");
+      });
+  }
+
+  function createSourceEditor() {
+    sourceEditor = document.createElement("div");
+    sourceEditor.className = "sldr-source-editor";
+    sourceEditor.setAttribute("aria-hidden", "true");
+    sourceEditor.innerHTML =
+      '<div class="sldr-source-panel" role="dialog" aria-modal="true" aria-label="Edit slide markdown">' +
+        '<header class="sldr-source-header"><strong>SLIDE MARKDOWN</strong><span class="sldr-source-status"></span></header>' +
+        '<textarea class="sldr-source-textarea" spellcheck="true" aria-label="Slide markdown"></textarea>' +
+        '<footer class="sldr-source-actions"><span>Ctrl+S to save · Esc to close</span>' +
+          '<button class="sldr-edit-btn sldr-source-cancel">Cancel</button>' +
+          '<button class="sldr-edit-btn sldr-edit-save sldr-source-save">Save source</button>' +
+        '</footer>' +
+      '</div>';
+    document.body.appendChild(sourceEditor);
+    sourceTextarea = sourceEditor.querySelector(".sldr-source-textarea");
+    sourceStatus = sourceEditor.querySelector(".sldr-source-status");
+    sourceTextarea.addEventListener("input", function () {
+      window.__sldrSourceDirty = true;
+      setSourceStatus("Unsaved changes", "dirty");
+    });
+    sourceEditor.querySelector(".sldr-source-save").addEventListener("click", saveSourceEditor);
+    sourceEditor.querySelector(".sldr-source-cancel").addEventListener("click", closeSourceEditor);
+    sourceEditor.addEventListener("keydown", function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+        saveSourceEditor();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSourceEditor();
+      }
+    });
+    window.addEventListener("sldr:remote-change", function () {
+      if (sourceEditor.classList.contains("sldr-source-editor-open")) {
+        setSourceStatus("Source changed on disk — saving will overwrite it", "error");
+      }
+    });
+  }
+
+  function saveSourceEditor() {
+    if (!sourcePath || sourceTextarea.disabled) return;
+    sourceTextarea.disabled = true;
+    setSourceStatus("Saving…");
+    fetch("/__sldr_source?" + new URLSearchParams({ path: sourcePath }), {
+      method: "PUT",
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      body: sourceTextarea.value,
+    }).then(function (response) {
+      if (!response.ok) return response.text().then(function (text) { throw new Error(text); });
+      window.__sldrSourceDirty = false;
+      setSourceStatus("Saved — rebuilding…");
+      // The file watcher normally reloads via SSE; this is a fallback in case
+      // the filesystem event is dropped by the platform watcher.
+      setTimeout(function () { window.location.reload(); }, 1500);
+    }).catch(function (err) {
+      sourceTextarea.disabled = false;
+      window.__sldrSourceDirty = true;
+      setSourceStatus(err.message || "Could not save slide source", "error");
+    });
+  }
+
+  function closeSourceEditor() {
+    if (!sourceEditor) return;
+    if (window.__sldrSourceDirty && !window.confirm("Discard unsaved markdown changes?")) return;
+    window.__sldrSourceDirty = false;
+    sourceEditor.classList.remove("sldr-source-editor-open");
+    sourceEditor.setAttribute("aria-hidden", "true");
+  }
 
   // ---------------------------------------------------------------------------
   // Boot

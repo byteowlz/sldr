@@ -36,6 +36,7 @@ fn main() {
     generate_playlist_schema(&schemas_dir);
     generate_slide_input_schema(&schemas_dir);
     generate_playlist_input_schema(&schemas_dir);
+    generate_api_schemas(&schemas_dir.join("api"));
 
     // Generate example configs
     println!("\n=== Generating Example Configs ===");
@@ -100,6 +101,29 @@ fn generate_playlist_schema(schemas_dir: &PathBuf) {
     println!("  ✓ Generated playlist schema: {:?}", output_path);
 }
 
+/// API response schemas (ADR-0011) — the source the studio's TypeScript
+/// types are generated from (`bun run types` in studio/), so the client can
+/// never drift from the Rust models.
+fn generate_api_schemas(dir: &PathBuf) {
+    fs::create_dir_all(dir).expect("Failed to create api schema directory");
+    let entries: Vec<(&str, schemars::Schema)> = vec![
+        ("ZoneDocument", schema_for!(sldr_renderer::ZoneDocument)),
+        ("Candidate", schema_for!(sldr_renderer::Candidate)),
+        ("UsageIndex", schema_for!(sldr_core::usage::UsageIndex)),
+        ("SlideUsage", schema_for!(sldr_core::usage::SlideUsage)),
+        ("LayoutUsage", schema_for!(sldr_core::usage::LayoutUsage)),
+        ("Hit", schema_for!(sldr_core::find::Hit)),
+        ("MediaIndex", schema_for!(sldr_core::media::MediaIndex)),
+        ("SlideMetadata", schema_for!(sldr_core::slide::SlideMetadata)),
+    ];
+    for (name, schema) in entries {
+        let path = dir.join(format!("{name}.schema.json"));
+        let json = serde_json::to_string_pretty(&schema).expect("Failed to serialize schema");
+        fs::write(&path, json).expect("Failed to write api schema");
+        println!("  ✓ Generated api schema: {:?}", path);
+    }
+}
+
 /// Generate example config.toml
 fn generate_config_example(examples_dir: &PathBuf) {
     let output_path = examples_dir.join("config.toml");
@@ -125,10 +149,6 @@ default_flavor = "default"
 
 # Port for the local dev/watch server (sldr watch)
 dev_port = "3030"
-
-# Preferred AI agent for slide generation
-# Possible values: "opencode", "claude code", "codex"
-agent = "opencode"
 
 [presentations]
 # Directory containing individual slide markdown files

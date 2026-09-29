@@ -1965,6 +1965,113 @@ html:not(.dark) .sldr-edit-btn {
   color: #ef4444;
 }
 
+/* Watch-mode markdown source editor. It is inert in built decks because the
+ * presenter only creates it when a slide carries data-sldr-src. */
+.sldr-source-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 48px);
+  background: rgba(10, 12, 20, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.sldr-source-editor-open {
+  display: flex;
+}
+
+.sldr-source-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(1100px, 94vw);
+  height: min(820px, 90vh);
+  overflow: hidden;
+  color: var(--sldr-text);
+  background: var(--sldr-surface, #181825);
+  border: 1px solid var(--sldr-border, rgba(128, 128, 128, 0.3));
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.sldr-source-header,
+.sldr-source-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  font: 12px/1.4 var(--sldr-code-font, monospace);
+}
+
+.sldr-source-header {
+  border-bottom: 1px solid var(--sldr-border, rgba(128, 128, 128, 0.25));
+}
+
+.sldr-source-header strong {
+  color: var(--sldr-primary);
+  letter-spacing: 0.08em;
+}
+
+.sldr-source-status {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sldr-text-muted, #a1a1aa);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sldr-source-status-dirty {
+  color: #f59e0b;
+}
+
+.sldr-source-status-error {
+  color: #ef4444;
+}
+
+.sldr-source-textarea {
+  width: 100%;
+  height: 100%;
+  padding: clamp(16px, 2.5vw, 28px);
+  resize: none;
+  outline: none;
+  border: 0;
+  color: var(--sldr-text);
+  background: color-mix(in srgb, var(--sldr-surface, #181825) 88%, black);
+  font: 14px/1.65 var(--sldr-code-font, ui-monospace, monospace);
+  tab-size: 2;
+}
+
+.sldr-source-textarea:focus {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sldr-primary) 65%, transparent);
+}
+
+.sldr-source-textarea:disabled {
+  opacity: 0.6;
+}
+
+.sldr-source-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--sldr-border, rgba(128, 128, 128, 0.25));
+}
+
+.sldr-source-actions > span {
+  margin-right: auto;
+  color: var(--sldr-text-muted, #a1a1aa);
+}
+
+html:not(.dark) .sldr-source-panel {
+  color: #1f2937;
+  background: #ffffff;
+}
+
+html:not(.dark) .sldr-source-textarea {
+  color: #1f2937;
+  background: #f8fafc;
+}
+
 
 /* =========================================================================
  * Per-slide alignment overrides (data-align / data-valign on the slide)
@@ -2027,17 +2134,23 @@ html:not(.dark) .sldr-edit-btn {
  * print-to-pdf honors @page size + margin; print-color-adjust forces the
  * flavor background and other colors to actually print.
  *
- * The page is 1920x1080: layouts size type/spacing with vw/vh, so the print
- * viewport must match a typical large authoring window. At a cramped width
- * (e.g. 1280) clamp() minimums crowd the content and it overflows; 1920
- * lands close to a maximized laptop browser. Output is vector, so the larger
- * page costs no sharpness. */
+ * The fixed print canvas is independent of the browser viewport. Print units
+ * below override the presenter's cached screen units on EVERY slide, including
+ * inactive and language variants. Output stays vector. Keep @page dimensions
+ * and the two canvas tokens together (CSS variables are not allowed in @page). */
 @page {
   size: 1920px 1080px;
   margin: 0;
 }
 
 @media print {
+  :root {
+    --sldr-print-width: 1920px;
+    --sldr-print-height: 1080px;
+    --sldr-u: calc(var(--sldr-print-width) / 100);
+    --sldr-uh: calc(var(--sldr-print-height) / 100);
+  }
+
   html, body {
     overflow: visible;
     width: auto;
@@ -2047,10 +2160,13 @@ html:not(.dark) .sldr-edit-btn {
     print-color-adjust: exact;
   }
 
-  .sldr-deck {
+  .sldr-deck,
+  .sldr-deck[data-aspect-lock="on"] {
     position: static;
     width: auto;
     height: auto;
+    margin: 0;
+    transform: none;
     overflow: visible;
   }
 
@@ -2061,9 +2177,15 @@ html:not(.dark) .sldr-edit-btn {
   .sldr-slide[aria-hidden="true"] {
     display: flex !important;
     flex-direction: column;
-    position: relative;
-    width: 1920px;
-    height: 1080px;
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    --sldr-u: calc(var(--sldr-print-width) / 100) !important;
+    --sldr-uh: calc(var(--sldr-print-height) / 100) !important;
+    width: var(--sldr-print-width);
+    height: var(--sldr-print-height);
     min-height: 0;
     margin: 0;
     overflow: hidden;
@@ -2073,9 +2195,18 @@ html:not(.dark) .sldr-edit-btn {
     print-color-adjust: exact;
   }
 
+  .sldr-slide[data-print-excluded] {
+    display: none !important;
+  }
+
+  .sldr-slide[data-print-last],
   .sldr-slide:last-child {
     page-break-after: auto;
     break-after: auto;
+  }
+
+  .sldr-deck > .sldr-logos {
+    display: none !important;
   }
 
   .sldr-slide::before,

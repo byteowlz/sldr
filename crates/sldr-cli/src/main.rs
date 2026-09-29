@@ -136,6 +136,9 @@ enum Commands {
         /// native editable export (fallback for un-annotated layouts)
         #[arg(long)]
         flatten: bool,
+
+        #[command(flatten)]
+        interchange: commands::interchange::Options,
     },
 
     /// Import a sldr-generated .pptx back into slide markdown (round-trip)
@@ -144,8 +147,21 @@ enum Commands {
         file: String,
 
         /// Output directory for slides (default: <slide_dir>/imported)
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "apply")]
         out: Option<String>,
+
+        /// Write edits made in PowerPoint back into the ORIGINAL slides: only
+        /// zones changed since export, into the right frontmatter field or
+        /// language/segment block; flavor-owned zones are never written
+        #[arg(long)]
+        apply: bool,
+
+        /// With --apply: show what would change without writing
+        #[arg(long, requires = "apply")]
+        dry_run: bool,
+
+        #[command(flatten)]
+        interchange: commands::interchange::Options,
     },
 
     /// Watch a presentation for changes and live-reload in browser
@@ -269,6 +285,82 @@ enum Commands {
         json: bool,
     },
 
+    /// The agent skill for driving sldr, embedded in this binary so it always
+    /// matches the CLI. `sldr skill` prints it; `sldr skill install` puts it
+    /// where agents load skills (~/.agents/skills, ~/.claude/skills).
+    Skill {
+        #[command(subcommand)]
+        command: Option<SkillCommands>,
+    },
+
+    /// Library media: list every image/video with the slides that use it,
+    /// or store a file beside the slide that will reference it.
+    Media {
+        #[command(subcommand)]
+        command: MediaCommands,
+    },
+
+    /// Rank every layout by fit for a slide: what each would hide, fold into
+    /// the plain content slot, or leave empty. Arithmetic over slots, not a
+    /// recommendation — the visual layout picker shows the same list.
+    LayoutsFor {
+        /// Slide (name, fuzzy name, or path)
+        slide: String,
+
+        /// Language to resolve the body for
+        #[arg(long)]
+        lang: Option<String>,
+
+        /// Show only the best N
+        #[arg(long)]
+        limit: Option<usize>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Where-used: which playlists reference a slide (and when it was last
+    /// touched in git), or `--layout <name>` for which slides use a layout.
+    /// The blast radius to look at before editing something shared.
+    Where {
+        /// Slide (name, fuzzy name, or path)
+        slide: Option<String>,
+
+        /// Ask about a layout instead of a slide
+        #[arg(long, conflicts_with = "slide")]
+        layout: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Print a slide's zone document: every region its layout declares, what
+    /// fills it (frontmatter field, markdown segment, image, flavor field), and
+    /// which file an edit writes to. The one-door view of what a visual editor
+    /// shows; nothing is written. `--json` for the structured form.
+    Zones {
+        /// Slide (name, fuzzy name, or path)
+        slide: String,
+
+        /// Use this layout instead of the slide's `layout` field
+        #[arg(long)]
+        layout: Option<String>,
+
+        /// Flavor to resolve style chrome against (default: config default_flavor)
+        #[arg(long)]
+        flavor: Option<String>,
+
+        /// Language to resolve body and chrome for
+        #[arg(long)]
+        lang: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Search slides by content, tags, or metadata
     Search {
         /// Search query
@@ -358,6 +450,47 @@ enum Commands {
     Playlist {
         #[command(subcommand)]
         command: PlaylistCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum SkillCommands {
+    /// Print a skill file (skill | reference | examples)
+    Show {
+        /// Which file (default: skill)
+        file: Option<String>,
+    },
+    /// Install the skill for agents; a differing file is replaced and kept as .bak
+    Install {
+        /// Install into these directories instead of the defaults
+        #[arg(long = "dir")]
+        dirs: Vec<std::path::PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum MediaCommands {
+    /// List media files and which slides use them
+    Ls {
+        /// Only files no slide references
+        #[arg(long)]
+        unused: bool,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Copy a file into the target slide's media/ folder and print the reference
+    Add {
+        /// Slide that will reference the file
+        slide: String,
+        /// File to store
+        file: std::path::PathBuf,
+        /// Store under a different file name
+        #[arg(long)]
+        name: Option<String>,
+        /// Replace an existing file of the same name
+        #[arg(long)]
+        overwrite: bool,
     },
 }
 
@@ -497,6 +630,7 @@ fn main() -> anyhow::Result<()> {
             format,
             template,
             flatten,
+            interchange,
         } => commands::export::run(
             playlist.as_deref(),
             flavor,
@@ -505,9 +639,16 @@ fn main() -> anyhow::Result<()> {
             &format,
             template,
             flatten,
+            &interchange,
         ),
 
-        Commands::Import { file, out } => commands::import::run(&file, out),
+        Commands::Import { file, out, apply, dry_run, interchange } => {
+            if apply {
+                commands::import_apply::run(&file, dry_run, &interchange)
+            } else {
+                commands::import::run(&file, out, &interchange)
+            }
+        }
 
         Commands::Watch {
             playlist,
@@ -529,6 +670,37 @@ fn main() -> anyhow::Result<()> {
         Commands::List { what, long, json } => commands::list::run(&what, long, json),
 
         Commands::Show { what, name, json } => commands::show::run(&what, &name, json),
+
+        Commands::Skill { command } => match command {
+            None => commands::skill::show(None),
+            Some(SkillCommands::Show { file }) => commands::skill::show(file.as_deref()),
+            Some(SkillCommands::Install { dirs }) => commands::skill::install(&dirs),
+        },
+
+        Commands::Media { command } => match command {
+            MediaCommands::Ls { unused, json } => commands::media::ls(unused, json),
+            MediaCommands::Add { slide, file, name, overwrite } => {
+                commands::media::add(&slide, &file, name.as_deref(), overwrite)
+            }
+        },
+
+        Commands::LayoutsFor { slide, lang, limit, json } => {
+            commands::zones::layouts_for(&slide, lang.as_deref(), limit, json)
+        }
+
+        Commands::Where { slide, layout, json } => {
+            commands::where_used::run(slide.as_deref(), layout.as_deref(), json)
+        }
+
+        Commands::Zones { slide, layout, flavor, lang, json } => {
+            commands::zones::run(&commands::zones::ZonesArgs {
+                slide: &slide,
+                layout: layout.as_deref(),
+                flavor: flavor.as_deref(),
+                lang: lang.as_deref(),
+                json,
+            })
+        }
 
         Commands::Search {
             query,

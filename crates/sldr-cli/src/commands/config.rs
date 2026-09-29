@@ -44,10 +44,6 @@ pub fn run(key: Option<String>, value: Option<String>, edit: bool) -> Result<()>
                 "  dev_port = {}",
                 format!("\"{}\"", config.config.dev_port).yellow()
             );
-            println!(
-                "  agent = {}",
-                format!("\"{}\"", config.config.agent).yellow()
-            );
 
             println!("\n{}", "[presentations]".cyan());
             println!(
@@ -106,7 +102,6 @@ fn get_config_value(config: &Config, key: &str) -> Option<String> {
         "dev_port" | "config.dev_port" | "slidev_port" | "config.slidev_port" => {
             Some(config.config.dev_port.clone())
         }
-        "agent" | "config.agent" => Some(config.config.agent.clone()),
         "slide_dir" | "presentations.slide_dir" => Some(config.presentations.slide_dir.clone()),
         "output_dir" | "presentations.output_dir" => Some(config.presentations.output_dir.clone()),
         "playlist_dir" | "presentations.playlist_dir" => {

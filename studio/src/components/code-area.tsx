@@ -51,10 +51,13 @@ export function CodeArea({
   value,
   onChange,
   onSave,
+  textareaRef,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSave?: () => void;
+  /** Lets a caller insert at the caret (e.g. a pasted image's reference). */
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   const preRef = useRef<HTMLPreElement>(null);
   return (
@@ -66,6 +69,7 @@ export function CodeArea({
         dangerouslySetInnerHTML={{ __html: highlightSlideSource(value) + "\n" }}
       />
       <textarea
+        ref={textareaRef}
         className="sl-code-ta"
         value={value}
         spellCheck={false}

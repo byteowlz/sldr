@@ -81,9 +81,18 @@ sldr ls playlists
 sldr ls flavors
 sldr show flavor aurora     # print a flavor's resolved source (the .toml)
 sldr show layout framed     # print a layout's resolved source (the .html)
+sldr zones my-slide         # what a visual editor sees: regions, bindings, write targets
+sldr layouts-for my-slide   # every layout ranked by fit: what it hides, folds, leaves empty
+sldr where my-slide         # which decks reference it, last git touch
+sldr where --layout framed  # which slides use a layout (blast radius before editing it)
+sldr media ls --unused      # media files no slide references
+sldr media add my-slide ~/Downloads/chart.png   # store beside the slide, print the reference
+sldr skill install          # install the agent skill that matches this binary
 ```
 
 `ls` lists names; `show` prints the actual source a name resolves to — the authored flavor `.toml` or layout `.html` — honoring the build's resolution order (your library/config dirs override the built-ins). Source goes to stdout (pipeable: `sldr show layout framed > ~/sldr/layouts/mine.html`), the origin to stderr, `--json` for both.
+
+`zones` prints a slide's *zone document*: every region its layout declares (percent box), what fills it (a frontmatter field, a markdown segment with its byte range, an image, or a flavor field), and which file an edit to that region writes to — plus any slide input the layout shows nowhere. Geometry always belongs to the layout; there is no per-slide nudge. It is computed from the files as they stand and never stored, so it is safe to ask before any edit (`--json`, `--layout`, `--flavor`, `--lang`).
 
 ### Build a presentation
 
@@ -105,9 +114,16 @@ Watches slide files, playlists, flavors, and layouts for changes (library and co
 ### Export
 
 ```bash
-sldr export my-talk --format pdf         # PDF via headless Chrome
-sldr export my-talk --format pptx        # PPTX (slide screenshots)
+sldr export my-talk --format pdf                   # PDF via headless Chrome
+sldr export my-talk --format pptx --allow-lossy    # editable PowerPoint (native text boxes + pictures)
+sldr export my-talk --format pptx --flatten        # one screenshot per slide instead
+sldr import my-talk.pptx --apply --dry-run         # what changed in PowerPoint, per slide and zone
+sldr import my-talk.pptx --apply                   # write those edits back into the original slides
 ```
+
+**PowerPoint round trip.** Native export writes each slide's text as editable text boxes and its images as pictures, and records in the package which slide and zone every element came from. A slide whose layout has no PPTX zones is exported as one picture of the real render (reported, never silent). Strict mode refuses any loss; `--allow-lossy` accepts what the report lists.
+
+Edit the deck in PowerPoint, then `sldr import deck.pptx --apply`: only the zones you changed are written back, each to where it belongs — titles and subtitles to frontmatter (the `translations.<lang>` block when you exported another language), body text into the matching language block and `::left::`/`::content::` segment, a replaced picture into the slide's `media/` with its alt text kept. Zones that came from the flavor (a deck footer) are never written into a slide. Other languages and anything PowerPoint cannot express stay as they were; review with `git diff`. Without `--apply`, `sldr import deck.pptx -o dir` writes fresh slide files instead.
 
 ### Add slides to a playlist
 
@@ -125,9 +141,12 @@ sldr preview slide-name     # Quick single-slide preview
 ### Search slides
 
 ```bash
-sldr search "machine learning"
-sldr search --tags "AI,intro"
+sldr search "machine learning"          # ranked: name, title, tags, topic, description, body
+sldr search "eval harness" --long       # show where each hit matched, with a body snippet
+sldr search agents --tags "AI,intro"
 ```
+
+Search is full text — body copy included, which is the thing you cannot do across a folder of PowerPoints. Every word of the query has to land somewhere in a slide; title and tag hits rank above body hits; an exact or fuzzy slide *name* match ranks above everything. The same ranking backs the studio finder and `GET /api/find`, so a human, an agent and the UI agree on the order.
 
 ## Presenter Shortcuts
 

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LayoutTemplate, Search, Save, Plus, Trash2, Code, Loader2 } from "lucide-react";
-import { api, layoutPreviewUrl, type Zone } from "@/lib/api";
+import { type Zone } from "@/lib/api";
+import { useBackend } from "@/lib/backend";
+import { useLayoutPreview } from "@/lib/backend/preview";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +96,7 @@ function ZoneCanvas({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      <SlideFrame eager src={layoutPreviewUrl(layout, flavor)} className="w-full border" />
+      <SlideFrame eager preview={useLayoutPreview(layout, flavor).data} className="w-full border" />
       {zones.map((z, i) => (
         <div
           key={i}
@@ -145,7 +147,8 @@ function NumField({
 export function Layouts({ chrome }: { chrome: Chrome }) {
   const [flavor, setFlavor] = useState<string | null>(null);
   const qc = useQueryClient();
-  const layouts = useQuery({ queryKey: ["layouts"], queryFn: api.layouts });
+  const backend = useBackend();
+  const layouts = useQuery({ queryKey: ["layouts"], queryFn: backend.layouts });
   const [name, setName] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [zones, setZones] = useState<Zone[]>([]);
@@ -155,7 +158,7 @@ export function Layouts({ chrome }: { chrome: Chrome }) {
 
   const detail = useQuery({
     queryKey: ["layout", name],
-    queryFn: () => api.layout(name!),
+    queryFn: () => backend.layout(name!),
     enabled: !!name,
   });
   useEffect(() => {
@@ -168,7 +171,7 @@ export function Layouts({ chrome }: { chrome: Chrome }) {
   }, [detail.data]);
 
   const save = useMutation({
-    mutationFn: () => api.saveZones(name!, zones),
+    mutationFn: () => backend.saveZones(name!, zones),
     onSuccess: () => {
       setDirty(false);
       qc.invalidateQueries({ queryKey: ["layouts"] });

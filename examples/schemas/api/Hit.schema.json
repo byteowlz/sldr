@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hit",
+  "type": "object",
+  "properties": {
+    "layout": {
+      "description": "Effective layout (`layout:` field, else `default`).",
+      "type": "string"
+    },
+    "matched": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/FieldHit"
+      }
+    },
+    "name": {
+      "type": "string"
+    },
+    "relative_path": {
+      "type": "string"
+    },
+    "score": {
+      "description": "Higher is better. Only meaningful for ordering within one query.",
+      "type": "integer",
+      "format": "int64"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "topic": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "relative_path",
+    "name",
+    "layout",
+    "tags",
+    "score",
+    "matched"
+  ],
+  "$defs": {
+    "FieldHit": {
+      "description": "Where a query matched inside one slide, with a short excerpt.",
+      "type": "object",
+      "properties": {
+        "field": {
+          "description": "`name`, `title`, `tags`, `topic`, `description`, or `body`.",
+          "type": "string"
+        },
+        "snippet": {
+          "description": "The matching text — the tag, the title, or a window of body text\naround the first hit.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "snippet"
+      ]
+    }
+  }
+}

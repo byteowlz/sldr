@@ -56,10 +56,6 @@ pub struct CoreConfig {
     /// Port for the local dev/watch server
     #[serde(default = "default_dev_port", alias = "slidev_port")]
     pub dev_port: String,
-
-    /// Preferred AI agent for slide generation
-    #[serde(default = "default_agent")]
-    pub agent: String,
 }
 
 /// Presentations and slides configuration
@@ -119,9 +115,6 @@ fn default_dev_port() -> String {
     "3030".to_string()
 }
 
-fn default_agent() -> String {
-    "opencode".to_string()
-}
 
 fn default_slide_dir() -> String {
     "~/sldr/slides".to_string()
@@ -162,7 +155,6 @@ impl Default for CoreConfig {
             flavor_dir: default_flavor_dir(),
             default_flavor: default_flavor(),
             dev_port: default_dev_port(),
-            agent: default_agent(),
         }
     }
 }

@@ -3,7 +3,7 @@
 <!-- PPTX export zones (coordinates are percent of the slide box). -->
 <!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
 <!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
-<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=4.4 y=22.2 w=91.1 h=64 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=bake x=4.4 y=22.2 w=91.1 h=64 -->
 <!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
 <!-- Layout: framed-cards — deck chrome (framed) with a list rendered as a row
      of cards. Each top-level list item is one card: an optional leading image
@@ -70,6 +70,14 @@
   object-fit: contain;
   vertical-align: middle;
   margin: 0 calc(var(--sldr-u) * 1) calc(var(--sldr-uh) * 1.4) 0;
+}
+/* Three or more logos in one card shrink to share the row instead of wrapping;
+   wide wordmarks letterbox inside their share. */
+.sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li:has(> img:nth-of-type(3)) > img,
+.sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p:first-child:has(> img:nth-of-type(3)) > img {
+  height: calc(var(--sldr-uh) * 6.5);
+  max-width: calc((100% - var(--sldr-u) * 2.4) / 3);
+  margin-right: calc(var(--sldr-u) * 0.8);
 }
 /* `**Title**` lead → card title. */
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > strong:first-of-type,

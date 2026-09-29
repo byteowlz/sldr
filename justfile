@@ -80,6 +80,12 @@ test-v:
 test-one TEST:
     cargo test --workspace {{TEST}}
 
+# Synthetic PDF geometry proof (installed Chrome; uv supplies pinned test tools)
+check-print:
+    mkdir -p target/interop
+    cargo run -q -p sldr-renderer --example print_fixture -- target/interop/print.html
+    uv run scripts/check-print.py target/interop/print.html target/interop/print
+
 # === Code Quality ===
 
 # Format all code
@@ -196,6 +202,14 @@ install-system:
 # Generate JSON schemas for all config files
 schemas:
     cargo run --bin schema-gen
+
+# Refresh the vendored agent skill from byteowlz/skillissues (embedded by `sldr skill`)
+sync-skill src="../skillissues/skills/use-sldr":
+    cp {{src}}/SKILL.md {{src}}/REFERENCE.md {{src}}/EXAMPLES.md crates/sldr-cli/assets/skill/use-sldr/
+
+# Regenerate the studio's TypeScript API types from the Rust models
+studio-types: schemas
+    cd studio && bun run types
 
 # Copy schemas to byteowlz/schemas repository
 copy-schemas:

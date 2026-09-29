@@ -3,6 +3,7 @@
 //! Uses Chromium/Chrome in headless mode with --print-to-pdf.
 //! The presentation's built-in @media print CSS handles the layout.
 
+use std::collections::HashMap;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
@@ -26,29 +27,8 @@ if (window.location.search.includes('print')) {
       s.style.position = 'relative';
       s.style.pageBreakAfter = 'always';
     });
-    // Per-page logos: the deck-level .sldr-logos overlay is a single
-    // absolutely-positioned element, so in paged media it only lands on the
-    // first page. Clone each slide's matching logos (by data-logo-layouts)
-    // into the slide itself so every printed page carries its own logos.
-    var overlay = document.querySelector('.sldr-logos');
-    if (overlay) {
-      var logos = Array.prototype.slice.call(overlay.querySelectorAll('.sldr-logo'));
-      document.querySelectorAll('.sldr-slide').forEach(function(slide) {
-        var layout = slide.getAttribute('data-layout') || '';
-        var holder = null;
-        logos.forEach(function(logo) {
-          var list = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
-          if (list.indexOf('all') !== -1 || list.indexOf(layout) !== -1) {
-            if (!holder) { holder = document.createElement('div'); holder.className = 'sldr-logos'; }
-            var clone = logo.cloneNode(true);
-            clone.classList.add('sldr-logo-on');
-            holder.appendChild(clone);
-          }
-        });
-        if (holder) slide.appendChild(holder);
-      });
-      overlay.style.display = 'none';
-    }
+    // The presenter's shared beforeprint hook handles language selection,
+    // per-page logos and fitting at final print geometry (also for Ctrl+P).
     // Hide toolbar and nav
     var toolbar = document.querySelector('.sldr-toolbar');
     if (toolbar) toolbar.style.display = 'none';
@@ -56,9 +36,9 @@ if (window.location.search.includes('print')) {
     if (nav) nav.style.display = 'none';
     var progress = document.querySelector('.sldr-progress');
     if (progress) progress.style.display = 'none';
-    // Shrink-to-fit every slide once they're all laid out for print (the
-    // presenter's per-slide fit hook only runs for the active slide).
-    requestAnimationFrame(function() {
+    // Start deferred diagram rendering once fonts are ready. This is not
+    // the final print fit: beforeprint repeats it with CSS print metrics.
+    document.fonts.ready.then(function() {
       if (window.__sldrFitAll) window.__sldrFitAll();
     });
   });
@@ -75,6 +55,7 @@ pub fn run(
     format: &str,
     template: bool,
     flatten: bool,
+    options: &super::interchange::Options,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -85,7 +66,7 @@ pub fn run(
         if format != "pptx" {
             anyhow::bail!("--template is only valid with --format pptx");
         }
-        return export_template(&config, playlist_name, flavor, output);
+        return export_template(&config, playlist_name, flavor, output, options);
     }
 
     let playlist_name = playlist_name
@@ -181,6 +162,30 @@ pub fn run(
     // lossy screenshot writer; PDF and screenshot both still need the HTML.
     let native_pptx = format == "pptx" && !flatten;
 
+    // Preflight all language variants before publishing any native deck.
+    if native_pptx {
+        let mut staged = Vec::new();
+        let mut report = sldr_pptx::Report::default();
+        for lang_opt in &export_langs {
+            let path = match (lang_opt, multi) {
+                (Some(l), true) => insert_lang_suffix(&base_path, l),
+                _ => base_path.clone(),
+            };
+            let result = options.diagnose(build_native_deck(&config, &resolved_slides, &flavor, &title,
+                lang_opt.as_deref(), &default_language), &base_path)?;
+            report.findings.extend(result.report.findings);
+            staged.push((ensure_ext(&path, "pptx"), result.value));
+        }
+        for (path, _) in &staged {
+            options.finish(&report, path)?;
+        }
+        for (path, bytes) in staged {
+            super::interchange::atomic_write(&path, &bytes)?;
+            println!("Exported {}", path.display());
+        }
+        return Ok(());
+    }
+
     for lang_opt in export_langs {
         // Suffix the filename with the language when emitting one per lang.
         let out_path = match (&lang_opt, multi) {
@@ -188,23 +193,7 @@ pub fn run(
             _ => base_path.clone(),
         };
 
-        let final_path = if native_pptx {
-            let pptx_path = ensure_ext(&out_path, "pptx");
-            let bytes = build_native_deck(
-                &config,
-                &resolved_slides,
-                &flavor,
-                &title,
-                lang_opt.as_deref(),
-                &default_language,
-            )?;
-            std::fs::write(&pptx_path, &bytes)
-                .with_context(|| format!("Failed to write {}", pptx_path.display()))?;
-            if !pptx_path.exists() {
-                anyhow::bail!("PPTX write reported success but no file at {}", pptx_path.display());
-            }
-            pptx_path
-        } else {
+        let final_path = {
             // PDF or screenshot-PPTX: render the HTML deck first.
             let render_config = sldr_renderer::RenderConfig {
                 title: title.clone(),
@@ -266,6 +255,7 @@ fn export_template(
     playlist_name: Option<&str>,
     flavor: Option<String>,
     output: Option<String>,
+    options: &super::interchange::Options,
 ) -> Result<()> {
     // Flavor: --flavor, else the named playlist's flavor, else config default.
     let flavor_name = match flavor {
@@ -308,7 +298,12 @@ fn export_template(
         );
     }
 
-    let theme = sldr_pptx::Theme::from_flavor(&flavor);
+    let mut theme = sldr_pptx::Theme::from_flavor(&flavor);
+    let (brand, brand_warnings) = super::brand::resolve(&flavor, find_browser().ok().as_deref());
+    for w in &brand_warnings {
+        println!("  {} flavor {w}", "warning:".yellow());
+    }
+    theme.brand = brand;
     let bytes = sldr_pptx::build_template(&theme, &eligible)
         .context("Failed to generate PPTX template OOXML")?;
 
@@ -323,8 +318,8 @@ fn export_template(
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    std::fs::write(&out_path, &bytes)
-        .with_context(|| format!("Failed to write {}", out_path.display()))?;
+    options.finish(&sldr_pptx::flavor_report(&flavor, &theme.brand), &out_path)?;
+    super::interchange::atomic_write(&out_path, &bytes)?;
 
     let included: Vec<&str> = eligible.iter().map(|d| d.name.as_str()).collect();
     println!(
@@ -348,7 +343,7 @@ fn build_native_deck(
     title: &str,
     lang: Option<&str>,
     default_lang: &str,
-) -> Result<Vec<u8>> {
+) -> Result<sldr_pptx::Conversion<Vec<u8>>> {
     let mut registry = sldr_renderer::LayoutRegistry::builtin();
     for dir in config.layout_dirs() {
         registry.load_dir(&dir)?;
@@ -358,12 +353,61 @@ fn build_native_deck(
     // screenshot path uses). Only look for it if the deck actually has any —
     // and if it's missing, fall back to the diagram source as text, loudly.
     let has_diagrams = slides.iter().any(|s| s.content.contains("```mermaid"));
-    let browser = if has_diagrams {
+    // Slides whose layout has no PPTX zones are rendered by the real renderer
+    // and placed as one full-slide picture (reported as baked), so one
+    // unannotated layout no longer blocks the whole deck.
+    // Layouts with `rep=bake` zones need the render too: that region is
+    // cropped from the real slide and placed as a picture.
+    let needs_raster = slides.iter().any(|s| {
+        let name = s.metadata.layout.as_deref().unwrap_or("default");
+        registry.get(name).is_some_and(|l| !l.pptx_eligible() || has_bake(l))
+    });
+    let raster_layout = sldr_renderer::LayoutDef::from_source(RASTER_LAYOUT, RASTER_LAYOUT_SOURCE);
+    // Export-time views of layouts (the layout files are untouched):
+    // - layouts that show the flavor's footer/source overlay in HTML but
+    //   declare no zone for them get overlay zones at the overlay's position;
+    // - `rep=bake` zones become picture zones, filled per slide with that
+    //   region cropped from the real render.
+    let with_overlay: HashMap<String, sldr_renderer::LayoutDef> = slides
+        .iter()
+        .filter_map(|s| registry.get(s.metadata.layout.as_deref().unwrap_or("default")))
+        .filter(|l| l.pptx_eligible())
+        .filter_map(|l| {
+            let mut def = l.clone();
+            let mut changed = false;
+            if l.chrome_overlay(&flavor.chrome_layouts) {
+                let has = |n: &str| def.zones.iter().any(|z| z.name == n);
+                // Indices just above the layout's own (some readers, LibreOffice
+                // among them, don't resolve high placeholder indices).
+                let mut idx = def.zones.iter().filter_map(|z| z.idx).max().unwrap_or(0);
+                let mut add = Vec::new();
+                if !has("source") {
+                    idx += 1;
+                    add.push(overlay_zone("source", idx, 88.2, 86.0, 4.0));
+                }
+                if !has("footer") {
+                    idx += 1;
+                    add.push(overlay_zone("footer", idx, 92.5, 80.0, 5.0));
+                }
+                changed |= !add.is_empty();
+                def.zones.extend(add);
+            }
+            for zone in def.zones.iter_mut().filter(|z| z.rep == sldr_renderer::ZoneRep::Bake) {
+                zone.rep = sldr_renderer::ZoneRep::Picture;
+                zone.ph = None;
+                zone.idx = None;
+                changed = true;
+            }
+            changed.then(|| (l.name.clone(), def))
+        })
+        .collect();
+    let browser = if has_diagrams || needs_raster {
         match find_browser() {
             Ok(b) => Some(b),
             Err(_) => {
                 println!(
-                    "  {} no browser found — mermaid diagrams export as code text. \
+                    "  {} no browser found — mermaid diagrams export as code text and \
+                     slides on layouts without PPTX zones can't be pictured. \
                      Install Chrome/Chromium, or use --flatten.",
                     "note:".yellow()
                 );
@@ -375,13 +419,48 @@ fn build_native_deck(
     };
 
     let mut inputs: Vec<sldr_pptx::SlideInput> = Vec::new();
+    let mut rastered: Vec<(usize, String)> = Vec::new();
+    let mut region_baked: Vec<(usize, String)> = Vec::new();
     for slide in slides {
         let layout_name = slide
             .metadata
             .layout
             .clone()
             .unwrap_or_else(|| "default".to_string());
-        let layout = registry.resolve(&layout_name)?;
+        let layout = match with_overlay.get(&layout_name) {
+            Some(augmented) => augmented,
+            None => registry.resolve(&layout_name)?,
+        };
+        let overlay = layout.chrome_overlay(&flavor.chrome_layouts);
+
+        if !layout.pptx_eligible() {
+            if let Some(br) = browser.as_deref() {
+                match raster_slide(slide, flavor, lang, default_lang, config, br, false) {
+                    Ok(png) => {
+                        rastered.push((inputs.len(), layout_name.clone()));
+                        inputs.push(sldr_pptx::SlideInput {
+                            layout: &raster_layout,
+                            fields: vec![(
+                                "image".into(),
+                                ZoneContent::Picture { bytes: png, ext: "png".into(), fit: None },
+                            )],
+                            details: sldr_pptx::SlideDetails {
+                                source_id: Some(slide.relative_path.clone()),
+                                language: Some(lang.unwrap_or(default_lang).into()),
+                                notes: speaker_notes(&slide.content),
+                                ..Default::default()
+                            },
+                        });
+                        continue;
+                    }
+                    Err(e) => println!(
+                        "  {} slide '{}': picture fallback failed ({e})",
+                        "warning:".yellow(),
+                        slide.name
+                    ),
+                }
+            }
+        }
 
         let chrome = slide.metadata.chrome_for(lang, default_lang);
         let footer = chrome.footer.clone().or_else(|| flavor.footer.clone());
@@ -404,14 +483,52 @@ fn build_native_deck(
         }
         let segments = sldr_renderer::split_segments(&lang_sel.content);
 
-        // The rendered "Source: …" chrome line (+ optional URL), built once.
-        let source_text = chrome.source.as_ref().map(|src| {
-            let label = source_label(lang, default_lang);
-            match chrome.source_url.as_ref() {
-                Some(u) => format!("{label} {src} ({u})"),
-                None => format!("{label} {src}"),
+        // `rep=bake` regions: one render of the slide, each region cropped
+        // from it. Without a browser they stay unfilled and are reported.
+        // Only regions this slide fills: a layout may declare alternatives
+        // (a full-width body and a left column) and use one per slide.
+        let filled = |name: &str| {
+            match name {
+                "content" => segments.content.as_ref(),
+                "left" => segments.left.as_ref(),
+                "right" => segments.right.as_ref(),
+                "heading" => segments.heading.as_ref(),
+                _ => None,
             }
-        });
+            .is_some_and(|t| !t.trim().is_empty())
+        };
+        let bake_zones: Vec<&sldr_renderer::Zone> = registry
+            .get(&layout_name)
+            .map(|l| l.zones.iter().filter(|z| z.rep == sldr_renderer::ZoneRep::Bake && filled(&z.name)).collect())
+            .unwrap_or_default();
+        let bake_names: Vec<String> = bake_zones.iter().map(|z| z.name.clone()).collect();
+        let mut rendered: Vec<(String, ZoneContent)> = Vec::new();
+        if let (false, Some(br)) = (bake_zones.is_empty(), browser.as_deref()) {
+            match raster_slide(slide, flavor, lang, default_lang, config, br, true).and_then(|png| crop_regions(&png, &bake_zones)) {
+                Ok(parts) => rendered = parts,
+                Err(e) => println!(
+                    "  {} slide '{}': region picture failed ({e})",
+                    "warning:".yellow(),
+                    slide.name
+                ),
+            }
+        }
+
+
+        // The "Source: …" chrome line, as in HTML: the label is the visible
+        // text and, with a source_url, a real hyperlink — never the raw URL
+        // printed into the slide.
+        let source_text = chrome
+            .source
+            .as_ref()
+            .map(|src| format!("{} {src}", source_label(lang, default_lang)));
+        let source_content = || -> Option<ZoneContent> {
+            let text = source_text.clone()?;
+            Some(match chrome.source_url.as_ref() {
+                Some(url) => ZoneContent::Link { text, url: url.clone() },
+                None => ZoneContent::Text(text),
+            })
+        };
 
         // A body segment that is a mermaid block bakes to a flavor-themed PNG
         // (rendered in the browser); otherwise it's markdown. Falls back to the
@@ -448,6 +565,9 @@ fn build_native_deck(
         let mut fields: Vec<(String, ZoneContent)> = Vec::new();
         for zone in &layout.zones {
             let name = zone.name.as_str();
+            if bake_names.iter().any(|n| n == name) {
+                continue; // filled from the render below, never from the markdown's own images
+            }
             match zone.rep {
                 sldr_renderer::ZoneRep::Picture => {
                     let md = match name {
@@ -461,11 +581,9 @@ fn build_native_deck(
                         match resolve_picture(md, &slide.path) {
                             Some((bytes, ext)) => fields
                                 .push((name.to_string(), ZoneContent::Picture { bytes, ext, fit: None })),
-                            None => println!(
-                                "  {} slide '{}': image for zone '{name}' not embeddable as native PPTX (left empty)",
-                                "note:".yellow(),
-                                slide.name
-                            ),
+                            // Keep unresolved input at the content seam so it
+                            // receives an unsupported disposition in the report.
+                            None => fields.push((name.to_string(), ZoneContent::Markdown(md.into()))),
                         }
                     }
                 }
@@ -474,7 +592,7 @@ fn build_native_deck(
                         "headline" => chrome.title.clone().map(ZoneContent::Text),
                         "subheadline" => chrome.subtitle.clone().map(ZoneContent::Text),
                         "footer" => footer.clone().map(ZoneContent::Text),
-                        "source" => source_text.clone().map(ZoneContent::Text),
+                        "source" => source_content(),
                         "heading" => bake(segments.heading.as_ref()),
                         "content" => bake(segments.content.as_ref()),
                         "left" => bake(segments.left.as_ref()),
@@ -489,11 +607,200 @@ fn build_native_deck(
             }
         }
 
-        inputs.push(sldr_pptx::SlideInput { layout, fields });
+        // Account for input fields even when the selected layout has no
+        // compatible zone. Iterating only zones used to silently erase them.
+        // Report only what the HTML deck shows but PowerPoint can't: a field
+        // this layout doesn't display in HTML either (a frontmatter title on
+        // a plain layout, a footer where there is no overlay, body the layout
+        // has no slot for) is not a PowerPoint loss.
+        let slots = layout.slots();
+        let html_shows = |n: &str| match n {
+            "footer" | "source" => overlay || slots.contains(&n),
+            "headline" | "subheadline" => slots.contains(&n),
+            // Body segments without their own slot fold into `{{content}}`.
+            _ => slots.contains(&n) || slots.contains(&"content"),
+        };
+        for (name, value) in [
+            ("headline", chrome.title.as_ref()), ("subheadline", chrome.subtitle.as_ref()),
+            ("footer", footer.as_ref()), ("source", source_text.as_ref()),
+            ("heading", segments.heading.as_ref()), ("content", segments.content.as_ref()),
+            ("left", segments.left.as_ref()), ("right", segments.right.as_ref()),
+            ("image", segments.image.as_ref()),
+        ] {
+            if !html_shows(name) {
+                continue;
+            }
+            if let Some(value) = value.filter(|s| !s.trim().is_empty()) {
+                if !fields.iter().any(|(key, _)| key == name) {
+                    fields.push((name.into(), ZoneContent::Markdown(value.clone())));
+                }
+            }
+        }
+        let rendered_names: Vec<String> = rendered.iter().map(|(n, _)| n.clone()).collect();
+        for name in &rendered_names {
+            region_baked.push((inputs.len(), name.clone()));
+        }
+        // A rendered region replaces whatever the accounting above left for it.
+        fields.retain(|(n, _)| !rendered_names.contains(n));
+        fields.extend(rendered);
+        let flavor_owned = if chrome.footer.is_none() && footer.is_some() { vec!["footer".to_string()] } else { Vec::new() };
+        inputs.push(sldr_pptx::SlideInput { layout, fields, details: sldr_pptx::SlideDetails {
+            source_id: Some(slide.relative_path.clone()), language: Some(lang.unwrap_or(default_lang).into()),
+            notes: speaker_notes(&slide.content), flavor_owned, rendered: rendered_names, ..Default::default()
+        } });
     }
 
-    let theme = sldr_pptx::Theme::from_flavor(flavor);
-    sldr_pptx::build_deck(&theme, title, &inputs)
+    let mut theme = sldr_pptx::Theme::from_flavor(flavor);
+    let brand_browser = browser.clone().or_else(|| find_browser().ok());
+    let (brand, brand_warnings) = super::brand::resolve(flavor, brand_browser.as_deref());
+    for w in &brand_warnings {
+        println!("  {} flavor {w}", "warning:".yellow());
+    }
+    theme.brand = brand;
+    let mut result = sldr_pptx::build_deck_with_report(&theme, title, &inputs)?;
+    result.report.findings.extend(sldr_pptx::flavor_report(flavor, &theme.brand).findings);
+    for (i, input) in inputs.iter().enumerate() {
+        for (name, content) in &input.fields {
+            if matches!(content, ZoneContent::Picture { fit: Some(_), .. }) {
+                let part = format!("ppt/slides/slide{}.xml", i + 1);
+                result.report.record(Some(&part), &part, name, "diagram_raster", sldr_pptx::Disposition::Baked,
+                    "Diagram is a region picture, not editable native geometry");
+            }
+        }
+    }
+    for (i, zone) in &region_baked {
+        let part = format!("ppt/slides/slide{}.xml", i + 1);
+        result.report.record(Some(&part), &part, zone, "region_raster", sldr_pptx::Disposition::Baked,
+            "The layout renders this region as a diagram: it is a picture of the real render; title, subtitle and footer stay editable text, and import leaves the picture alone");
+    }
+    for (i, layout) in &rastered {
+        let part = format!("ppt/slides/slide{}.xml", i + 1);
+        result.report.record(Some(&part), &part, layout, "slide_raster", sldr_pptx::Disposition::Baked,
+            "Layout has no PPTX zones: the slide is one picture of the real render. Annotate the layout with sldr:zone directives to make it editable; import keeps the original slide");
+    }
+    Ok(result)
+}
+
+/// A text zone for the flavor's bottom chrome overlay (percent geometry
+/// mirrors `.sldr-chrome` in base.css).
+fn overlay_zone(name: &str, idx: u32, y: f64, w: f64, h: f64) -> sldr_renderer::Zone {
+    sldr_renderer::Zone {
+        name: name.into(),
+        ph: Some("body".into()),
+        idx: Some(idx),
+        rep: sldr_renderer::ZoneRep::PlaceholderText,
+        x: 4.4,
+        y,
+        w,
+        h,
+    }
+}
+
+/// Layout used for slides exported as a single picture.
+pub(crate) const RASTER_LAYOUT: &str = sldr_pptx::RASTER_LAYOUT_NAME;
+const RASTER_LAYOUT_SOURCE: &str =
+    "<!-- sldr:zone name=image rep=picture x=0 y=0 w=100 h=100 -->\n<div class=\"sldr-content\">{{image}}</div>\n";
+
+/// Render one slide with the real renderer and screenshot it at 1920×1080.
+/// Render one slide to a 1920×1080 PNG. `regions_only` renders it for
+/// cropping `rep=bake` regions: transparent, without the page background,
+/// scrim, logos or chrome — PowerPoint's master already draws those, and a
+/// second copy inside the crop would never line up with it.
+fn raster_slide(
+    slide: &Slide,
+    flavor: &sldr_core::flavor::Flavor,
+    lang: Option<&str>,
+    default_lang: &str,
+    config: &Config,
+    browser: &Path,
+    regions_only: bool,
+) -> Result<Vec<u8>> {
+    let cfg = sldr_renderer::RenderConfig {
+        transition: "none".into(),
+        speaker_notes: false,
+        languages: lang.map(|l| vec![l.to_string()]).unwrap_or_default(),
+        default_language: default_lang.to_string(),
+        ..Default::default()
+    };
+    let mut renderer = sldr_renderer::HtmlRenderer::new(cfg).add_flavor(flavor.clone());
+    for dir in config.layout_dirs() {
+        renderer.load_layouts(&dir)?;
+    }
+    renderer.add_slide(slide)?;
+    // The picture is the slide, not the presenter: hide its UI chrome.
+    const HIDE_UI: &str = "<style>.sldr-toolbar,.sldr-nav,.sldr-progress{display:none!important}</style>";
+    const REGIONS_ONLY: &str = "<style>html,body,.sldr-slide{background:transparent!important}\
+        .sldr-framed::before,.sldr-logos,.sldr-logo,.sldr-chrome{display:none!important}</style>";
+    let hide = if regions_only { format!("{HIDE_UI}{REGIONS_ONLY}") } else { HIDE_UI.to_string() };
+    let html = renderer.render()?.replacen("</head>", &format!("{hide}</head>"), 1);
+    let img = super::brand::screenshot(browser, &html, 1920, 1080, regions_only)?;
+    let mut buf = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+        .context("re-encoding slide screenshot failed")?;
+    Ok(buf)
+}
+
+/// Whether a layout declares any `rep=bake` region.
+fn has_bake(layout: &sldr_renderer::LayoutDef) -> bool {
+    layout.zones.iter().any(|z| z.rep == sldr_renderer::ZoneRep::Bake)
+}
+
+/// Crop each zone's box (percent of the slide) out of a full-slide render.
+fn crop_regions(png: &[u8], zones: &[&sldr_renderer::Zone]) -> Result<Vec<(String, ZoneContent)>> {
+    let img = image::load_from_memory(png).context("decoding slide render failed")?;
+    let (w, h) = (img.width() as f64, img.height() as f64);
+    zones
+        .iter()
+        .map(|z| {
+            let x = (z.x / 100.0 * w).round().clamp(0.0, w - 1.0) as u32;
+            let y = (z.y / 100.0 * h).round().clamp(0.0, h - 1.0) as u32;
+            let cw = ((z.w / 100.0 * w).round() as u32).clamp(1, img.width() - x);
+            let ch = ((z.h / 100.0 * h).round() as u32).clamp(1, img.height() - y);
+            let mut buf = Vec::new();
+            img.crop_imm(x, y, cw, ch)
+                .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+                .context("encoding region picture failed")?;
+            Ok((z.name.clone(), ZoneContent::Picture { bytes: buf, ext: "png".into(), fit: None }))
+        })
+        .collect()
+}
+
+/// How many pixels shorter than its window headless Chrome's viewport is
+/// (e.g. 1080 → 993). Measured once per process by asking the page itself.
+pub(crate) fn viewport_shortfall(browser: &Path) -> u32 {
+    static CACHE: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *CACHE.get_or_init(|| {
+        let measure = || -> Option<u32> {
+            let dir = tempfile::tempdir().ok()?;
+            let page = dir.path().join("vp.html");
+            std::fs::write(&page, "<html><body><script>document.body.textContent='VP'+innerHeight+'VP'</script></body></html>").ok()?;
+            let out = std::process::Command::new(browser)
+                .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1920,1080", "--dump-dom"])
+                .arg(format!("file://{}", page.display()))
+                .stderr(std::process::Stdio::null())
+                .output()
+                .ok()?;
+            let text = String::from_utf8_lossy(&out.stdout);
+            let h: u32 = text.split("VP").nth(1)?.parse().ok()?;
+            Some(1080u32.saturating_sub(h))
+        };
+        measure().unwrap_or(0)
+    })
+}
+
+/// Extract speaker notes from a slide's markdown, mirroring the HTML renderer.
+fn speaker_notes(content: &str) -> Option<String> {
+    if let Some(idx) = content.find("<!-- notes -->") {
+        let notes = content[idx + "<!-- notes -->".len()..].trim();
+        if !notes.is_empty() { return Some(notes.to_string()); }
+    }
+    if let Some(start) = content.find("<!-- notes:") {
+        if let Some(end) = content[start..].find("-->") {
+            let notes = content[start + "<!-- notes:".len()..start + end].trim();
+            if !notes.is_empty() { return Some(notes.to_string()); }
+        }
+    }
+    None
 }
 
 /// A body segment that is exactly one ` ```mermaid ` fence → its source.
@@ -561,7 +868,7 @@ fn bake_mermaid(
 }
 
 /// Crop the fully-transparent margins off a screenshot, leaving the diagram.
-fn trim_transparent(img: &image::RgbaImage) -> (image::RgbaImage, u32, u32) {
+pub(crate) fn trim_transparent(img: &image::RgbaImage) -> (image::RgbaImage, u32, u32) {
     let (w, h) = img.dimensions();
     let (mut x0, mut y0, mut x1, mut y1) = (w, h, 0u32, 0u32);
     let mut any = false;
@@ -812,7 +1119,11 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        // Screenshot each slide by navigating to #/N
+        // Screenshot each slide by navigating to #/N. The window is enlarged
+        // by headless Chrome's viewport shortfall and each shot cropped back
+        // to 1920×1080, so slides fill the frame instead of leaving a band.
+        let extra = viewport_shortfall(&browser);
+        let window = format!("--window-size=1920,{}", 1080 + extra);
         let mut image_paths = Vec::new();
         for i in 1..=slide_count {
             let url = format!("http://127.0.0.1:{port}/#{i}");
@@ -823,7 +1134,7 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
                     "--headless",
                     "--disable-gpu",
                     "--no-sandbox",
-                    "--window-size=1920,1080",
+                    &window,
                     "--hide-scrollbars",
                     "--virtual-time-budget=3000",
                     &format!("--screenshot={}", img_path.display()),
@@ -837,6 +1148,12 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
 
             if !status.success() {
                 anyhow::bail!("Chrome screenshot failed for slide {i}");
+            }
+            if extra > 0 {
+                let img = image::open(&img_path).with_context(|| format!("slide {i} screenshot unreadable"))?;
+                img.crop_imm(0, 0, img.width().min(1920), img.height().min(1080))
+                    .save(&img_path)
+                    .with_context(|| format!("cropping slide {i} screenshot failed"))?;
             }
 
             image_paths.push(img_path);
@@ -897,12 +1214,51 @@ fn find_browser() -> Result<PathBuf> {
         }
     }
 
+    // Browsers installed by tooling rather than the system package manager
+    // (Playwright, agent-browser) — newest build first.
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        for pattern in [
+            (".cache/ms-playwright", "chromium-", &["chrome-linux64/chrome", "chrome-linux/chrome"][..]),
+            (".agent-browser/browsers", "chrome-", &["chrome"][..]),
+        ] {
+            if let Some(found) = newest_tool_browser(&home.join(pattern.0), pattern.1, pattern.2) {
+                return Ok(found);
+            }
+        }
+    }
+    for name in ["brave", "brave-browser"] {
+        if let Ok(output) = std::process::Command::new("which").arg(name).output() {
+            let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if output.status.success() && !found.is_empty() {
+                return Ok(PathBuf::from(found));
+            }
+        }
+    }
+
     anyhow::bail!(
         "No Chrome/Chromium browser found. Install one of:\n\
          - chromium\n\
          - google-chrome\n\
          Or set CHROME_BIN environment variable."
     );
+}
+
+/// `<dir>/<prefix>*/<rel>` for the highest-sorting version directory.
+fn newest_tool_browser(dir: &Path, prefix: &str, rels: &[&str]) -> Option<PathBuf> {
+    let mut versions: Vec<PathBuf> = std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(prefix)))
+        .collect();
+    versions.sort_by_key(|p| {
+        // Compare dotted/numeric versions numerically ("chrome-152.0" > "chrome-148.0").
+        p.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n[prefix.len()..].split(['.', '-']).map(|x| x.parse::<u64>().unwrap_or(0)).collect::<Vec<_>>())
+            .unwrap_or_default()
+    });
+    versions.iter().rev().flat_map(|v| rels.iter().map(move |r| v.join(r))).find(|p| p.is_file())
 }
 
 fn allocate_port() -> Result<u16> {
@@ -912,4 +1268,32 @@ fn allocate_port() -> Result<u16> {
         .context("Failed to read assigned port")?
         .port();
     Ok(port)
+}
+
+#[cfg(test)]
+mod bake_tests {
+    use super::*;
+
+    #[test]
+    fn crop_regions_cuts_the_zone_box_out_of_the_render() {
+        let mut img = image::RgbaImage::new(200, 100);
+        for (x, _, px) in img.enumerate_pixels_mut() {
+            *px = if x >= 100 { image::Rgba([255, 0, 0, 255]) } else { image::Rgba([0, 0, 255, 255]) };
+        }
+        let mut png = Vec::new();
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
+        let zone = sldr_renderer::Zone {
+            name: "content".into(), ph: None, idx: None, rep: sldr_renderer::ZoneRep::Bake,
+            x: 50.0, y: 20.0, w: 50.0, h: 60.0,
+        };
+        let parts = crop_regions(&png, &[&zone]).unwrap();
+        assert_eq!(parts.len(), 1);
+        let ZoneContent::Picture { bytes, fit, .. } = &parts[0].1 else { panic!("not a picture") };
+        assert!(fit.is_none());
+        let cut = image::load_from_memory(bytes).unwrap().to_rgba8();
+        assert_eq!((cut.width(), cut.height()), (100, 60));
+        assert!(cut.pixels().all(|p| p.0 == [255, 0, 0, 255]), "only the red right half");
+    }
 }

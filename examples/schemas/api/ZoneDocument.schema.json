@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZoneDocument",
+  "type": "object",
+  "properties": {
+    "flavor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "geometry": {
+      "$ref": "#/$defs/Geometry"
+    },
+    "language": {
+      "description": "Language the body and chrome were resolved for.",
+      "type": "string"
+    },
+    "layout": {
+      "type": "string"
+    },
+    "slide": {
+      "description": "The slide's library-relative path.",
+      "type": "string"
+    },
+    "unbound": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Unbound"
+      }
+    },
+    "zones": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ZoneEntry"
+      }
+    }
+  },
+  "required": [
+    "slide",
+    "layout",
+    "language",
+    "zones",
+    "unbound",
+    "geometry"
+  ],
+  "$defs": {
+    "Binding": {
+      "description": "What fills a zone.",
+      "oneOf": [
+        {
+          "description": "A frontmatter field (`title`, `subtitle`, `footer`, `source`).",
+          "type": "object",
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "frontmatter"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ]
+        },
+        {
+          "description": "A markdown body segment: `content`, `heading`, `left` or `right`.\n`range` is the byte span of the segment inside the slide body when it\ncan be located exactly (it is `None` for a synthesised fallback such as\nthe concat of left+right into a plain `{{content}}` slot).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "markdown"
+            },
+            "range": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              ]
+            },
+            "slot": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "slot"
+          ]
+        },
+        {
+          "description": "The first image reference found in the bound segment.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "image"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "src": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "slot"
+          ]
+        },
+        {
+          "description": "A flavor field (`footer`, `logos`) — style chrome per ADR-0008.",
+          "type": "object",
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "flavor"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ]
+        },
+        {
+          "description": "A pure decoration zone (`shape` / `bake`) or a name the slide has no\ninput for. Nothing to edit here.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      ]
+    },
+    "Geometry": {
+      "description": "Who owns the boxes. Always the layout: there is no per-slide geometry.",
+      "type": "object",
+      "properties": {
+        "builtin": {
+          "description": "`true` when the layout is an embedded built-in (editing its zones\nwrites a library override rather than the built-in).",
+          "type": "boolean"
+        },
+        "layout": {
+          "type": "string"
+        },
+        "used_by": {
+          "description": "How many slides use this layout, when the caller knows (where-used).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "layout",
+        "builtin"
+      ]
+    },
+    "Unbound": {
+      "description": "Slide input that no zone of the current layout shows. Mirrors the PPTX\nexporter's accounting so nothing is silently invisible: a `::left::` body\non a plain layout, a `subtitle` on a layout without a subheadline zone.",
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "binding"
+      ]
+    },
+    "Writes": {
+      "description": "Where an edit to a zone's *content* is written. Geometry is never here —\na zone's box always belongs to the layout (see [`ZoneDocument::geometry`]).",
+      "oneOf": [
+        {
+          "description": "The slide's own markdown file.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string",
+              "const": "slide"
+            }
+          },
+          "required": [
+            "target",
+            "path"
+          ]
+        },
+        {
+          "description": "The flavor's `flavor.toml` — a shared source; edits must show blast\nradius first (ADR-0002).",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string",
+              "const": "flavor"
+            }
+          },
+          "required": [
+            "target",
+            "name"
+          ]
+        }
+      ]
+    },
+    "ZoneEntry": {
+      "description": "One zone of the document: the layout's declaration plus what the join knows.",
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "box": {
+          "description": "Percent of the slide box: `[x, y, w, h]`.",
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "content": {
+          "description": "The bound content as it stands (plain text for frontmatter/flavor\nfields, raw markdown for body segments, the src for images).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "idx": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "ph": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rep": {
+          "description": "Representation policy token (`placeholder-text`, `picture`, `shape`, `bake`).",
+          "type": "string"
+        },
+        "writes": {
+          "description": "Where a content edit lands. `None` for decoration zones.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Writes"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "rep",
+        "box",
+        "binding"
+      ]
+    }
+  }
+}

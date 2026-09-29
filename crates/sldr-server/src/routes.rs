@@ -67,12 +67,20 @@ pub fn router(state: SldrState) -> Router {
     Router::new()
         .route("/slides", get(list_slides).post(create_slide))
         .route("/slides/{name}", get(get_slide).put(update_slide))
+        .route("/slides/{name}/zones", get(get_slide_zones))
+        .route("/slides/{name}/usage", get(get_slide_usage))
+        .route("/slides/{name}/layout-candidates", get(get_layout_candidates))
+        .route("/usage", get(get_usage_index))
+        .route("/find", get(get_find))
+        .route("/media", get(list_media_files).put(upload_media))
+        .route("/media/{*path}", get(get_media_file).delete(delete_media_file))
         .route("/playlists", get(list_playlists).post(create_playlist))
         .route("/playlists/{name}", put(update_playlist))
         .route("/flavors", get(list_flavors))
         .route("/flavors/{name}", get(get_flavor).put(update_flavor))
         .route("/layouts", get(list_layouts))
         .route("/layouts/{name}", get(get_layout).put(update_layout))
+        .route("/layouts/{name}/usage", get(get_layout_usage))
         .route("/layouts/{name}/zones", put(update_layout_zones))
         .route("/build", post(build_presentation))
         .route("/preview/sample", get(preview_sample))
@@ -119,6 +127,265 @@ async fn get_slide(
         content: slide.content,
         raw,
     }))
+}
+
+#[derive(Debug, Deserialize)]
+struct ZonesQuery {
+    #[serde(default)]
+    layout: Option<String>,
+    #[serde(default)]
+    flavor: Option<String>,
+    #[serde(default)]
+    lang: Option<String>,
+}
+
+/// The slide's zone document (ADR-0011): every layout region with its binding
+/// and the file an edit writes to. The editor overlay, the board, and PPTX
+/// round-trip all read this one shape. Computed on request, never stored.
+async fn get_slide_zones(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+    Query(q): Query<ZonesQuery>,
+) -> ApiResult<sldr_renderer::ZoneDocument> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &name)?;
+
+    let mut registry = sldr_renderer::LayoutRegistry::builtin();
+    for dir in state.config.layout_dirs() {
+        let _ = registry.load_dir(&dir);
+    }
+    let layout_name = q
+        .layout
+        .or_else(|| slide.metadata.layout.clone())
+        .unwrap_or_else(|| "default".to_string());
+    let layout = registry
+        .get(&layout_name)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, format!("Layout not found: {layout_name}")))?;
+    let layout_builtin = resolve_layout_source(&state, &layout.name).map(|(_, b)| b).unwrap_or(true);
+
+    let flavor_name = q.flavor.unwrap_or_else(|| state.config.config.default_flavor.clone());
+    let flavor = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
+        .ok()
+        .and_then(|c| c.find(&flavor_name).cloned());
+
+    let opts = sldr_renderer::ZoneOpts {
+        lang: q.lang.as_deref(),
+        default_lang: "en",
+        layout_builtin,
+        layout_used_by: Some(sldr_core::usage::slides_using_layout(&layout.name, &slides).len()),
+    };
+    Ok(Json(sldr_renderer::zone_document(&slide, layout, flavor.as_ref(), &opts)))
+}
+
+#[derive(Debug, Deserialize)]
+struct CandidatesQuery {
+    #[serde(default)]
+    lang: Option<String>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// Every layout ranked by fit for the slide (ADR-0011) — the visual layout
+/// picker and the "convert me" sheet render the same list.
+async fn get_layout_candidates(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+    Query(q): Query<CandidatesQuery>,
+) -> ApiResult<Vec<sldr_renderer::Candidate>> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &name)?;
+    let mut registry = sldr_renderer::LayoutRegistry::builtin();
+    for dir in state.config.layout_dirs() {
+        let _ = registry.load_dir(&dir);
+    }
+    let mut ranked = sldr_renderer::layout_candidates(&slide, &registry, q.lang.as_deref(), "en");
+    if let Some(n) = q.limit {
+        ranked.truncate(n);
+    }
+    Ok(Json(ranked))
+}
+
+/// Where-used for one slide (ADR-0011): referencing playlists + last git touch.
+async fn get_slide_usage(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+) -> ApiResult<sldr_core::usage::SlideUsage> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &name)?;
+    let matcher = SldrMatcher::new(state.config.matching.clone());
+    let index = sldr_core::usage::UsageIndex::build(&state.config.playlist_dir(), &slides, &matcher);
+    Ok(Json(sldr_core::usage::SlideUsage {
+        playlists: index.of(&slide.relative_path).to_vec(),
+        last_touched: sldr_core::usage::git_last_touched(&slide.path),
+        slide: slide.relative_path,
+    }))
+}
+
+/// The whole slide → playlists index in one call — what the deck board needs
+/// to badge every card without N requests.
+async fn get_usage_index(State(state): State<SldrState>) -> ApiResult<sldr_core::usage::UsageIndex> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let matcher = SldrMatcher::new(state.config.matching.clone());
+    Ok(Json(sldr_core::usage::UsageIndex::build(&state.config.playlist_dir(), &slides, &matcher)))
+}
+
+/// Slides using a layout — the blast radius shown before a geometry edit.
+async fn get_layout_usage(
+    State(state): State<SldrState>,
+    AxumPath(name): AxumPath<String>,
+) -> ApiResult<sldr_core::usage::LayoutUsage> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    Ok(Json(sldr_core::usage::LayoutUsage {
+        layout: name.clone(),
+        slides: sldr_core::usage::slides_using_layout(&name, &slides).into_iter().map(String::from).collect(),
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct FindQuery {
+    q: String,
+    #[serde(default)]
+    tags: Option<String>,
+    #[serde(default)]
+    topic: Option<String>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// Find slides (ADR-0011): the core ranking over names, title, tags, topic,
+/// description and body. Same order as `sldr search`.
+async fn get_find(
+    State(state): State<SldrState>,
+    Query(q): Query<FindQuery>,
+) -> ApiResult<Vec<sldr_core::find::Hit>> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let opts = sldr_core::find::FindOpts {
+        tags: q
+            .tags
+            .map(|t| t.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+            .unwrap_or_default(),
+        topic: q.topic,
+        limit: q.limit,
+    };
+    Ok(Json(sldr_core::find::find(&q.q, &slides, &state.config.matching, &opts)))
+}
+
+/// Every media file in the library with the slides that reference it.
+async fn list_media_files(State(state): State<SldrState>) -> ApiResult<sldr_core::media::MediaIndex> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    Ok(Json(sldr_core::media::list_media(
+        &state.config.slide_dir(),
+        &state.config.library().join("media"),
+        &slides,
+    )))
+}
+
+#[derive(Debug, Deserialize)]
+struct UploadQuery {
+    /// Slide the file will be referenced from; it lands in that slide's media/.
+    slide: String,
+    name: String,
+    #[serde(default)]
+    overwrite: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UploadResponse {
+    pub path: String,
+    /// What to write into the slide's markdown.
+    pub reference: String,
+    pub bytes: usize,
+}
+
+/// Raw-body upload (`PUT /api/media?slide=…&name=…`, body = the file). No
+/// multipart: a `fetch(url, {method: "PUT", body: file})` is enough.
+async fn upload_media(
+    State(state): State<SldrState>,
+    Query(q): Query<UploadQuery>,
+    body: axum::body::Bytes,
+) -> ApiResult<UploadResponse> {
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let slide = resolve_slide_ref(&state.config, &slides, &q.slide)?;
+    let (path, reference) = sldr_core::media::store_beside(&slide, &q.name, &body, q.overwrite).map_err(|e| {
+        let status = match e.kind() {
+            std::io::ErrorKind::AlreadyExists => StatusCode::CONFLICT,
+            std::io::ErrorKind::InvalidInput => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        ApiError::new(status, e.to_string())
+    })?;
+    info!("Stored media {} for {}", path.display(), slide.relative_path);
+    let rel = path
+        .strip_prefix(state.config.slide_dir())
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_else(|_| path.display().to_string());
+    Ok(Json(UploadResponse { path: rel, reference, bytes: body.len() }))
+}
+
+fn resolve_media(state: &SldrState, path: &str) -> Result<PathBuf, ApiError> {
+    sldr_core::media::resolve_listed(
+        &state.config.slide_dir(),
+        &state.config.library().join("media"),
+        path,
+    )
+    .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Media file not found"))
+}
+
+/// Serve one listed media file (the picker's thumbnails).
+async fn get_media_file(
+    State(state): State<SldrState>,
+    AxumPath(path): AxumPath<String>,
+) -> std::result::Result<Response, ApiError> {
+    let abs = resolve_media(&state, &path)?;
+    let bytes = fs::read(&abs).map_err(to_api_error("Failed to read media file"))?;
+    let mime = match sldr_core::media::media_kind(&path) {
+        sldr_core::media::MediaKind::Image => {
+            if path.to_lowercase().ends_with(".svg") { "image/svg+xml" }
+            else if path.to_lowercase().ends_with(".png") { "image/png" }
+            else if path.to_lowercase().ends_with(".gif") { "image/gif" }
+            else if path.to_lowercase().ends_with(".webp") { "image/webp" }
+            else { "image/jpeg" }
+        }
+        sldr_core::media::MediaKind::Video => "video/mp4",
+        sldr_core::media::MediaKind::Other => "application/octet-stream",
+    };
+    Ok(([(axum::http::header::CONTENT_TYPE, mime)], bytes).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+struct DeleteQuery {
+    #[serde(default)]
+    force: bool,
+}
+
+/// Delete a media file. Refused while any slide still references it unless
+/// `?force=true` — the where-used check is the safety, not a confirmation box.
+async fn delete_media_file(
+    State(state): State<SldrState>,
+    AxumPath(path): AxumPath<String>,
+    Query(q): Query<DeleteQuery>,
+) -> ApiResult<serde_json::Value> {
+    let abs = resolve_media(&state, &path)?;
+    let slides = SlideCollection::load_from_dir(&state.config.slide_dir())
+        .map_err(to_api_error("Failed to load slides"))?;
+    let index = sldr_core::media::list_media(&state.config.slide_dir(), &state.config.library().join("media"), &slides);
+    if let Some(f) = index.files.iter().find(|f| f.path == path) {
+        if !f.used_by.is_empty() && !q.force {
+            return Err(ApiError::new(StatusCode::CONFLICT, format!("Still referenced by {}", f.used_by.join(", ")))
+                .with_details(json!({ "used_by": f.used_by })));
+        }
+    }
+    fs::remove_file(&abs).map_err(to_api_error("Failed to delete media file"))?;
+    info!("Deleted media {}", abs.display());
+    Ok(Json(json!({ "deleted": path })))
 }
 
 async fn create_slide(
@@ -274,28 +541,59 @@ async fn update_playlist(
     Json(payload): Json<CreatePlaylistRequest>,
 ) -> ApiResult<serde_json::Value> {
     let playlist_dir = state.config.playlist_dir();
-    let path = playlist_dir.join(format!("{name}.toml"));
+    let path = find_playlist_path(&playlist_dir, &name)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Playlist not found"))?;
 
-    if !path.exists() {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Playlist not found"));
-    }
+    // Update the fields the studio edits; keep everything else the file
+    // already carries (default_lang, the name inside the file) so a save
+    // from a satellite never silently drops data (ADR-0001).
+    let mut playlist = Playlist::load(&path).map_err(to_api_error("Failed to read playlist"))?;
+    playlist.title = payload.title;
+    playlist.description = payload.description;
+    playlist.slides = payload.slides;
+    playlist.flavor = payload.flavor;
+    playlist.render = payload.render;
 
-    let playlist = Playlist {
-        name: name.clone(),
-        title: payload.title,
-        description: payload.description,
-        slides: payload.slides,
-        flavor: payload.flavor,
-        default_lang: None,
-        render: payload.render,
-    };
-
-    playlist
-        .save(&path)
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    let body = toml::to_string_pretty(&playlist)
+        .context("Failed to serialize playlist")
+        .map_err(to_api_error("Failed to update playlist"))?;
+    fs::write(&path, with_schema_line(&existing, body))
         .with_context(|| format!("Failed to update playlist {}", path.display()))
         .map_err(to_api_error("Failed to update playlist"))?;
 
-    Ok(Json(json!({ "name": name })))
+    Ok(Json(json!({ "name": playlist.name })))
+}
+
+/// A playlist's file: `<name>.toml`, else the file whose `name` field is
+/// `name` (a file may be named differently from the playlist inside it).
+fn find_playlist_path(dir: &std::path::Path, name: &str) -> Option<PathBuf> {
+    let direct = dir.join(format!("{name}.toml"));
+    if direct.is_file() {
+        return Some(direct);
+    }
+    fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).find(|p| {
+        p.extension().is_some_and(|e| e == "toml")
+            && Playlist::load(p).is_ok_and(|pl| pl.name == name)
+    })
+}
+
+/// Carry a leading schema directive (`#:schema …` or `"$schema" = …`) from
+/// the file being replaced onto the new body, so editor completion keeps
+/// working after a save.
+fn with_schema_line(existing: &str, body: String) -> String {
+    let first = existing.lines().next().unwrap_or("").trim();
+    let is_schema = first.starts_with("#:schema") || first.starts_with("\"$schema\"");
+    if is_schema && !body.contains(first) {
+        let body = body
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("\"$schema\"") && !l.trim_start().starts_with("\"\\$schema\""))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!("{first}\n{body}\n")
+    } else {
+        body
+    }
 }
 
 async fn list_flavors(State(state): State<SldrState>) -> ApiResult<FlavorsResponse> {
@@ -577,7 +875,7 @@ async fn preview_slide(
         .map_err(to_api_error("Failed to load slides"))?;
     // Previews are an iframe surface: an unresolved ref renders as a legible
     // warning tile (matching build's fail-loud), not a JSON blob.
-    let slide = match resolve_slide_ref(&state.config, &slides, slide_name) {
+    let mut slide = match resolve_slide_ref(&state.config, &slides, slide_name) {
         Ok(s) => s,
         Err(e) => {
             let msg = html_escape_min(&e.message);
@@ -586,6 +884,12 @@ async fn preview_slide(
             )));
         }
     };
+
+    // `?layout=` renders the same content under another layout — the
+    // contact sheet behind the visual layout picker. Nothing is written.
+    if let Some(l) = params.get("layout").filter(|l| !l.is_empty()) {
+        slide.metadata.layout = Some(l.clone());
+    }
 
     let flavor_name = params.get("flavor").map(String::as_str).unwrap_or("default");
     let flavors = FlavorCollection::load_from_dirs(&state.config.flavor_dirs())
