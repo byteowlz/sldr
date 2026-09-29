@@ -154,7 +154,22 @@ pub fn zone_document(
 
     for z in &layout.zones {
         let (binding, content, writes) = match z.rep {
-            ZoneRep::Shape | ZoneRep::Bake => (Binding::None, None, None),
+            ZoneRep::Shape => (Binding::None, None, None),
+            // A baked region named after a markdown slot is still that slot's
+            // text (the layout draws it as a diagram); only PowerPoint gets a
+            // picture. Anything else baked is decoration.
+            ZoneRep::Bake => match z.name.as_str() {
+                slot @ ("heading" | "content" | "left" | "right") => {
+                    let text = segment(slot, &segments);
+                    let range = text.and_then(|t| locate(body, t));
+                    (
+                        Binding::Markdown { slot: slot.to_string(), range },
+                        text.map(str::to_string),
+                        Some(slide_writes.clone()),
+                    )
+                }
+                _ => (Binding::None, None, None),
+            },
             ZoneRep::Picture => {
                 let (slot, md) = picture_segment(&z.name, &segments);
                 let src = md.and_then(first_image_src);
@@ -388,6 +403,17 @@ mod tests {
         let footer = by_name(&doc, "footer");
         assert_eq!(footer.binding, Binding::None);
         assert_eq!(footer.writes, Some(Writes::Slide { path: "genai/s.md".into() }));
+    }
+
+    #[test]
+    fn baked_body_zone_still_binds_its_markdown_slot() {
+        let s = slide("- **Eins** erster Schritt\n- **Zwei** zweiter Schritt\n");
+        let doc = zone_document(&s, &layout("framed-flow"), None, &opts());
+        let content = by_name(&doc, "content");
+        assert_eq!(content.rep, "bake");
+        assert!(matches!(&content.binding, Binding::Markdown { slot, range: Some(_) } if slot == "content"));
+        assert!(content.content.as_deref().is_some_and(|c| c.contains("**Eins**")));
+        assert!(content.writes.is_some());
     }
 
     #[test]

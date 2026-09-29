@@ -118,6 +118,10 @@ fn plan_slide(original: &Slide, s: &ImportedSlide, plan: &mut Plan) {
             plan.skipped.push((z.zone.clone(), "comes from the flavor (shared); edit the flavor to change it".into()));
             continue;
         }
+        if z.owner == "render" {
+            plan.skipped.push((z.zone.clone(), "is a picture of the rendered layout; edit the slide's markdown to change it".into()));
+            continue;
+        }
         match z.zone.as_str() {
             "headline" | "subheadline" | "footer" | "source" => {
                 let key = match z.zone.as_str() { "headline" => "title", "subheadline" => "subtitle", k => k };

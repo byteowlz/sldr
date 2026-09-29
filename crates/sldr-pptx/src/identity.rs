@@ -66,7 +66,13 @@ pub(crate) fn attach(parts: &mut Vec<(String, String)>, slides: &[SlideInput]) -
             let props = shape.descendants().find(|n| n.has_tag_name((P, "cNvPr"))).context("shape without cNvPr")?;
             let zone = props.attribute("name").context("shape without zone")?.to_lowercase();
             let element_id = hash(format!("{id}:{zone}").as_bytes());
-            let owner = if input.details.flavor_owned.iter().any(|z| z.eq_ignore_ascii_case(&zone)) { "flavor" } else { "slide" };
+            let owner = if input.details.flavor_owned.iter().any(|z| z.eq_ignore_ascii_case(&zone)) {
+                "flavor"
+            } else if input.details.rendered.iter().any(|z| z.eq_ignore_ascii_case(&zone)) {
+                "render"
+            } else {
+                "slide"
+            };
             record.elements.insert(element_id.clone(), ElementRecord {
                 zone, owner: owner.into(), structure_hash: structure_hash(shape),
                 content_hash: text_hash(shape),
@@ -148,7 +154,7 @@ pub(crate) fn load(package: &Package) -> Result<Option<Manifest>> {
     for slide in &manifest.slides {
         if !ids.insert(&slide.id) { bail!("duplicate provenance slide identity"); }
         for (id, element) in &slide.elements {
-            if !ids.insert(id) || !matches!(element.owner.as_str(), "slide" | "flavor") { bail!("invalid element identity/owner"); }
+            if !ids.insert(id) || !matches!(element.owner.as_str(), "slide" | "flavor" | "render") { bail!("invalid element identity/owner"); }
         }
     }
     Ok(Some(manifest))

@@ -356,38 +356,49 @@ fn build_native_deck(
     // Slides whose layout has no PPTX zones are rendered by the real renderer
     // and placed as one full-slide picture (reported as baked), so one
     // unannotated layout no longer blocks the whole deck.
+    // Layouts with `rep=bake` zones need the render too: that region is
+    // cropped from the real slide and placed as a picture.
     let needs_raster = slides.iter().any(|s| {
         let name = s.metadata.layout.as_deref().unwrap_or("default");
-        registry.get(name).is_some_and(|l| !l.pptx_eligible())
+        registry.get(name).is_some_and(|l| !l.pptx_eligible() || has_bake(l))
     });
     let raster_layout = sldr_renderer::LayoutDef::from_source(RASTER_LAYOUT, RASTER_LAYOUT_SOURCE);
-    // Layouts that show the flavor's footer/source overlay in HTML but
-    // declare no zone for them get overlay zones at the overlay's position
-    // (derived here from the flavor; the layout file is untouched).
+    // Export-time views of layouts (the layout files are untouched):
+    // - layouts that show the flavor's footer/source overlay in HTML but
+    //   declare no zone for them get overlay zones at the overlay's position;
+    // - `rep=bake` zones become picture zones, filled per slide with that
+    //   region cropped from the real render.
     let with_overlay: HashMap<String, sldr_renderer::LayoutDef> = slides
         .iter()
         .filter_map(|s| registry.get(s.metadata.layout.as_deref().unwrap_or("default")))
-        .filter(|l| l.pptx_eligible() && l.chrome_overlay(&flavor.chrome_layouts))
+        .filter(|l| l.pptx_eligible())
         .filter_map(|l| {
             let mut def = l.clone();
-            let has = |n: &str| def.zones.iter().any(|z| z.name == n);
-            // Indices just above the layout's own (some readers, LibreOffice
-            // among them, don't resolve high placeholder indices).
-            let mut idx = def.zones.iter().filter_map(|z| z.idx).max().unwrap_or(0);
-            let mut add = Vec::new();
-            if !has("source") {
-                idx += 1;
-                add.push(overlay_zone("source", idx, 88.2, 86.0, 4.0));
+            let mut changed = false;
+            if l.chrome_overlay(&flavor.chrome_layouts) {
+                let has = |n: &str| def.zones.iter().any(|z| z.name == n);
+                // Indices just above the layout's own (some readers, LibreOffice
+                // among them, don't resolve high placeholder indices).
+                let mut idx = def.zones.iter().filter_map(|z| z.idx).max().unwrap_or(0);
+                let mut add = Vec::new();
+                if !has("source") {
+                    idx += 1;
+                    add.push(overlay_zone("source", idx, 88.2, 86.0, 4.0));
+                }
+                if !has("footer") {
+                    idx += 1;
+                    add.push(overlay_zone("footer", idx, 92.5, 80.0, 5.0));
+                }
+                changed |= !add.is_empty();
+                def.zones.extend(add);
             }
-            if !has("footer") {
-                idx += 1;
-                add.push(overlay_zone("footer", idx, 92.5, 80.0, 5.0));
+            for zone in def.zones.iter_mut().filter(|z| z.rep == sldr_renderer::ZoneRep::Bake) {
+                zone.rep = sldr_renderer::ZoneRep::Picture;
+                zone.ph = None;
+                zone.idx = None;
+                changed = true;
             }
-            if add.is_empty() {
-                return None;
-            }
-            def.zones.extend(add);
-            Some((l.name.clone(), def))
+            changed.then(|| (l.name.clone(), def))
         })
         .collect();
     let browser = if has_diagrams || needs_raster {
@@ -409,6 +420,7 @@ fn build_native_deck(
 
     let mut inputs: Vec<sldr_pptx::SlideInput> = Vec::new();
     let mut rastered: Vec<(usize, String)> = Vec::new();
+    let mut region_baked: Vec<(usize, String)> = Vec::new();
     for slide in slides {
         let layout_name = slide
             .metadata
@@ -423,7 +435,7 @@ fn build_native_deck(
 
         if !layout.pptx_eligible() {
             if let Some(br) = browser.as_deref() {
-                match raster_slide(slide, flavor, lang, default_lang, config, br) {
+                match raster_slide(slide, flavor, lang, default_lang, config, br, false) {
                     Ok(png) => {
                         rastered.push((inputs.len(), layout_name.clone()));
                         inputs.push(sldr_pptx::SlideInput {
@@ -470,6 +482,38 @@ fn build_native_deck(
             );
         }
         let segments = sldr_renderer::split_segments(&lang_sel.content);
+
+        // `rep=bake` regions: one render of the slide, each region cropped
+        // from it. Without a browser they stay unfilled and are reported.
+        // Only regions this slide fills: a layout may declare alternatives
+        // (a full-width body and a left column) and use one per slide.
+        let filled = |name: &str| {
+            match name {
+                "content" => segments.content.as_ref(),
+                "left" => segments.left.as_ref(),
+                "right" => segments.right.as_ref(),
+                "heading" => segments.heading.as_ref(),
+                _ => None,
+            }
+            .is_some_and(|t| !t.trim().is_empty())
+        };
+        let bake_zones: Vec<&sldr_renderer::Zone> = registry
+            .get(&layout_name)
+            .map(|l| l.zones.iter().filter(|z| z.rep == sldr_renderer::ZoneRep::Bake && filled(&z.name)).collect())
+            .unwrap_or_default();
+        let bake_names: Vec<String> = bake_zones.iter().map(|z| z.name.clone()).collect();
+        let mut rendered: Vec<(String, ZoneContent)> = Vec::new();
+        if let (false, Some(br)) = (bake_zones.is_empty(), browser.as_deref()) {
+            match raster_slide(slide, flavor, lang, default_lang, config, br, true).and_then(|png| crop_regions(&png, &bake_zones)) {
+                Ok(parts) => rendered = parts,
+                Err(e) => println!(
+                    "  {} slide '{}': region picture failed ({e})",
+                    "warning:".yellow(),
+                    slide.name
+                ),
+            }
+        }
+
 
         // The "Source: …" chrome line, as in HTML: the label is the visible
         // text and, with a source_url, a real hyperlink — never the raw URL
@@ -521,6 +565,9 @@ fn build_native_deck(
         let mut fields: Vec<(String, ZoneContent)> = Vec::new();
         for zone in &layout.zones {
             let name = zone.name.as_str();
+            if bake_names.iter().any(|n| n == name) {
+                continue; // filled from the render below, never from the markdown's own images
+            }
             match zone.rep {
                 sldr_renderer::ZoneRep::Picture => {
                     let md = match name {
@@ -589,10 +636,17 @@ fn build_native_deck(
                 }
             }
         }
+        let rendered_names: Vec<String> = rendered.iter().map(|(n, _)| n.clone()).collect();
+        for name in &rendered_names {
+            region_baked.push((inputs.len(), name.clone()));
+        }
+        // A rendered region replaces whatever the accounting above left for it.
+        fields.retain(|(n, _)| !rendered_names.contains(n));
+        fields.extend(rendered);
         let flavor_owned = if chrome.footer.is_none() && footer.is_some() { vec!["footer".to_string()] } else { Vec::new() };
         inputs.push(sldr_pptx::SlideInput { layout, fields, details: sldr_pptx::SlideDetails {
             source_id: Some(slide.relative_path.clone()), language: Some(lang.unwrap_or(default_lang).into()),
-            notes: speaker_notes(&slide.content), flavor_owned, ..Default::default()
+            notes: speaker_notes(&slide.content), flavor_owned, rendered: rendered_names, ..Default::default()
         } });
     }
 
@@ -613,6 +667,11 @@ fn build_native_deck(
                     "Diagram is a region picture, not editable native geometry");
             }
         }
+    }
+    for (i, zone) in &region_baked {
+        let part = format!("ppt/slides/slide{}.xml", i + 1);
+        result.report.record(Some(&part), &part, zone, "region_raster", sldr_pptx::Disposition::Baked,
+            "The layout renders this region as a diagram: it is a picture of the real render; title, subtitle and footer stay editable text, and import leaves the picture alone");
     }
     for (i, layout) in &rastered {
         let part = format!("ppt/slides/slide{}.xml", i + 1);
@@ -643,6 +702,10 @@ const RASTER_LAYOUT_SOURCE: &str =
     "<!-- sldr:zone name=image rep=picture x=0 y=0 w=100 h=100 -->\n<div class=\"sldr-content\">{{image}}</div>\n";
 
 /// Render one slide with the real renderer and screenshot it at 1920×1080.
+/// Render one slide to a 1920×1080 PNG. `regions_only` renders it for
+/// cropping `rep=bake` regions: transparent, without the page background,
+/// scrim, logos or chrome — PowerPoint's master already draws those, and a
+/// second copy inside the crop would never line up with it.
 fn raster_slide(
     slide: &Slide,
     flavor: &sldr_core::flavor::Flavor,
@@ -650,6 +713,7 @@ fn raster_slide(
     default_lang: &str,
     config: &Config,
     browser: &Path,
+    regions_only: bool,
 ) -> Result<Vec<u8>> {
     let cfg = sldr_renderer::RenderConfig {
         transition: "none".into(),
@@ -665,12 +729,40 @@ fn raster_slide(
     renderer.add_slide(slide)?;
     // The picture is the slide, not the presenter: hide its UI chrome.
     const HIDE_UI: &str = "<style>.sldr-toolbar,.sldr-nav,.sldr-progress{display:none!important}</style>";
-    let html = renderer.render()?.replacen("</head>", &format!("{HIDE_UI}</head>"), 1);
-    let img = super::brand::screenshot(browser, &html, 1920, 1080, false)?;
+    const REGIONS_ONLY: &str = "<style>html,body,.sldr-slide{background:transparent!important}\
+        .sldr-framed::before,.sldr-logos,.sldr-logo,.sldr-chrome{display:none!important}</style>";
+    let hide = if regions_only { format!("{HIDE_UI}{REGIONS_ONLY}") } else { HIDE_UI.to_string() };
+    let html = renderer.render()?.replacen("</head>", &format!("{hide}</head>"), 1);
+    let img = super::brand::screenshot(browser, &html, 1920, 1080, regions_only)?;
     let mut buf = Vec::new();
     img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
         .context("re-encoding slide screenshot failed")?;
     Ok(buf)
+}
+
+/// Whether a layout declares any `rep=bake` region.
+fn has_bake(layout: &sldr_renderer::LayoutDef) -> bool {
+    layout.zones.iter().any(|z| z.rep == sldr_renderer::ZoneRep::Bake)
+}
+
+/// Crop each zone's box (percent of the slide) out of a full-slide render.
+fn crop_regions(png: &[u8], zones: &[&sldr_renderer::Zone]) -> Result<Vec<(String, ZoneContent)>> {
+    let img = image::load_from_memory(png).context("decoding slide render failed")?;
+    let (w, h) = (img.width() as f64, img.height() as f64);
+    zones
+        .iter()
+        .map(|z| {
+            let x = (z.x / 100.0 * w).round().clamp(0.0, w - 1.0) as u32;
+            let y = (z.y / 100.0 * h).round().clamp(0.0, h - 1.0) as u32;
+            let cw = ((z.w / 100.0 * w).round() as u32).clamp(1, img.width() - x);
+            let ch = ((z.h / 100.0 * h).round() as u32).clamp(1, img.height() - y);
+            let mut buf = Vec::new();
+            img.crop_imm(x, y, cw, ch)
+                .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+                .context("encoding region picture failed")?;
+            Ok((z.name.clone(), ZoneContent::Picture { bytes: buf, ext: "png".into(), fit: None }))
+        })
+        .collect()
 }
 
 /// How many pixels shorter than its window headless Chrome's viewport is
@@ -1176,4 +1268,32 @@ fn allocate_port() -> Result<u16> {
         .context("Failed to read assigned port")?
         .port();
     Ok(port)
+}
+
+#[cfg(test)]
+mod bake_tests {
+    use super::*;
+
+    #[test]
+    fn crop_regions_cuts_the_zone_box_out_of_the_render() {
+        let mut img = image::RgbaImage::new(200, 100);
+        for (x, _, px) in img.enumerate_pixels_mut() {
+            *px = if x >= 100 { image::Rgba([255, 0, 0, 255]) } else { image::Rgba([0, 0, 255, 255]) };
+        }
+        let mut png = Vec::new();
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
+        let zone = sldr_renderer::Zone {
+            name: "content".into(), ph: None, idx: None, rep: sldr_renderer::ZoneRep::Bake,
+            x: 50.0, y: 20.0, w: 50.0, h: 60.0,
+        };
+        let parts = crop_regions(&png, &[&zone]).unwrap();
+        assert_eq!(parts.len(), 1);
+        let ZoneContent::Picture { bytes, fit, .. } = &parts[0].1 else { panic!("not a picture") };
+        assert!(fit.is_none());
+        let cut = image::load_from_memory(bytes).unwrap().to_rgba8();
+        assert_eq!((cut.width(), cut.height()), (100, 60));
+        assert!(cut.pixels().all(|p| p.0 == [255, 0, 0, 255]), "only the red right half");
+    }
 }

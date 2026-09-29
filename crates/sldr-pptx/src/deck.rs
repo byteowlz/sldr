@@ -62,6 +62,11 @@ pub struct SlideDetails {
     /// not the slide. Recorded so import never copies them into the slide.
     #[serde(default)]
     pub flavor_owned: Vec<String>,
+    /// Zone names exported as a picture of the rendered layout (`rep=bake`):
+    /// a diagram the slide's markdown generates, not content of its own.
+    /// Recorded so import never writes that picture back into the slide.
+    #[serde(default)]
+    pub rendered: Vec<String>,
 }
 
 /// Generate an editable deck `.pptx` from `slides`. `title` becomes the
