@@ -71,6 +71,14 @@
   vertical-align: middle;
   margin: 0 calc(var(--sldr-u) * 1) calc(var(--sldr-uh) * 1.4) 0;
 }
+/* Three or more logos in one card shrink to share the row instead of wrapping;
+   wide wordmarks letterbox inside their share. */
+.sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li:has(> img:nth-of-type(3)) > img,
+.sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p:first-child:has(> img:nth-of-type(3)) > img {
+  height: calc(var(--sldr-uh) * 6.5);
+  max-width: calc((100% - var(--sldr-u) * 2.4) / 3);
+  margin-right: calc(var(--sldr-u) * 0.8);
+}
 /* `**Title**` lead → card title. */
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > strong:first-of-type,
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p > strong:first-of-type {

@@ -696,6 +696,17 @@
     renderMermaid(slides[current]);
   }
 
+  // A flavor logo's layout list: exact names, "all", or a trailing-* prefix
+  // ("framed*" covers every framed layout, including ones added later).
+  function logoApplies(list, layout) {
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i];
+      if (t === "all" || t === layout) return true;
+      if (t.length > 1 && t.charAt(t.length - 1) === "*" && layout.indexOf(t.slice(0, -1)) === 0) return true;
+    }
+    return false;
+  }
+
   // Persistent deck-level logos: show those whose data-logo-layouts list
   // includes the active layout (or "all"). Idempotent — a logo already on
   // for the previous slide simply stays on, so there is no flicker.
@@ -708,7 +719,7 @@
     var bare = slide.getAttribute("data-chrome") === "none";
     for (var i = 0; i < deckLogos.length; i++) {
       var list = (deckLogos[i].getAttribute("data-logo-layouts") || "").split(/\s+/);
-      var on = !bare && (list.indexOf("all") !== -1 || list.indexOf(layout) !== -1);
+      var on = !bare && logoApplies(list, layout);
       deckLogos[i].classList.toggle("sldr-logo-on", on);
     }
   }
@@ -812,7 +823,7 @@
       holder.setAttribute('data-print-logos', '');
       overlay.querySelectorAll('.sldr-logo').forEach(function (logo) {
         var layouts = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
-        if (layouts.indexOf('all') === -1 && layouts.indexOf(slide.dataset.layout) === -1) return;
+        if (!logoApplies(layouts, slide.dataset.layout || '')) return;
         var clone = logo.cloneNode(true);
         clone.classList.add('sldr-logo-on');
         holder.appendChild(clone);

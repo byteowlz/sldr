@@ -56,6 +56,11 @@
 .sldr-scatter-right img:nth-of-type(12n+10) { top: 41%; left: 43%; width: 21%; transform: rotate(2deg);  z-index: 9; }
 .sldr-scatter-right img:nth-of-type(12n+11) { top: 15%; left: 14%; width: 21%; transform: rotate(6deg);  z-index: 8; }
 .sldr-scatter-right img:nth-of-type(12n)    { top: 72%; left: 48%; width: 23%; transform: rotate(-6deg); z-index: 6; }
+/* Three or fewer images: fewer, larger slots, so a short collage still fills
+ * the zone instead of hugging its top edge. */
+.sldr-scatter-right:not(:has(img:nth-of-type(4))) img:nth-of-type(1) { top: 0%;  left: 0%;  width: 60%; transform: rotate(-3deg); z-index: 2; }
+.sldr-scatter-right:not(:has(img:nth-of-type(4))) img:nth-of-type(2) { top: 26%; left: 38%; width: 60%; transform: rotate(2.5deg); z-index: 3; }
+.sldr-scatter-right:not(:has(img:nth-of-type(4))) img:nth-of-type(3) { top: auto; bottom: 0%; left: 4%; width: 54%; transform: rotate(-1.5deg); z-index: 4; }
 </style>
 <div class="sldr-framed">
   <header class="sldr-frame-head">

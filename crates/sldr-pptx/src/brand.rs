@@ -35,7 +35,7 @@ pub struct BrandLogo {
 impl BrandLogo {
     pub fn applies_to(&self, layout: &str) -> bool {
         // A slide exported as one picture already shows its logos.
-        layout != crate::RASTER_LAYOUT_NAME && self.layouts.iter().any(|l| l == "all" || l == layout)
+        layout != crate::RASTER_LAYOUT_NAME && sldr_core::flavor::layout_pattern_matches(&self.layouts, layout)
     }
 }
 
@@ -159,5 +159,7 @@ mod tests {
         assert!(xml.contains(&format!("cx=\"{cx}\" cy=\"{}\"", cx / 4)));
         assert!(xml.contains("alphaModFix amt=\"80000\""));
         assert!(logo.applies_to("framed") && !logo.applies_to(crate::RASTER_LAYOUT_NAME));
+        let family = BrandLogo { layouts: vec!["framed*".into()], ..logo };
+        assert!(family.applies_to("framed-timeline") && family.applies_to("framed") && !family.applies_to("cover"));
     }
 }
