@@ -1,0 +1,79 @@
+<!-- sldr:category framed -->
+<!-- sldr:tags classic, branded -->
+<!-- PPTX export zones (coordinates are percent of the slide box). -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=bake x=4.4 y=22.2 w=91.1 h=68.4 -->
+<!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
+<!-- Layout: framed-rows — deck chrome (framed) with a list set as an editorial
+     table: one full-width row per item, rows sharing the body height, hairlines
+     between them. Write each item as a lead paragraph and a context paragraph
+     (a blank line between them, the context indented under the item): the lead
+     becomes the left column, the context the right. An item written on one
+     line (`**Lead** context`) stacks lead over context instead. Use for
+     questions, definitions, claims with evidence, or options with trade-offs —
+     3 to 6 items. An intro paragraph before the list stays above the rows. -->
+<style>
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > ul,
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-bottom: var(--sldr-border-width) solid var(--sldr-border);
+  margin-bottom: calc(var(--sldr-uh) * 1.5);
+}
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li {
+  flex: 1 1 0;
+  min-height: 0;
+  margin: 0;
+  padding: calc(var(--sldr-uh) * 1.4) 0;
+  border-top: var(--sldr-border-width) solid var(--sldr-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
+  line-height: 1.4;
+  color: var(--sldr-text-dim, var(--sldr-text));
+}
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li::before { content: none; }
+/* Lead + context paragraphs: two columns, lead on the left. */
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li:has(> p + p) {
+  display: grid;
+  grid-template-columns: minmax(0, 36%) minmax(0, 1fr);
+  column-gap: calc(var(--sldr-u) * 4);
+  align-content: center;
+  align-items: baseline;
+}
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li > p { margin: 0; }
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li > p:first-child { grid-column: 1; }
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li > p:not(:first-child) { grid-column: 2; }
+/* The lead: heading type, full text color. */
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li > p:first-child,
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li > strong:first-child {
+  font-family: var(--sldr-heading-font);
+  font-weight: var(--sldr-heading-weight);
+  font-size: calc(var(--sldr-u) * 2.1 * var(--sldr-type-scale));
+  line-height: 1.2;
+  color: var(--sldr-primary, var(--sldr-text));
+  text-wrap: balance;
+}
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li > p:first-child strong { font-weight: inherit; }
+/* One-line items stack the lead over its context. */
+.sldr-slide[data-layout="framed-rows"] .sldr-frame-body > :is(ul, ol) > li > strong:first-child {
+  display: block;
+  margin-bottom: 0.3em;
+}
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    {{content}}
+  </div>
+</div>

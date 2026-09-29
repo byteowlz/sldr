@@ -418,6 +418,7 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("framed-gallery", include_str!("../layouts/framed-gallery.html")),
     ("framed-image", include_str!("../layouts/framed-image.html")),
     ("framed-quote", include_str!("../layouts/framed-quote.html")),
+    ("framed-rows", include_str!("../layouts/framed-rows.html")),
     ("framed-scatter", include_str!("../layouts/framed-scatter.html")),
     ("framed-section", include_str!("../layouts/framed-section.html")),
     ("framed-strip", include_str!("../layouts/framed-strip.html")),

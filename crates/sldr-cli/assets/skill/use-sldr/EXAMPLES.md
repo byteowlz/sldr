@@ -212,7 +212,7 @@ framed-image     Clip of an independent teardown + what it means
 framed-image     Clip of a benchmark table + the honest caveat
 versus           Old way vs new way, one line each
 framed-quote     The sharpest quote from an independent evaluation
-framed-cards     Ecosystem in 4 cards (projects, numbers)
+framed-rows      Ecosystem: 4 projects, name left, what it does right
 framed-section   02 · Topic B
 framed-timeline  8 dated milestones of an incident
 framed-scatter   3 article clips + the pattern in 4 bullets
@@ -223,7 +223,7 @@ framed-section   03 · Topic C
 framed-image     Clip of a spec + what it does and does not solve
 framed-flow      Layers (vertical chain left, commentary right)
 terminal         Live-demo commands
-framed-cards     Five discussion questions
+framed-rows      Five discussion questions (question left, context right)
 framed           Reused contact slide
 ```
 
