@@ -3,7 +3,8 @@
 //!
 //! This is the deterministic markdown→PPTX mapping, the native-text half of
 //! the "honest wall": bullet lists become bulleted paragraphs (the project
-//! default **square** bullet, `buChar` U+25AA), plain paragraphs get `buNone`,
+//! default **square** bullet — PowerPoint's own filled square, Wingdings `§`;
+//! color and spacing come from the master's body style), plain paragraphs get `buNone`,
 //! and inline emphasis maps to run properties (`b`/`i`). Headings render as a
 //! bold, bullet-less paragraph. Anything richer than runs of styled text
 //! (tables, images, code blocks) is out of scope here — images are a `picture`
@@ -16,18 +17,21 @@ use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 /// Indent step per bullet level, in EMU (matches docs/pptx-spike).
 const INDENT_EMU: i64 = 285_750;
-/// Square bullet glyph (U+25AA) as an XML numeric entity.
-const SQUARE_BULLET: &str = "&#9642;";
+/// Square bullet: Wingdings `§`, the glyph PowerPoint's own "filled square
+/// bullets" use. A Unicode square (U+25AA) in Arial draws nothing in
+/// PowerPoint for Mac, whose Arial lacks it.
+pub(crate) const BULLET_FONT: &str = "Wingdings";
+pub(crate) const SQUARE_BULLET: &str = "&#167;";
 
 /// Convert a markdown fragment into a sequence of `<a:p>…</a:p>` strings,
 /// ready to drop inside a `<p:txBody>`. Returns at least one (possibly empty)
 /// paragraph so a placeholder is never structurally empty.
-pub fn to_paragraphs(markdown: &str) -> Vec<String> {
-    to_paragraphs_with_links(markdown).0
+pub fn to_paragraphs(markdown: &str, lang: &str) -> Vec<String> {
+    to_paragraphs_with_links(markdown, lang).0
 }
 
-pub(crate) fn to_paragraphs_with_links(markdown: &str) -> (Vec<String>, Vec<(String, String)>) {
-    let mut w = Walker::default();
+pub(crate) fn to_paragraphs_with_links(markdown: &str, lang: &str) -> (Vec<String>, Vec<(String, String)>) {
+    let mut w = Walker { lang: lang_tag(lang), ..Walker::default() };
     let parser = Parser::new_ext(markdown, Options::ENABLE_STRIKETHROUGH);
     for ev in parser {
         w.event(ev);
@@ -75,6 +79,8 @@ struct Walker {
     strike: usize,
     link: Option<String>,
     links: Vec<(String, String)>,
+    /// Culture tag for every run (`de-DE`), so PowerPoint proofs the right language.
+    lang: String,
 }
 
 impl Walker {
@@ -191,7 +197,7 @@ impl Walker {
                     let at = if start != 1 { format!(" startAt=\"{start}\"") } else { String::new() };
                     format!("<a:buFont typeface=\"+mj-lt\"/><a:buAutoNum type=\"arabicPeriod\"{at}/>")
                 }
-                None => format!("<a:buFont typeface=\"Arial\"/><a:buChar char=\"{SQUARE_BULLET}\"/>"),
+                None => format!("<a:buFont typeface=\"{BULLET_FONT}\"/><a:buChar char=\"{SQUARE_BULLET}\"/>"),
             };
             format!("<a:pPr marL=\"{mar_l}\" indent=\"-{INDENT_EMU}\"{lvl}>{marker}</a:pPr>")
         } else if self.quote > 0 {
@@ -203,7 +209,7 @@ impl Walker {
         let mut p = String::from("<a:p>");
         p.push_str(&ppr);
         for run in self.runs.drain(..) {
-            p.push_str(&run_xml(&run));
+            p.push_str(&run_xml(&run, &self.lang));
         }
         p.push_str("</a:p>");
         self.out.push(p);
@@ -211,8 +217,27 @@ impl Walker {
     }
 }
 
-fn run_xml(run: &Run) -> String {
-    let mut rpr = String::from("<a:rPr lang=\"en-US\"");
+/// PowerPoint culture tag for a deck language code: `de` → `de-DE`.
+/// Tags that already carry a region pass through; empty means `en-US`.
+pub fn lang_tag(code: &str) -> String {
+    let code = code.trim();
+    if code.contains('-') {
+        return code.to_string();
+    }
+    match code.to_ascii_lowercase().as_str() {
+        "" | "en" => "en-US".into(),
+        "de" => "de-DE".into(),
+        "fr" => "fr-FR".into(),
+        "es" => "es-ES".into(),
+        "it" => "it-IT".into(),
+        "nl" => "nl-NL".into(),
+        "pt" => "pt-PT".into(),
+        other => format!("{other}-{}", other.to_ascii_uppercase()),
+    }
+}
+
+fn run_xml(run: &Run, lang: &str) -> String {
+    let mut rpr = format!("<a:rPr lang=\"{lang}\"");
     if let Some(sz) = run.size {
         rpr.push_str(&format!(" sz=\"{sz}\""));
     }
@@ -241,14 +266,14 @@ fn run_xml(run: &Run) -> String {
         .split('\n')
         .map(|part| format!("<a:r>{rpr}<a:t>{}</a:t></a:r>", xml_escape(part)))
         .collect::<Vec<_>>()
-        .join("<a:br><a:rPr lang=\"en-US\"/></a:br>")
+        .join(&format!("<a:br><a:rPr lang=\"{lang}\"/></a:br>"))
 }
 
 pub(crate) fn link_id(url: &str) -> String { format!("rIdLink{}", crate::identity::hash(url.as_bytes())) }
 
-pub(crate) fn linked_paragraph(text: &str, url: &str) -> String {
+pub(crate) fn linked_paragraph(text: &str, url: &str, lang: &str) -> String {
     let run = Run { text: text.into(), bold: false, italic: false, mono: false, strike: false, size: None, link: Some(link_id(url)) };
-    format!("<a:p><a:pPr><a:buNone/></a:pPr>{}</a:p>", run_xml(&run))
+    format!("<a:p><a:pPr><a:buNone/></a:pPr>{}</a:p>", run_xml(&run, &lang_tag(lang)))
 }
 
 fn empty_paragraph() -> String {
@@ -257,17 +282,18 @@ fn empty_paragraph() -> String {
 
 /// A single plain-text paragraph (no bullet), for chrome fields like the
 /// headline or footer that are not markdown bodies.
-pub fn plain_paragraph(text: &str) -> String {
+pub fn plain_paragraph(text: &str, lang: &str) -> String {
     format!(
-        "<a:p><a:pPr marL=\"0\" indent=\"0\"><a:buNone/></a:pPr><a:r><a:rPr lang=\"en-US\"/><a:t>{}</a:t></a:r></a:p>",
+        "<a:p><a:pPr marL=\"0\" indent=\"0\"><a:buNone/></a:pPr><a:r><a:rPr lang=\"{}\"/><a:t>{}</a:t></a:r></a:p>",
+        lang_tag(lang),
         xml_escape(text)
     )
 }
 
 /// Speaker notes are plain text; render one paragraph per line so line breaks
 /// survive the round trip instead of being collapsed into a single run.
-pub fn notes_paragraphs(notes: &str) -> Vec<String> {
-    notes.lines().map(|line| plain_paragraph(line.trim())).filter(|p| !p.is_empty()).collect()
+pub fn notes_paragraphs(notes: &str, lang: &str) -> Vec<String> {
+    notes.lines().map(|line| plain_paragraph(line.trim(), lang)).filter(|p| !p.is_empty()).collect()
 }
 
 /// Reference a `HeadingLevel` so the import doesn't need its own copy; kept
@@ -290,16 +316,17 @@ mod tests {
 
     #[test]
     fn test_bullets_get_square_buchar() {
-        let ps = to_paragraphs("- first\n- second");
+        let ps = to_paragraphs("- first\n- second", "en");
+        assert!(ps[0].contains("lang=\"en-US\""));
         assert_eq!(ps.len(), 2);
-        assert!(ps[0].contains("buChar char=\"&#9642;\""));
+        assert!(ps[0].contains("buChar char=\"&#167;\""));
         assert!(ps[0].contains("<a:t>first</a:t>"));
         assert!(ps[1].contains("<a:t>second</a:t>"));
     }
 
     #[test]
     fn test_plain_paragraph_gets_bunone() {
-        let ps = to_paragraphs("Just a sentence.");
+        let ps = to_paragraphs("Just a sentence.", "en");
         assert_eq!(ps.len(), 1);
         assert!(ps[0].contains("<a:buNone/>"));
         assert!(!ps[0].contains("buChar"));
@@ -307,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_bold_and_italic_runs() {
-        let ps = to_paragraphs("normal **bold** and *italic*");
+        let ps = to_paragraphs("normal **bold** and *italic*", "en");
         let p = &ps[0];
         assert!(p.contains("b=\"1\""));
         assert!(p.contains("i=\"1\""));
@@ -317,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_nested_list_levels() {
-        let ps = to_paragraphs("- top\n    - nested");
+        let ps = to_paragraphs("- top\n    - nested", "en");
         assert_eq!(ps.len(), 2);
         assert!(ps[0].contains(&format!("marL=\"{INDENT_EMU}\"")));
         assert!(ps[1].contains(&format!("marL=\"{}\"", INDENT_EMU * 2)));
@@ -326,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_heading_is_bold_bulletless() {
-        let ps = to_paragraphs("# Title\n\nbody");
+        let ps = to_paragraphs("# Title\n\nbody", "en");
         assert!(ps[0].contains("b=\"1\""));
         assert!(ps[0].contains("<a:buNone/>"));
         assert!(ps[0].contains("<a:t>Title</a:t>"));
@@ -334,29 +361,29 @@ mod tests {
 
     #[test]
     fn test_xml_escaping() {
-        let ps = to_paragraphs("a < b & c");
+        let ps = to_paragraphs("a < b & c", "en");
         assert!(ps[0].contains("a &lt; b &amp; c"));
     }
 
     #[test]
     fn test_empty_yields_one_empty_paragraph() {
-        let ps = to_paragraphs("");
+        let ps = to_paragraphs("", "en");
         assert_eq!(ps.len(), 1);
         assert!(ps[0].contains("<a:buNone/>"));
     }
 
     #[test]
     fn test_ordered_list_autonumbers_with_start() {
-        let ps = to_paragraphs("3. three\n4. four");
+        let ps = to_paragraphs("3. three\n4. four", "en");
         assert_eq!(ps.len(), 2);
         assert!(ps[0].contains("buAutoNum type=\"arabicPeriod\" startAt=\"3\""));
-        let ps = to_paragraphs("1. one");
+        let ps = to_paragraphs("1. one", "en");
         assert!(ps[0].contains("<a:buAutoNum type=\"arabicPeriod\"/>"));
     }
 
     #[test]
     fn test_heading_depth_by_size_quote_strike_break() {
-        let ps = to_paragraphs("## Sub\n\n> quoted\n\n~~gone~~ line  \nnext");
+        let ps = to_paragraphs("## Sub\n\n> quoted\n\n~~gone~~ line  \nnext", "en");
         assert!(ps[0].contains("sz=\"2200\"") && ps[0].contains("b=\"1\""));
         assert!(ps[1].contains(&format!("marL=\"{QUOTE_MARL}\"")) && ps[1].contains("i=\"1\""));
         assert!(ps[2].contains("strike=\"sngStrike\""));
@@ -365,8 +392,19 @@ mod tests {
 
     #[test]
     fn test_inline_code_gets_mono_typeface() {
-        let ps = to_paragraphs("use `cargo build` now");
+        let ps = to_paragraphs("use `cargo build` now", "en");
         assert!(ps[0].contains("Consolas"));
         assert!(ps[0].contains("<a:t>cargo build</a:t>"));
+    }
+
+    #[test]
+    fn runs_carry_the_deck_language() {
+        assert_eq!(lang_tag("de"), "de-DE");
+        assert_eq!(lang_tag("en"), "en-US");
+        assert_eq!(lang_tag("pt-BR"), "pt-BR");
+        assert_eq!(lang_tag(""), "en-US");
+        let ps = to_paragraphs("Hallo **Welt**  \nzweite Zeile", "de");
+        assert!(ps[0].contains("lang=\"de-DE\"") && !ps[0].contains("en-US"), "{}", ps[0]);
+        assert!(plain_paragraph("Titel", "de").contains("lang=\"de-DE\""));
     }
 }

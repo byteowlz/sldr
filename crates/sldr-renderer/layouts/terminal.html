@@ -2,17 +2,17 @@
 <!-- sldr:tags expressive -->
 <!-- PPTX export zones (coordinates are percent of the slide box). -->
 <!-- sldr:zone name=heading ph=title rep=placeholder-text x=6 y=6 w=88 h=11 -->
-<!-- sldr:zone name=content ph=body idx=1 rep=placeholder-text x=6 y=20 w=88 h=72 -->
+<!-- sldr:zone name=content ph=body idx=1 rep=bake x=0 y=0 w=100 h=100 -->
 <!-- Layout: terminal — a code-first slide framed as a terminal window with titlebar. -->
 <style>
 .sldr-slide[data-layout="terminal"] .sldr-content {
-  justify-content: flex-start;
-  padding-top: calc(var(--sldr-uh) * 4);
+  justify-content: center;
   gap: calc(var(--sldr-uh) * 2);
   width: 88%;
   max-width: 88%;
 }
 .sldr-slide[data-layout="terminal"] .sldr-terminal {
+  align-self: stretch;
   background: var(--sldr-code-background);
   border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border-bright);
   border-radius: var(--sldr-radius);
@@ -34,13 +34,13 @@
   border: none;
   border-radius: 0;
   box-shadow: none;
-  font-size: calc(var(--sldr-u) * 1.6);
+  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
   line-height: 1.6;
 }
 .sldr-slide[data-layout="terminal"] .sldr-terminal > :not(pre) {
   padding: calc(var(--sldr-uh) * 1.4) calc(var(--sldr-u) * 1.8);
   font-family: var(--sldr-code-font);
-  font-size: calc(var(--sldr-u) * 1.4);
+  font-size: calc(var(--sldr-u) * 1.4 * var(--sldr-type-scale));
 }
 </style>
 <div class="sldr-content">

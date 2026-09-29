@@ -47,14 +47,19 @@
   border: var(--sldr-border-width) var(--sldr-border-style) var(--sldr-border);
   border-top: 3px solid var(--sldr-accent);
   border-radius: var(--sldr-radius);
-  font-size: calc(var(--sldr-u) * 1.35 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
   line-height: 1.4;
   color: var(--sldr-text);
 }
-/* Denser type when four or more cards share the row. */
+/* Denser type when four or more cards share the row, denser still when
+   they wrap into two rows. Readable from the back of a room first; the
+   presenter's fit pass shrinks a set that overflows. */
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul:has(> :nth-child(4)) > li {
-  font-size: calc(var(--sldr-u) * 1.2 * var(--sldr-type-scale));
-  line-height: 1.3;
+  font-size: calc(var(--sldr-u) * 1.45 * var(--sldr-type-scale));
+  line-height: 1.35;
+}
+.sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul:has(> :nth-child(5)) > li {
+  font-size: calc(var(--sldr-u) * 1.35 * var(--sldr-type-scale));
 }
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p { margin: 0 0 calc(var(--sldr-uh) * 1.2); }
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p:last-child { margin-bottom: 0; }
@@ -84,7 +89,7 @@
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p > strong:first-of-type {
   display: block;
   font-family: var(--sldr-heading-font);
-  font-size: calc(var(--sldr-u) * 1.75 * var(--sldr-type-scale));
+  font-size: calc(var(--sldr-u) * 2 * var(--sldr-type-scale));
   font-weight: var(--sldr-heading-weight);
   line-height: 1.2;
   color: var(--sldr-primary);

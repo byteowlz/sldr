@@ -64,6 +64,26 @@ pub use report::{Conversion, Disposition, Finding, Rejected, Report, Severity};
 pub(crate) const SLIDE_W_EMU: i64 = 12_192_000;
 pub(crate) const SLIDE_H_EMU: i64 = 6_858_000;
 
+/// Master body text levels 1–3: square bullets in the text color (the HTML
+/// default marker color), slightly smaller than the text, with room between
+/// paragraphs as in the HTML. Slides set only the marker per paragraph, so
+/// color, size and spacing are inherited from here and stay out of slide XML.
+fn body_levels() -> String {
+    (1..=3)
+        .map(|lvl| {
+            let mar = 285_750 * lvl;
+            format!(
+                "<a:lvl{lvl}pPr marL=\"{mar}\" indent=\"-285750\"><a:spcBef><a:spcPts val=\"600\"/></a:spcBef>\
+                 <a:buClr><a:schemeClr val=\"tx1\"/></a:buClr><a:buSzPct val=\"80000\"/>\
+                 <a:buFont typeface=\"{font}\"/><a:buChar char=\"{ch}\"/>\
+                 <a:defRPr sz=\"1800\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/></a:defRPr></a:lvl{lvl}pPr>",
+                font = mdooxml::BULLET_FONT,
+                ch = mdooxml::SQUARE_BULLET,
+            )
+        })
+        .collect()
+}
+
 /// Percent of the slide box → EMU on each axis.
 pub(crate) fn emu_x(pct: f64) -> i64 {
     (SLIDE_W_EMU as f64 * pct / 100.0).round() as i64
@@ -521,11 +541,12 @@ pub(crate) fn slide_master_xml(layout_count: usize, brand: &Brand) -> String {
 <p:sldLayoutIdLst>{layout_ids}</p:sldLayoutIdLst>
 <p:txStyles>
 <p:titleStyle><a:lvl1pPr><a:defRPr sz="2800" b="1"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mj-lt"/></a:defRPr></a:lvl1pPr></p:titleStyle>
-<p:bodyStyle><a:lvl1pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="&#9642;"/><a:defRPr sz="1800"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mn-lt"/></a:defRPr></a:lvl1pPr></p:bodyStyle>
+<p:bodyStyle>{body_levels}</p:bodyStyle>
 <p:otherStyle><a:defPPr><a:defRPr lang="en-US"/></a:defPPr></p:otherStyle>
 </p:txStyles>
 </p:sldMaster>"#,
         bg = brand::master_background(brand.background.as_ref().map(|_| MASTER_BG_RID)),
+        body_levels = body_levels(),
         title_x = emu_x(4.4),
         title_y = emu_y(6.3),
         title_cx = emu_x(70.0),
@@ -548,6 +569,14 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
         let (body_pr, lst) = match zone.name.as_str() {
             "footer" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1200\"/></a:lvl1pPr></a:lstStyle>"),
             "source" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1050\"/></a:lvl1pPr></a:lstStyle>"),
+            // A tall title zone is a display title (cover, section divider):
+            // large, sitting on the line below it. Every title shrinks to fit
+            // rather than spilling into the subtitle under it.
+            _ if ph == "title" && zone.h >= DISPLAY_TITLE_MIN_H => (
+                "<a:bodyPr anchor=\"b\"><a:normAutofit/></a:bodyPr>",
+                "<a:lstStyle><a:lvl1pPr><a:defRPr sz=\"4800\"/></a:lvl1pPr></a:lstStyle>",
+            ),
+            _ if ph == "title" => ("<a:bodyPr><a:normAutofit/></a:bodyPr>", "<a:lstStyle/>"),
             _ => ("<a:bodyPr/>", "<a:lstStyle/>"),
         };
         sps.push_str(&format!(
@@ -580,6 +609,8 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
 
 /// Footer/source text frames: no insets, one line, top-anchored — the HTML
 /// chrome is flush text, not a padded box.
+/// Title zones at least this tall (percent of the slide) are display titles.
+const DISPLAY_TITLE_MIN_H: f64 = 14.0;
 const CHROME_BODY_PR: &str = "<a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" wrap=\"none\" anchor=\"t\"/>";
 
 pub(crate) fn slide_layout_rels(layout: &TemplateLayout, brand: &Brand) -> String {
@@ -797,7 +828,7 @@ mod tests {
         )
         .unwrap();
         let m = read_part(&bytes, "ppt/slideMasters/slideMaster1.xml");
-        assert!(m.contains(r#"<a:buChar char="&#9642;"/>"#));
+        assert!(m.contains(r#"<a:buChar char="&#167;"/>"#) && m.contains(r#"<a:buClr><a:schemeClr val="tx1"/></a:buClr>"#));
     }
 
     #[test]

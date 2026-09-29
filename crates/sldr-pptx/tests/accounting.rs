@@ -127,3 +127,12 @@ fn unsafe_archive_paths_and_bounded_bomb_are_rejected() {
     assert!(bytes.len() < 100_000);
     assert!(validate_package(&bytes).unwrap_err().to_string().contains("limit"));
 }
+
+#[test]
+fn powerpoint_shrink_to_fit_state_is_not_an_edit() {
+    // PowerPoint records autofit shrinking in the slide on save.
+    let bytes = mutate(&deck(), |p| replace(p, "ppt/slides/slide1.xml", "<a:bodyPr/>", "<a:bodyPr><a:normAutofit fontScale=\"90000\" lnSpcReduction=\"10000\"/></a:bodyPr>"));
+    let report = import_with_report(&bytes).unwrap().report;
+    assert!(!report.findings.iter().any(|f| f.element.contains("normAutofit")), "{:?}", report.findings);
+    assert!(import(&bytes).is_ok());
+}

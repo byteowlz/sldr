@@ -210,9 +210,12 @@ impl LayoutDef {
     }
 
     /// Whether native PPTX export can represent this layout: it declares at
-    /// least one editable text placeholder or a picture zone.
+    /// least one editable text placeholder, a picture zone, or a baked region
+    /// (exported as a picture of the render on the slide master's background).
     pub fn pptx_eligible(&self) -> bool {
-        self.zones.iter().any(|z| (z.rep == ZoneRep::PlaceholderText && z.ph.is_some()) || z.rep == ZoneRep::Picture)
+        self.zones.iter().any(|z| {
+            (z.rep == ZoneRep::PlaceholderText && z.ph.is_some()) || matches!(z.rep, ZoneRep::Picture | ZoneRep::Bake)
+        })
     }
 
     /// Whether the layout places a dedicated image slot (`{{image}}`) — i.e.

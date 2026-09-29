@@ -207,7 +207,7 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
         let name = node.tag_name().name();
         let known = match node.tag_name().namespace() {
             Some(P) => matches!(name, "sp" | "pic" | "nvSpPr" | "nvPicPr" | "cNvPr" | "cNvSpPr" | "cNvPicPr" | "nvPr" | "ph" | "spPr" | "txBody" | "blipFill"),
-            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr") ||
+            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr" | "normAutofit") ||
                 (picture && matches!(name, "blip" | "stretch" | "fillRect" | "xfrm" | "off" | "ext" | "prstGeom" | "avLst")),
             _ => false,
         };
@@ -221,6 +221,8 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
             "buAutoNum" => &["type", "startAt"], "hlinkClick" => &["id"],
             "pPr" => &["lvl", "marL", "indent"], "latin" | "buFont" => &["typeface"],
             "buChar" => &["char"], "spLocks" => &["noGrp"], "picLocks" => &["noChangeAspect"],
+            // PowerPoint records how far it shrank text to fit; layout state, not content.
+            "normAutofit" => &["fontScale", "lnSpcReduction"],
             "blip" => &["embed"], "off" => &["x", "y"], "ext" => &["cx", "cy"],
             "prstGeom" => &["prst"], _ => &[],
         };

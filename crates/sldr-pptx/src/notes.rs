@@ -22,7 +22,7 @@ pub(crate) fn attach(parts: &mut Vec<(String, String)>, slides: &[SlideInput]) -
 <p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 2"/><p:cNvSpPr/><p:nvPr><p:ph type="sldImg"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/></p:txBody></p:sp>
 <p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes Placeholder 3"/><p:cNvSpPr/><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>{}</p:txBody></p:sp>
 </p:spTree></p:cSld><p:clrMapOvr><a:overrideClrMapping/></p:clrMapOvr></p:notes>"#,
-            mdooxml::notes_paragraphs(notes).join("")
+            mdooxml::notes_paragraphs(notes, slide.details.language.as_deref().unwrap_or("en")).join("")
         );
         // Slide rels get a notesSlide relationship (rId is unique per slide).
         let slide_rels = parts.iter_mut().find(|(p, _)| p == &format!("ppt/slides/_rels/slide{n}.xml.rels"))

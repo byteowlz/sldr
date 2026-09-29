@@ -211,6 +211,7 @@ fn build_slide(
     let mut links = std::collections::BTreeMap::new();
     let mut next_id = 2; // id 1 is the group shape
     let mut next_rel = 2; // rId1 is the slideLayout
+    let lang = slide.details.language.as_deref().unwrap_or("en");
 
     for zone in &slide.layout.zones {
         let content = lookup.get(zone.name.as_str()).copied();
@@ -269,17 +270,17 @@ fn build_slide(
             };
             let label = crate::xml_escape(&crate::title_case(&zone.name));
             let paragraphs = match content {
-                Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t),
+                Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t, lang),
                 Some(ZoneContent::Markdown(m)) => {
-                    let (paras, found) = mdooxml::to_paragraphs_with_links(m);
+                    let (paras, found) = mdooxml::to_paragraphs_with_links(m, lang);
                     links.extend(found);
                     paras.join("")
                 }
                 Some(ZoneContent::Link { text, url }) => {
                     links.insert(mdooxml::link_id(url), url.clone());
-                    mdooxml::linked_paragraph(text, url)
+                    mdooxml::linked_paragraph(text, url, lang)
                 },
-                _ => mdooxml::plain_paragraph(""),
+                _ => mdooxml::plain_paragraph("", lang),
             };
             shapes.push_str(&format!(
                 r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
@@ -356,7 +357,7 @@ mod tests {
         let slide = read_part(&bytes, "ppt/slides/slide1.xml");
         assert!(slide.contains("<a:t>My Title</a:t>"));
         assert!(slide.contains("<a:t>one</a:t>"));
-        assert!(slide.contains("buChar char=\"&#9642;\"")); // square bullets
+        assert!(slide.contains("buChar char=\"&#167;\"")); // square bullets
         assert!(slide.contains("<a:t>ACME</a:t>"));
         assert!(slide.contains(r#"type="title""#));
         assert!(slide.contains(r#"type="body" idx="1""#));
