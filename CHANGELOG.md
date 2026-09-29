@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-29
+
+### Fixed
+- Linux release cross-compilation by using the `ring` crypto provider for server TLS and self-signed certificate generation. `v0.9.0` was tagged but its Linux build failed before publication.
+
 ## [0.9.0] - 2026-09-29
 
 ### Added
