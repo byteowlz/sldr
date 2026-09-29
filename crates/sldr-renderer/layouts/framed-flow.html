@@ -21,7 +21,8 @@
      markers the chain runs top to bottom in the left column and the right
      column holds the commentary (its own lists stay bullets). -->
 <style>
-.sldr-slide[data-layout="framed-flow"] .sldr-frame-body { justify-content: center; }
+/* The chain starts at the body line under the subtitle, like text. */
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-body { justify-content: flex-start; }
 /* Hide whichever slot the body shape left empty. */
 .sldr-slide[data-layout="framed-flow"] .sldr-frame-cols:not(:has(> .sldr-col > *)) { display: none; }
 .sldr-slide[data-layout="framed-flow"] .sldr-frame-cols:has(> .sldr-col > *) ~ * { display: none; }
@@ -165,7 +166,7 @@
 .sldr-slide[data-layout="framed-flow"] .sldr-frame-body > :is(ul, ol) ~ :is(ul, ol) > li::after { content: none; }
 
 /* Column mode: the chain runs top to bottom in the left column. */
-.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child { justify-content: center; }
+.sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child { justify-content: flex-start; }
 .sldr-slide[data-layout="framed-flow"] .sldr-frame-cols > .sldr-col:first-child > :is(ul, ol) {
   --sldr-flow-gap: calc(var(--sldr-uh) * 5);
   flex-direction: column;

@@ -13,11 +13,10 @@
      stays above the cards. Use for definitions, options, "N things", or
      before/after comparisons on a branded deck. -->
 <style>
-/* Cards are as tall as the tallest card in their row and the row sits
-   vertically centred in the body — a short set of cards reads as a band,
-   not as four empty columns. A dense set grows to the body and shrinks
-   from there. */
-.sldr-slide[data-layout="framed-cards"] .sldr-frame-body { justify-content: center; }
+/* Cards start at the body line under the subtitle, like text on every other
+   framed slide; a row is as tall as its tallest card. A floating band
+   centred in the body read as empty space above the content. */
+.sldr-slide[data-layout="framed-cards"] .sldr-frame-body { justify-content: flex-start; }
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul {
   list-style: none;
   padding: 0;
@@ -68,7 +67,7 @@
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > img,
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p:first-child:has(> img:first-child) > img {
   display: inline-block;
-  height: calc(var(--sldr-uh) * 9);
+  height: calc(var(--sldr-uh) * 9 * var(--sldr-type-scale));
   width: auto;
   max-width: 100%;
   object-fit: contain;
@@ -79,7 +78,7 @@
    wide wordmarks letterbox inside their share. */
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li:has(> img:nth-of-type(3)) > img,
 .sldr-slide[data-layout="framed-cards"] .sldr-frame-body > ul > li > p:first-child:has(> img:nth-of-type(3)) > img {
-  height: calc(var(--sldr-uh) * 6.5);
+  height: calc(var(--sldr-uh) * 6.5 * var(--sldr-type-scale));
   max-width: calc((100% - var(--sldr-u) * 2.4) / 3);
   margin-right: calc(var(--sldr-u) * 0.8);
 }

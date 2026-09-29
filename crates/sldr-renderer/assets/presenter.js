@@ -169,7 +169,7 @@
     document.documentElement.getAttribute("data-sldr-motion") !== "off"
   ) {
     hintEl = document.createElement("div");
-    hintEl.textContent = "Your system has reduced motion on — press M for animated background";
+    hintEl.textContent = "Your system has reduced motion on. Press M for the animated background";
     hintEl.style.cssText =
       "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;" +
       "background:var(--sldr-surface,#222);color:var(--sldr-text,#eee);" +
@@ -1488,7 +1488,7 @@
       '<div class="sldr-source-panel" role="dialog" aria-modal="true" aria-label="Edit slide markdown">' +
         '<header class="sldr-source-header"><strong>SLIDE MARKDOWN</strong><span class="sldr-source-status"></span></header>' +
         '<textarea class="sldr-source-textarea" spellcheck="true" aria-label="Slide markdown"></textarea>' +
-        '<footer class="sldr-source-actions"><span>Ctrl+S to save · Esc to close</span>' +
+        '<footer class="sldr-source-actions"><span>Ctrl+S to save | Esc to close</span>' +
           '<button class="sldr-edit-btn sldr-source-cancel">Cancel</button>' +
           '<button class="sldr-edit-btn sldr-edit-save sldr-source-save">Save source</button>' +
         '</footer>' +
@@ -1515,7 +1515,7 @@
     });
     window.addEventListener("sldr:remote-change", function () {
       if (sourceEditor.classList.contains("sldr-source-editor-open")) {
-        setSourceStatus("Source changed on disk — saving will overwrite it", "error");
+        setSourceStatus("Source changed on disk. Saving will overwrite it", "error");
       }
     });
   }
@@ -1531,7 +1531,7 @@
     }).then(function (response) {
       if (!response.ok) return response.text().then(function (text) { throw new Error(text); });
       window.__sldrSourceDirty = false;
-      setSourceStatus("Saved — rebuilding…");
+      setSourceStatus("Saved, rebuilding…");
       // The file watcher normally reloads via SSE; this is a fallback in case
       // the filesystem event is dropped by the platform watcher.
       setTimeout(function () { window.location.reload(); }, 1500);

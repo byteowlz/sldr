@@ -11,8 +11,11 @@
      quote (a portrait, shown as a round medallion on the left). Headline
      and subheadline are optional. -->
 <style>
+/* The quote starts near the body line (room for the hanging mark), like
+   text on every other framed slide — not floating mid-slide. */
 .sldr-slide[data-layout="framed-quote"] .sldr-frame-body {
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: calc(var(--sldr-uh) * 4);
   gap: calc(var(--sldr-uh) * 2.4);
 }
 /* Portrait + quote: two columns, medallion left. */
@@ -78,7 +81,7 @@
   color: var(--sldr-text-dim, var(--sldr-text));
 }
 .sldr-slide[data-layout="framed-quote"] .sldr-frame-body > blockquote + p::before {
-  content: '— ';
+  content: none;
 }
 </style>
 <div class="sldr-framed">
