@@ -44,6 +44,14 @@
       ],
       "default": null
     },
+    "lang": {
+      "description": "Language the top-level chrome (title, subtitle, source, footer) is\nwritten in, when it differs from the deck's default — an English\nlibrary slide reused in a German deck says `lang: en`. Unset: the\ndeck's default language.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
     "layout": {
       "description": "Preferred layout",
       "type": [
@@ -117,7 +125,7 @@
       "default": null
     },
     "translations": {
-      "description": "Per-language overrides for the framed-chrome fields, keyed by language\ncode (e.g. `de`, `fr`). The top-level fields are the default language;\na `translations.<lang>` block overrides the chrome for that language,\nand any omitted field falls back to the top-level value. This is the\nfrontmatter analog of the body's `::lang:xx::` markers — so a deck\nbuilt with `--lang de` translates the headline/subtitle/source, not\njust the body. A slide with no `translations` block is unchanged.",
+      "description": "Per-language overrides for the framed-chrome fields, keyed by language\ncode (e.g. `de`, `fr`). The top-level fields are in `lang` (else the deck's default language);\na `translations.<lang>` block overrides the chrome for that language,\nand any omitted field falls back to the top-level value. This is the\nfrontmatter analog of the body's `::lang:xx::` markers — so a deck\nbuilt with `--lang de` translates the headline/subtitle/source, not\njust the body. A slide with no `translations` block is unchanged.",
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/ChromeTranslation"

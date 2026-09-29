@@ -132,6 +132,13 @@ export interface SlideMetadata {
    */
   footer?: string | null;
   /**
+   * Language the top-level chrome (title, subtitle, source, footer) is
+   * written in, when it differs from the deck's default — an English
+   * library slide reused in a German deck says `lang: en`. Unset: the
+   * deck's default language.
+   */
+  lang?: string | null;
+  /**
    * Preferred layout
    */
   layout?: string | null;
@@ -173,7 +180,7 @@ export interface SlideMetadata {
   topic?: string | null;
   /**
    * Per-language overrides for the framed-chrome fields, keyed by language
-   * code (e.g. `de`, `fr`). The top-level fields are the default language;
+   * code (e.g. `de`, `fr`). The top-level fields are in `lang` (else the deck's default language);
    * a `translations.<lang>` block overrides the chrome for that language,
    * and any omitted field falls back to the top-level value. This is the
    * frontmatter analog of the body's `::lang:xx::` markers — so a deck
@@ -400,3 +407,4 @@ export interface ZoneEntry {
    */
   writes?: Writes | null;
 }
+

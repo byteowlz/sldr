@@ -321,8 +321,15 @@ pub struct SlideMetadata {
     #[serde(default)]
     pub modified: Option<String>,
 
+    /// Language the top-level chrome (title, subtitle, source, footer) is
+    /// written in, when it differs from the deck's default — an English
+    /// library slide reused in a German deck says `lang: en`. Unset: the
+    /// deck's default language.
+    #[serde(default)]
+    pub lang: Option<String>,
+
     /// Per-language overrides for the framed-chrome fields, keyed by language
-    /// code (e.g. `de`, `fr`). The top-level fields are the default language;
+    /// code (e.g. `de`, `fr`). The top-level fields are in `lang` (else the deck's default language);
     /// a `translations.<lang>` block overrides the chrome for that language,
     /// and any omitted field falls back to the top-level value. This is the
     /// frontmatter analog of the body's `::lang:xx::` markers — so a deck
@@ -375,7 +382,8 @@ impl SlideMetadata {
     /// chrome to show, `untranslated_to` is set so the build warns loudly —
     /// a translation gap must never be silent.
     pub fn chrome_for(&self, requested: Option<&str>, deck_default: &str) -> ResolvedChrome {
-        let default = deck_default.to_lowercase();
+        // The language the top-level fields are written in.
+        let default = self.lang.as_deref().unwrap_or(deck_default).to_lowercase();
         let target = requested.unwrap_or(deck_default).to_lowercase();
         let block = self.translations.get(&target);
 
@@ -684,6 +692,22 @@ body
         // Omitted field falls back to the top-level value, no gap warning.
         assert_eq!(de.footer.as_deref(), Some("© Acme"));
         assert!(de.untranslated_to.is_none());
+    }
+
+    #[test]
+    fn chrome_for_honors_the_slides_own_language() {
+        // An English library slide reused in a German deck.
+        let mut meta = SlideMetadata { title: Some("The lethal trifecta".into()), lang: Some("en".into()), ..Default::default() };
+        meta.translations
+            .insert("de".into(), ChromeTranslation { title: Some("Die tödliche Dreifaltigkeit".into()), ..Default::default() });
+        let en = meta.chrome_for(Some("en"), "de");
+        assert_eq!(en.title.as_deref(), Some("The lethal trifecta"));
+        assert!(en.untranslated_to.is_none(), "English is the slide's own language, not a gap");
+        let de = meta.chrome_for(Some("de"), "de");
+        assert_eq!(de.title.as_deref(), Some("Die tödliche Dreifaltigkeit"));
+        // Without a German block, the German deck would show English: a real gap.
+        meta.translations.clear();
+        assert_eq!(meta.chrome_for(Some("de"), "de").untranslated_to.as_deref(), Some("de"));
     }
 
     #[test]

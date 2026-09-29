@@ -40,6 +40,8 @@ footer: "© My Org"               # per-slide footer; overrides the flavor's def
 align: left|center|right         # horizontal override
 valign: top|center|bottom        # vertical override
 tags: [topic, demo]              # for ls/search
+type_scale: 1.2                  # this slide's text bigger/smaller (fills sparse slides)
+lang: en                         # language the top-level chrome is written in (default: the deck's)
 translations:                    # optional: per-language chrome (see below)
   de:
     title: Überschrift
@@ -51,7 +53,7 @@ body markdown…
 
 `title`/`subtitle`/`source`/`footer` are read by the **framed** layouts as chrome slots; plain layouts render the markdown body and ignore them (use a markdown `#`/`##` heading there instead).
 
-**Translating chrome.** `--lang` swaps the body (`::lang:xx::`) *and* the chrome. Top-level `title`/`subtitle`/`source`/`source_url`/`footer` are the default language; an optional `translations.<lang>` block overrides them per language, and any omitted field falls back to the top-level value. Building a non-default language for a slide that has chrome but no `translations` block warns loudly and falls back — never a silent wrong-language headline. (It's the frontmatter analog of the body's `::lang:xx::`.)
+**Translating chrome.** `--lang` swaps the body (`::lang:xx::`) *and* the chrome. Top-level `title`/`subtitle`/`source`/`source_url`/`footer` are in the slide's `lang` (else the deck's default language — so an English library slide reused in a German deck says `lang: en` and carries `translations.de`); an optional `translations.<lang>` block overrides them per language, and any omitted field falls back to the top-level value. Building a non-default language for a slide that has chrome but no `translations` block warns loudly and falls back — never a silent wrong-language headline. (It's the frontmatter analog of the body's `::lang:xx::`.)
 
 ## Body markers
 

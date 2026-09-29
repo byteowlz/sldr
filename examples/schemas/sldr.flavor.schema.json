@@ -528,7 +528,7 @@
           "type": "string"
         },
         "layouts": {
-          "description": "Which layouts this logo appears on.\nUse [\"all\"] for every slide, or specific layouts like [\"default\", \"two-cols\"].",
+          "description": "Which layouts this logo appears on.\nUse [\"all\"] for every slide, specific layouts like [\"default\", \"two-cols\"],\nor a trailing-`*` prefix like [\"framed*\"] for a whole layout family.",
           "type": "array",
           "default": [
             "all"
