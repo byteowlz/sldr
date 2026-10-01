@@ -230,15 +230,17 @@ fn build_slide(
                 "<Relationship Id=\"rId{rel}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/image{media_n}.{ext}\"/>"
             ));
 
-            // Zone box in EMU; aspect-fit (centered) when intrinsic dims are
-            // given so a diagram isn't stretched, else fill the box.
+            // Zone box in EMU. A picture keeps its aspect ratio, always: it
+            // is fitted inside the box (centered) at the size the caller
+            // gives or, failing that, the one its header declares. Only an
+            // unreadable header fills the box.
             let (zx, zy, zw, zh) = (
                 crate::emu_x(zone.x),
                 crate::emu_y(zone.y),
                 crate::emu_x(zone.w),
                 crate::emu_y(zone.h),
             );
-            let (x, y, cx, cy) = match fit {
+            let (x, y, cx, cy) = match fit.or_else(|| crate::imagesize::dimensions(bytes)).as_ref() {
                 Some((iw, ih)) if *iw > 0 && *ih > 0 => {
                     let scale = (zw as f64 / *iw as f64).min(zh as f64 / *ih as f64);
                     let cx = (*iw as f64 * scale).round() as i64;
@@ -461,6 +463,29 @@ mod tests {
             (0..z.len()).map(|i| z.by_index(i).unwrap().name().to_string()).collect()
         };
         assert!(names.contains(&"ppt/media/image1.png".to_string()));
+    }
+
+    #[test]
+    fn test_picture_keeps_its_aspect_ratio_without_a_given_size() {
+        // A wide clip (2120×620) in framed-image's tall image zone: its size
+        // comes from the PNG header, and the placed picture has the image's
+        // aspect ratio, never the zone's.
+        let reg = LayoutRegistry::builtin();
+        let mut png = b"\x89PNG\r\n\x1a\n\0\0\0\x0dIHDR".to_vec();
+        png.extend_from_slice(&2120u32.to_be_bytes());
+        png.extend_from_slice(&620u32.to_be_bytes());
+        let slides = vec![SlideInput { details: Default::default(),
+            layout: reg.get("framed-image").unwrap(),
+            fields: vec![("image".into(), ZoneContent::Picture { bytes: png, ext: "png".into(), fit: None })],
+        }];
+        let slide = read_part(&build_deck(&theme(), "Deck", &slides).unwrap(), "ppt/slides/slide1.xml");
+        let pic = &slide[slide.find("<p:pic>").unwrap()..];
+        let attr = |name: &str| -> f64 {
+            let at = pic.find(&format!("{name}=\"")).unwrap() + name.len() + 2;
+            pic[at..at + pic[at..].find('"').unwrap()].parse().unwrap()
+        };
+        let ratio = attr("cx") / attr("cy");
+        assert!((ratio - 2120.0 / 620.0).abs() < 0.01, "placed at {ratio}, image is {}", 2120.0 / 620.0);
     }
 
     #[test]

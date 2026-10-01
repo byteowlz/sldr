@@ -41,6 +41,7 @@ mod deck;
 mod brand;
 mod flavor_report;
 mod import;
+mod imagesize;
 mod identity;
 mod mdooxml;
 mod notes;
