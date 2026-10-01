@@ -418,18 +418,50 @@ fn build_native_deck(
         None
     };
 
+    // Freeform slides: their body zones are their own blocks, so each such
+    // slide gets a layout view of its own (text boxes / pictures at the
+    // block boxes). Built before the loop: the inputs borrow these.
+    let (block_layouts, mut block_fields_all): (Vec<Option<sldr_renderer::LayoutDef>>, Vec<Vec<(String, ZoneContent)>>) = slides
+        .iter()
+        .map(|slide| {
+            let name = slide.metadata.layout.as_deref().unwrap_or("default");
+            let Some(base) = with_overlay.get(name).or_else(|| registry.get(name)) else { return (None, Vec::new()) };
+            if !base.blocks {
+                return (None, Vec::new());
+            }
+            let lang_sel = sldr_core::lang::select_language(&slide.content, lang, default_lang);
+            let mut def = base.clone();
+            let mut fields = Vec::new();
+            for (i, b) in sldr_renderer::split_blocks(&lang_sel.content).unwrap_or_default().iter().enumerate() {
+                let zone = format!("block{}", i + 1);
+                let picture = is_single_image(&b.markdown).then(|| resolve_picture(&b.markdown, &slide.path)).flatten();
+                let rep = if picture.is_some() { sldr_renderer::ZoneRep::Picture } else { sldr_renderer::ZoneRep::PlaceholderText };
+                def.zones.push(sldr_renderer::Zone { name: zone.clone(), ph: None, idx: None, rep, x: b.x, y: b.y, w: b.w, h: b.h });
+                fields.push((zone, match picture {
+                    Some((bytes, ext)) => ZoneContent::Picture { bytes, ext, fit: None },
+                    None => ZoneContent::Markdown(b.markdown.clone()),
+                }));
+            }
+            (Some(def), fields)
+        })
+        .unzip();
+
     let mut inputs: Vec<sldr_pptx::SlideInput> = Vec::new();
     let mut rastered: Vec<(usize, String)> = Vec::new();
     let mut region_baked: Vec<(usize, String)> = Vec::new();
-    for slide in slides {
+    for (si, slide) in slides.iter().enumerate() {
         let layout_name = slide
             .metadata
             .layout
             .clone()
             .unwrap_or_else(|| "default".to_string());
-        let layout = match with_overlay.get(&layout_name) {
-            Some(augmented) => augmented,
-            None => registry.resolve(&layout_name)?,
+        let block_fields = std::mem::take(&mut block_fields_all[si]);
+        let layout: &sldr_renderer::LayoutDef = match &block_layouts[si] {
+            Some(def) => def,
+            None => match with_overlay.get(&layout_name) {
+                Some(augmented) => augmented,
+                None => registry.resolve(&layout_name)?,
+            },
         };
         let overlay = layout.chrome_overlay(&flavor.chrome_layouts);
 
@@ -562,9 +594,12 @@ fn build_native_deck(
         // single image sitting in the `content` slot exports as a picture, not
         // as literal `![](…)` text. Only formats PowerPoint reads natively are
         // embedded; svg/remote are reported and skipped, never mangled.
-        let mut fields: Vec<(String, ZoneContent)> = Vec::new();
+        let mut fields: Vec<(String, ZoneContent)> = block_fields;
         for zone in &layout.zones {
             let name = zone.name.as_str();
+            if name.starts_with("block") && fields.iter().any(|(n, _)| n == name) {
+                continue; // filled from the slide's blocks above
+            }
             if bake_names.iter().any(|n| n == name) {
                 continue; // filled from the render below, never from the markdown's own images
             }
@@ -615,6 +650,8 @@ fn build_native_deck(
         // has no slot for) is not a PowerPoint loss.
         let slots = layout.slots();
         let html_shows = |n: &str| match n {
+            // A freeform body is its blocks; the raw body text is not shown.
+            "content" if layout.blocks => false,
             "footer" | "source" => overlay || slots.contains(&n),
             "headline" | "subheadline" => slots.contains(&n),
             // Body segments without their own slot fold into `{{content}}`.
@@ -738,6 +775,12 @@ fn raster_slide(
     img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
         .context("re-encoding slide screenshot failed")?;
     Ok(buf)
+}
+
+/// Whether a markdown fragment is exactly one image and nothing else.
+fn is_single_image(md: &str) -> bool {
+    let t = md.trim();
+    t.starts_with("![") && t.ends_with(')') && t.matches("![").count() == 1 && !t.contains('\n')
 }
 
 /// Whether a layout declares any `rep=bake` region.

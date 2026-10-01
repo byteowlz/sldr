@@ -136,3 +136,24 @@ fn powerpoint_shrink_to_fit_state_is_not_an_edit() {
     assert!(!report.findings.iter().any(|f| f.element.contains("normAutofit")), "{:?}", report.findings);
     assert!(import(&bytes).is_ok());
 }
+
+#[test]
+fn freeform_text_box_round_trips_strict() {
+    // A freeform block exports as a text box and imports back as the same
+    // zone, with nothing the strict audit does not understand.
+    let registry = LayoutRegistry::builtin();
+    let mut def = registry.get("freeform").unwrap().clone();
+    def.zones.push(sldr_renderer::Zone { name: "block1".into(), ph: None, idx: None,
+        rep: sldr_renderer::ZoneRep::PlaceholderText, x: 10.0, y: 20.0, w: 30.0, h: 15.0 });
+    let bytes = build_deck_with_report(&Theme::from_flavor(&Default::default()), "Free", &[SlideInput {
+        details: SlideDetails { source_id: Some("s.md".into()), ..Default::default() }, layout: &def,
+        fields: vec![("block1".into(), ZoneContent::Markdown("Hello **there**".into()))],
+    }]).unwrap().value;
+    let converted = import_with_report(&bytes).unwrap();
+    let noise: Vec<_> = converted.report.findings.iter().filter(|f| f.disposition != Disposition::Converted).map(|f| format!("{} {} {}", f.element, f.feature, f.disposition as u8)).collect();
+    assert!(noise.is_empty(), "strict import complained: {noise:?}");
+    let slides = converted.value;
+    let z = slides[0].zones.iter().find(|z| z.zone == "block1").expect("block1 imported");
+    assert_eq!(z.value.trim(), "Hello **there**");
+    assert_eq!(z.changed, Some(false));
+}

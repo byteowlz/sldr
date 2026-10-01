@@ -36,7 +36,7 @@ pub use layout::{
     builtin_layout_names, builtin_layout_source, emit_zone, parse_zones, replace_zone_block,
     LayoutDef, LayoutRegistry, Zone, ZoneRep,
 };
-pub use markdown::{split_segments, strip_stray_markers, MarkdownSegments};
+pub use markdown::{split_blocks, split_segments, strip_stray_markers, Block, MarkdownSegments};
 pub use candidates::{layout_candidates, Candidate};
 pub use zones::{zone_document, Binding, Geometry, Unbound, Writes, ZoneDocument, ZoneEntry, ZoneOpts};
 pub use media::ImageMode;

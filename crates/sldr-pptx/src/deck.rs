@@ -100,9 +100,9 @@ fn build_deck_bytes(theme: &crate::Theme, title: &str, slides: &[SlideInput]) ->
     for slide in slides {
         // Exportable if it declares any representable zone — an editable text
         // placeholder OR a picture (a picture-only image layout is fine).
-        let eligible = slide.layout.zones.iter().any(|z| {
-            (z.rep == ZoneRep::PlaceholderText && z.ph.is_some()) || z.rep == ZoneRep::Picture
-        });
+        // Exportable if it declares any representable zone: a text
+        // placeholder, a free text box, a picture, or a baked region.
+        let eligible = slide.layout.zones.iter().any(|z| matches!(z.rep, ZoneRep::PlaceholderText | ZoneRep::Picture | ZoneRep::Bake));
         if !eligible {
             if !not_eligible.contains(&slide.layout.name.as_str()) {
                 not_eligible.push(slide.layout.name.as_str());
@@ -257,6 +257,36 @@ fn build_slide(
                 r#"<p:pic><p:nvPicPr><p:cNvPr id="{id}" name="{label}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>
 <p:blipFill><a:blip r:embed="rId{rel}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>
 <p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>"#
+            ));
+            continue;
+        }
+
+        // A text zone without a placeholder type (a freeform block) is a free
+        // text box at its own geometry, styled like body text.
+        if zone.rep == crate::ZoneRep::PlaceholderText && zone.ph.is_none() {
+            let Some(content) = content else { continue };
+            let id = next_id;
+            next_id += 1;
+            let label = crate::xml_escape(&crate::title_case(&zone.name));
+            let paragraphs = match content {
+                ZoneContent::Text(t) => mdooxml::plain_paragraph(t, lang),
+                ZoneContent::Markdown(m) => {
+                    let (paras, found) = mdooxml::to_paragraphs_with_links(m, lang);
+                    links.extend(found);
+                    paras.join("")
+                }
+                ZoneContent::Link { text, url } => {
+                    links.insert(mdooxml::link_id(url), url.clone());
+                    mdooxml::linked_paragraph(text, url, lang)
+                }
+                ZoneContent::Picture { .. } => unreachable!("pictures are handled above"),
+            };
+            shapes.push_str(&format!(
+                r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
+<p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+<p:txBody><a:bodyPr wrap="square"><a:normAutofit/></a:bodyPr>{lst}{paragraphs}</p:txBody></p:sp>"#,
+                x = crate::emu_x(zone.x), y = crate::emu_y(zone.y), cx = crate::emu_x(zone.w), cy = crate::emu_y(zone.h),
+                lst = crate::TEXT_BOX_LST,
             ));
             continue;
         }
@@ -486,6 +516,22 @@ mod tests {
         };
         let ratio = attr("cx") / attr("cy");
         assert!((ratio - 2120.0 / 620.0).abs() < 0.01, "placed at {ratio}, image is {}", 2120.0 / 620.0);
+    }
+
+    #[test]
+    fn test_ph_less_text_zone_is_a_text_box_at_its_geometry() {
+        let reg = LayoutRegistry::builtin();
+        let mut def = reg.get("freeform").unwrap().clone();
+        def.zones.push(sldr_renderer::Zone { name: "block1".into(), ph: None, idx: None,
+            rep: sldr_renderer::ZoneRep::PlaceholderText, x: 10.0, y: 20.0, w: 30.0, h: 15.0 });
+        let slides = vec![SlideInput { details: Default::default(), layout: &def,
+            fields: vec![("block1".into(), ZoneContent::Markdown("- free *text*".into()))] }];
+        let built = crate::build_deck_with_report(&theme(), "Deck", &slides).unwrap();
+        let slide = read_part(&built.value, "ppt/slides/slide1.xml");
+        assert!(slide.contains("txBox=\"1\""), "{slide}");
+        assert!(slide.contains(&format!("<a:off x=\"{}\" y=\"{}\"/>", crate::emu_x(10.0), crate::emu_y(20.0))));
+        assert!(slide.contains("<a:t>free </a:t>") && slide.contains("i=\"1\""));
+        assert!(!slide.contains("<p:ph"), "a text box is not a placeholder");
     }
 
     #[test]

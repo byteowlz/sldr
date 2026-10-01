@@ -1,0 +1,38 @@
+<!-- sldr:category framed -->
+<!-- sldr:tags expressive, branded, freeform -->
+<!-- sldr:blocks -->
+<!-- PPTX export zones (coordinates are percent of the slide box). -->
+<!-- sldr:zone name=headline ph=title rep=placeholder-text x=4.4 y=6.3 w=70 h=9 -->
+<!-- sldr:zone name=subheadline ph=body idx=3 rep=placeholder-text x=4.4 y=15.5 w=70 h=5 -->
+<!-- sldr:zone name=footer ph=body idx=2 rep=placeholder-text x=4.4 y=92.5 w=80 h=5 -->
+<!-- Layout: framed-freeform — deck chrome (headline, subheadline, footer,
+     flavor logos and background) around freely placed blocks: the body is
+     `::block x= y= w= h=::` markers (percent of the slide), each followed by
+     markdown. The escape hatch for a branded slide no other layout fits;
+     keep the blocks in markdown, never raw HTML, and keep them inside the
+     body area (about y 22–90). Each block exports to PowerPoint as an
+     editable text box or picture at its position. -->
+<style>
+.sldr-slide[data-layout="framed-freeform"] .sldr-frame-body { position: static; }
+.sldr-slide[data-layout="framed-freeform"] .sldr-block {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
+  line-height: 1.35;
+  z-index: 1;
+}
+.sldr-slide[data-layout="framed-freeform"] .sldr-block > :first-child { margin-top: 0; }
+.sldr-slide[data-layout="framed-freeform"] .sldr-block > :last-child { margin-bottom: 0; }
+.sldr-slide[data-layout="framed-freeform"] .sldr-block > p:has(> img:only-child) { margin: 0; height: 100%; }
+.sldr-slide[data-layout="framed-freeform"] .sldr-block img { max-width: 100%; max-height: 100%; object-fit: contain; }
+</style>
+<div class="sldr-framed">
+  <header class="sldr-frame-head">
+    {{headline}}
+    {{subheadline}}
+  </header>
+  <div class="sldr-frame-body">
+    {{content}}
+  </div>
+</div>

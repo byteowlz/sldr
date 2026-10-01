@@ -105,6 +105,10 @@ pub struct LayoutDef {
     /// `<!-- sldr:media autoplay -->` — videos on this layout start playing
     /// when the slide is shown and pause when it is left (`data-media`).
     pub media_autoplay: bool,
+    /// `<!-- sldr:blocks -->` — a freeform layout: the body is `::block …::`
+    /// markers, each placed at its own percent box. The escape hatch for a
+    /// slide no layout fits; PPTX zones come from the blocks, per slide.
+    pub blocks: bool,
     /// `<!-- sldr:zone … -->` directives — the PPTX export contract for this
     /// layout (ADR-0008, trx-4s9s). Each zone declares how one region maps to
     /// native PowerPoint: an editable text placeholder, a positioned picture,
@@ -213,9 +217,7 @@ impl LayoutDef {
     /// least one editable text placeholder, a picture zone, or a baked region
     /// (exported as a picture of the render on the slide master's background).
     pub fn pptx_eligible(&self) -> bool {
-        self.zones.iter().any(|z| {
-            (z.rep == ZoneRep::PlaceholderText && z.ph.is_some()) || matches!(z.rep, ZoneRep::Picture | ZoneRep::Bake)
-        })
+        self.zones.iter().any(|z| matches!(z.rep, ZoneRep::PlaceholderText | ZoneRep::Picture | ZoneRep::Bake))
     }
 
     /// Whether the layout places a dedicated image slot (`{{image}}`) — i.e.
@@ -407,6 +409,7 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("end", include_str!("../layouts/end.html")),
     ("feature-image", include_str!("../layouts/feature-image.html")),
     ("figure", include_str!("../layouts/figure.html")),
+    ("freeform", include_str!("../layouts/freeform.html")),
     ("framed", include_str!("../layouts/framed.html")),
     ("framed-cards", include_str!("../layouts/framed-cards.html")),
     ("framed-cols", include_str!("../layouts/framed-cols.html")),
@@ -414,6 +417,7 @@ const BUILTIN_LAYOUTS: &[(&str, &str)] = &[
     ("framed-cover", include_str!("../layouts/framed-cover.html")),
     ("framed-figure", include_str!("../layouts/framed-figure.html")),
     ("framed-flow", include_str!("../layouts/framed-flow.html")),
+    ("framed-freeform", include_str!("../layouts/framed-freeform.html")),
     ("framed-full", include_str!("../layouts/framed-full.html")),
     ("framed-gallery", include_str!("../layouts/framed-gallery.html")),
     ("framed-image", include_str!("../layouts/framed-image.html")),
@@ -597,6 +601,7 @@ fn parse_layout(name: &str, source: &str) -> LayoutDef {
         .unwrap_or_default();
     let chrome_none = directive_value(source, "chrome").map(str::trim) == Some("none");
     let media_autoplay = directive_value(source, "media").map(str::trim) == Some("autoplay");
+    let blocks = source.contains("<!-- sldr:blocks -->");
 
     LayoutDef {
         name: name.to_string(),
@@ -607,6 +612,7 @@ fn parse_layout(name: &str, source: &str) -> LayoutDef {
         tags,
         chrome_none,
         media_autoplay,
+        blocks,
         zones: parse_zones(source),
     }
 }
@@ -777,6 +783,22 @@ fn slot_map(
     slots.insert("footer", chrome.footer.clone().unwrap_or_default());
     slots.insert("source", chrome.source.clone().unwrap_or_default());
     match rendered {
+        MarkdownOutput::Blocks(blocks) => {
+            // Each block is an absolutely positioned box; the layout's
+            // `{{content}}` is the canvas they sit on.
+            let mut content = String::new();
+            for (i, b) in blocks.iter().enumerate() {
+                content.push_str(&format!(
+                    "<div class=\"sldr-block\" data-block=\"{}\" style=\"left:{}%;top:{}%;width:{}%;height:{}%\">{}</div>\n",
+                    i + 1, b.x, b.y, b.w, b.h, b.html.trim()
+                ));
+            }
+            slots.insert("content", content);
+            slots.insert("heading", String::new());
+            slots.insert("left", String::new());
+            slots.insert("right", String::new());
+            slots.insert("image", String::new());
+        }
         MarkdownOutput::Single(content) => {
             let content = if collage {
                 promote_images_to_figures(content.trim())

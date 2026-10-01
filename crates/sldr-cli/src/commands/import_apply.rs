@@ -133,6 +133,27 @@ fn plan_slide(original: &Slide, s: &ImportedSlide, plan: &mut Plan) {
                 };
                 plan.applied.push(format!("{key}{}", if translated { format!(" ({lang})") } else { String::new() }));
             }
+            // A freeform block: a picture block compares its bytes like `image`,
+            // a text block is replaced by its byte range.
+            slot if slot.starts_with("block") && z.image.is_some() => {
+                let n = slot.trim_start_matches("block").parse::<usize>().ok();
+                match replace_image(original, &body, &lang, z, n) {
+                    Ok(Some((b, name, bytes))) => {
+                        body = b;
+                        plan.new_media.push((name.clone(), bytes));
+                        plan.applied.push(format!("{slot} image → media/{name}"));
+                    }
+                    Ok(None) => {}
+                    Err(why) => plan.skipped.push((slot.to_string(), why)),
+                }
+            }
+            slot if slot.starts_with("block") => match replace_block(&body, &lang, slot, &z.value) {
+                Ok(b) => {
+                    body = b;
+                    plan.applied.push(format!("{slot} text"));
+                }
+                Err(e) => plan.skipped.push((z.zone.clone(), e)),
+            },
             slot @ ("heading" | "content" | "left" | "right") => match replace_segment(&body, &lang, slot, &z.value) {
                 Ok(b) => {
                     body = b;
@@ -140,7 +161,7 @@ fn plan_slide(original: &Slide, s: &ImportedSlide, plan: &mut Plan) {
                 }
                 Err(why) => plan.skipped.push((slot.to_string(), why)),
             },
-            "image" => match replace_image(original, &body, &lang, z) {
+            "image" => match replace_image(original, &body, &lang, z, None) {
                 Ok(Some((b, name, bytes))) => {
                     body = b;
                     plan.new_media.push((name.clone(), bytes));
@@ -293,18 +314,42 @@ fn replace_segment(body: &str, lang: &str, slot: &str, value: &str) -> std::resu
     Ok(format!("{}{}{}", &body[..at], value.trim(), &body[at + old.len()..]))
 }
 
-/// Replace the image reference in the image segment when PowerPoint carries
-/// different bytes than the file it points at. Alt text is kept.
+/// Replace one freeform block's markdown (`block3` → the third `::block …::`),
+/// found by its byte range, so identical blocks never collide.
+fn replace_block(body: &str, lang: &str, slot: &str, value: &str) -> std::result::Result<String, String> {
+    let n: usize = slot.trim_start_matches("block").parse().map_err(|_| format!("unknown zone {slot}"))?;
+    let range = lang_block(body, lang);
+    let blocks = sldr_renderer::split_blocks(&body[range.clone()]).ok_or("the slide has no ::block:: markers")?;
+    let b = blocks.get(n.checked_sub(1).ok_or("block numbers start at 1")?).ok_or_else(|| format!("the slide has no {slot}"))?;
+    let (start, end) = (range.start + b.range.start, range.start + b.range.end);
+    Ok(format!("{}{}{}", &body[..start], value.trim(), &body[end..]))
+}
+
+/// Replace the image reference in the image segment (or in freeform block
+/// `block`, 1-based) when PowerPoint carries different bytes than the file it
+/// points at. Alt text is kept.
 fn replace_image(
     original: &Slide,
     body: &str,
     lang: &str,
     z: &ImportedZone,
+    block: Option<usize>,
 ) -> std::result::Result<Option<(String, String, Vec<u8>)>, String> {
     let img = z.image.as_ref().ok_or("no image bytes")?;
     let range = lang_block(body, lang);
-    let block = &body[range.clone()];
-    let seg = sldr_renderer::split_segments(block).image.or_else(|| sldr_renderer::split_segments(block).content).unwrap_or_default();
+    let block_txt = &body[range.clone()];
+    // The segment holding the reference, and where it starts in `body`.
+    let (seg, seg_start) = match block {
+        Some(n) => {
+            let blocks = sldr_renderer::split_blocks(block_txt).ok_or("the slide has no ::block:: markers")?;
+            let b = blocks.get(n.wrapping_sub(1)).ok_or_else(|| format!("the slide has no block{n}"))?;
+            (b.markdown.clone(), range.start + b.range.start)
+        }
+        None => (
+            sldr_renderer::split_segments(block_txt).image.or_else(|| sldr_renderer::split_segments(block_txt).content).unwrap_or_default(),
+            range.start,
+        ),
+    };
     let src = sldr_core::media::references(&seg).into_iter().next().ok_or("the slide has no image reference to replace")?;
     let dir = original.path.parent().ok_or("slide has no folder")?;
     if std::fs::read(dir.join(&src)).is_ok_and(|old| old == img.bytes) {
@@ -316,7 +361,7 @@ fn replace_image(
         .map(|n| format!("{stem}-pptx-{n}.{ext}"))
         .find(|n| !dir.join("media").join(n).exists())
         .unwrap_or_else(|| format!("{stem}-pptx.{ext}"));
-    let at = range.start + block.find(src.as_str()).ok_or("image reference not found")?;
+    let at = seg_start + body[seg_start..].find(src.as_str()).ok_or("image reference not found")?;
     let new_body = format!("{}media/{name}{}", &body[..at], &body[at + src.len()..]);
     Ok(Some((new_body, name, img.bytes.clone())))
 }

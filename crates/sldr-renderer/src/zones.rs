@@ -95,7 +95,8 @@ pub struct Unbound {
     pub binding: Binding,
 }
 
-/// Who owns the boxes. Always the layout: there is no per-slide geometry.
+/// Who owns the boxes. The layout — except on a freeform layout, where the
+/// body boxes are the slide's own `::block …::` markers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Geometry {
     pub layout: String,
@@ -151,6 +152,36 @@ pub fn zone_document(
 
     let mut zones = Vec::with_capacity(layout.zones.len());
     let mut covered: Vec<&str> = Vec::new();
+
+    // A freeform layout's body zones are the slide's own blocks: text blocks
+    // bind to their markdown range, a single-image block to that image.
+    if layout.blocks {
+        if let Some(blocks) = crate::markdown::split_blocks(body) {
+            for (i, b) in blocks.iter().enumerate() {
+                let name = format!("block{}", i + 1);
+                let src = first_image_src(&b.markdown).filter(|_| is_single_image(&b.markdown));
+                let (rep, binding, content) = match src {
+                    Some(src) => (ZoneRep::Picture, Binding::Image { slot: name.clone(), src: Some(src.clone()) }, Some(src)),
+                    None => (
+                        ZoneRep::PlaceholderText,
+                        Binding::Markdown { slot: name.clone(), range: Some((b.range.start, b.range.end)) },
+                        Some(b.markdown.clone()),
+                    ),
+                };
+                zones.push(ZoneEntry {
+                    name,
+                    rep: rep.as_token(),
+                    ph: None,
+                    idx: None,
+                    bbox: [b.x, b.y, b.w, b.h],
+                    binding,
+                    content,
+                    writes: Some(slide_writes.clone()),
+                });
+            }
+            covered.push("content");
+        }
+    }
 
     for z in &layout.zones {
         let (binding, content, writes) = match z.rep {
@@ -243,6 +274,12 @@ pub fn zone_document(
             used_by: opts.layout_used_by,
         },
     }
+}
+
+/// Whether a markdown fragment is exactly one image and nothing else.
+fn is_single_image(md: &str) -> bool {
+    let t = md.trim();
+    t.starts_with("![") && t.ends_with(')') && t.matches("![").count() == 1 && !t.contains('\n')
 }
 
 fn bbox(z: &Zone) -> [f64; 4] {

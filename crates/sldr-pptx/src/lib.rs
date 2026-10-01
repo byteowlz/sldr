@@ -610,6 +610,11 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
 
 /// Footer/source text frames: no insets, one line, top-anchored — the HTML
 /// chrome is flush text, not a padded box.
+/// List style for a free text box: body text color and size, square
+/// bullets — what a placeholder inherits from the master, spelled out,
+/// because a text box inherits nothing.
+pub(crate) const TEXT_BOX_LST: &str = "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:defRPr sz=\"1800\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/></a:defRPr></a:lvl1pPr><a:lvl2pPr marL=\"285750\" indent=\"-285750\"><a:defRPr sz=\"1800\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:defRPr></a:lvl2pPr></a:lstStyle>";
+
 /// Title zones at least this tall (percent of the slide) are display titles.
 const DISPLAY_TITLE_MIN_H: f64 = 14.0;
 const CHROME_BODY_PR: &str = "<a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" wrap=\"none\" anchor=\"t\"/>";

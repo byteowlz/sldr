@@ -122,10 +122,13 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
         let zone = if let Some(mapped) = mapped { mapped.zone.clone() }
             else if record.is_some() { String::new() }
             else { props.and_then(|n| n.attribute("name")).unwrap_or("").to_lowercase() };
-        let known = matches!(zone.as_str(), "headline" | "subheadline" | "footer" | "source" | "heading" | "content" | "left" | "right" | "image");
+        // Freeform blocks are `block<N>`: a text box or a picture per block.
+        let block = zone.strip_prefix("block").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+        let known = block || matches!(zone.as_str(), "headline" | "subheadline" | "footer" | "source" | "heading" | "content" | "left" | "right" | "image");
         let pic = shape.has_tag_name((P, "pic"));
         let placeholder = shape.descendants().any(|n| n.has_tag_name((P, "ph")));
-        if !known || !(pic || (shape.has_tag_name((P, "sp")) && placeholder)) {
+        let text_box = shape.descendants().any(|n| n.has_tag_name((P, "cNvSpPr")) && n.attribute("txBox") == Some("1"));
+        if !known || !(pic || (shape.has_tag_name((P, "sp")) && (placeholder || (block && text_box)))) {
             report.record(Some(path), path, id, &format!("unmapped_{}", shape.tag_name().name()), Disposition::Unsupported,
                 "Added or unmapped object cannot be assigned to a source zone; keep original or explicitly allow omission");
             continue;
@@ -202,13 +205,17 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
 }
 
 fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report: &mut Report) {
+    // A free text box carries its own geometry, like a picture.
+    let text_box = shape.descendants().any(|n| n.has_tag_name((P, "cNvSpPr")) && n.attribute("txBox") == Some("1"));
+    let boxed = picture || text_box;
     for node in shape.descendants().filter(Node::is_element) {
         if crate::identity::is_identity_node(node) { continue; }
         let name = node.tag_name().name();
         let known = match node.tag_name().namespace() {
             Some(P) => matches!(name, "sp" | "pic" | "nvSpPr" | "nvPicPr" | "cNvPr" | "cNvSpPr" | "cNvPicPr" | "nvPr" | "ph" | "spPr" | "txBody" | "blipFill"),
-            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr" | "normAutofit") ||
-                (picture && matches!(name, "blip" | "stretch" | "fillRect" | "xfrm" | "off" | "ext" | "prstGeom" | "avLst")),
+            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "lvl1pPr" | "lvl2pPr" | "defRPr" | "solidFill" | "schemeClr" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr" | "normAutofit") ||
+                (picture && matches!(name, "blip" | "stretch" | "fillRect")) ||
+                (boxed && matches!(name, "xfrm" | "off" | "ext" | "prstGeom" | "avLst")),
             _ => false,
         };
         if !known {
@@ -219,7 +226,8 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
             "cNvPr" => &["id", "name"], "ph" => &["type", "idx"],
             "rPr" | "endParaRPr" => &["lang", "b", "i", "dirty", "sz", "strike"],
             "buAutoNum" => &["type", "startAt"], "hlinkClick" => &["id"],
-            "pPr" => &["lvl", "marL", "indent"], "latin" | "buFont" => &["typeface"],
+            "pPr" | "lvl1pPr" | "lvl2pPr" => &["lvl", "marL", "indent"], "latin" | "buFont" => &["typeface"],
+            "cNvSpPr" => &["txBox"], "bodyPr" => &["wrap", "anchor"], "defRPr" => &["sz"], "schemeClr" => &["val"],
             "buChar" => &["char"], "spLocks" => &["noGrp"], "picLocks" => &["noChangeAspect"],
             // PowerPoint records how far it shrank text to fit; layout state, not content.
             "normAutofit" => &["fontScale", "lnSpcReduction"],
@@ -231,7 +239,8 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
             // is a formatting edit markdown cannot carry.
             let heading_size = attr.name() == "sz"
                 && attr.value().parse::<u32>().is_ok_and(|v| crate::mdooxml::HEADING_SIZES.contains(&v));
-            if !allowed.contains(&attr.name()) || (attr.name() == "sz" && !heading_size) {
+            // A list style's default size is the text box's body size, not an edit.
+            if !allowed.contains(&attr.name()) || (attr.name() == "sz" && name != "defRPr" && !heading_size) {
                 report.record(Some(path), path, &format!("{id}/{name}@{}", attr.name()), "unsupported_attribute", Disposition::Unsupported,
                     "Formatting/property omitted; retain original or explicitly authorize loss");
             }

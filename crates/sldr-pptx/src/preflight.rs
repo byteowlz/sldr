@@ -37,7 +37,8 @@ pub(crate) fn deck(slides: &[SlideInput]) -> Report {
             let zone = slide.layout.zones.iter().find(|z| z.name == *name);
             let supported = zone.is_some_and(|z| match content {
                 ZoneContent::Picture { .. } => true,
-                _ => z.rep == ZoneRep::PlaceholderText && z.ph.is_some(),
+                // A placeholder, or a free text box (no placeholder type).
+                _ => z.rep == ZoneRep::PlaceholderText,
             });
             if !supported {
                 report.record(Some(&part), &part, name, "unmapped_field", D::Unsupported, "Declare a compatible zone; this field would be omitted");

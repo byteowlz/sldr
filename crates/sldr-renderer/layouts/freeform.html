@@ -1,0 +1,30 @@
+<!-- sldr:category body -->
+<!-- sldr:tags expressive, freeform -->
+<!-- sldr:blocks -->
+<!-- Layout: freeform — the escape hatch. The body is `::block x= y= w= h=::`
+     markers (percent of the slide), each followed by markdown; every block
+     sits exactly where it says. Use it only for the slide no other layout
+     fits — a diagram with labels at specific spots, a one-off composition —
+     and keep content in markdown inside the blocks (headings, lists,
+     images), never raw HTML. The flavor's background and logos still apply.
+     PowerPoint export places each block as an editable text box or picture
+     at its position. -->
+<style>
+.sldr-slide[data-layout="freeform"] { padding: 0; }
+.sldr-slide[data-layout="freeform"] .sldr-freeform { position: absolute; inset: 0; }
+.sldr-block {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-size: calc(var(--sldr-u) * 1.6 * var(--sldr-type-scale));
+  line-height: 1.35;
+}
+.sldr-block > :first-child { margin-top: 0; }
+.sldr-block > :last-child { margin-bottom: 0; }
+.sldr-block > p:has(> img:only-child) { margin: 0; height: 100%; }
+.sldr-block img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sldr-block[data-align="center"], .sldr-block :where(h1, h2, h3) { margin: 0 0 0.3em; }
+</style>
+<div class="sldr-freeform">
+  {{content}}
+</div>

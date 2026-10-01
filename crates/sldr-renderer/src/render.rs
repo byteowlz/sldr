@@ -364,6 +364,8 @@ impl HtmlRenderer {
         // loudly and actionably instead — the body shape is known here, and so
         // is what the layout expects.
         let expected_markers = match &rendered {
+            MarkdownOutput::Blocks(_) if !def.blocks => Some("no ::block:: markers (only a freeform layout places blocks)"),
+            _ if def.blocks && !matches!(rendered, MarkdownOutput::Blocks(_)) => Some("::block x= y= w= h=::"),
             MarkdownOutput::Single(_) if def.expects_image() => {
                 Some("::content:: / ::image::")
             }

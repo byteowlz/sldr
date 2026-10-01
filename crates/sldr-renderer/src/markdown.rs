@@ -50,6 +50,14 @@ impl Default for MediaConfig {
 /// inline code without getting split apart. Unrecognized markers pass
 /// through as raw text.
 pub fn render_markdown(content: &str, media_config: &MediaConfig) -> MarkdownOutput {
+    if let Some(blocks) = split_blocks(content) {
+        return MarkdownOutput::Blocks(
+            blocks
+                .into_iter()
+                .map(|b| RenderedBlock { x: b.x, y: b.y, w: b.w, h: b.h, html: markdown_to_html(&b.markdown, media_config) })
+                .collect(),
+        );
+    }
     let markers = scan_markers(content);
     if markers.contains_key("left") && markers.contains_key("right") {
         return render_two_cols(content, &markers, media_config);
@@ -195,10 +203,83 @@ fn scan_markers(content: &str) -> std::collections::HashMap<&'static str, (usize
     markers
 }
 
+/// One positioned block of a freeform slide: `::block x=… y=… w=… h=…::`
+/// (percent of the slide) followed by its markdown, up to the next marker.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+    pub markdown: String,
+    /// Byte range of the block's markdown inside the body it was split from.
+    pub range: std::ops::Range<usize>,
+}
+
+/// Split a freeform body into its blocks. `None` when the body has no
+/// `::block …::` marker, so callers can fall through to the normal split.
+/// Text before the first marker is ignored (a block must be declared).
+pub fn split_blocks(content: &str) -> Option<Vec<Block>> {
+    let mut heads: Vec<(usize, usize, [f64; 4])> = Vec::new();
+    let mut in_fence = false;
+    let mut offset = 0;
+    for line in content.split_inclusive('\n') {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+        } else if !in_fence {
+            if let Some(attrs) = trimmed.strip_prefix("::block").and_then(|r| r.strip_suffix("::")) {
+                let mut geo = [0.0, 0.0, 100.0, 100.0];
+                let mut ok = true;
+                for pair in attrs.split_whitespace() {
+                    let Some((k, v)) = pair.split_once('=') else { ok = false; break };
+                    let Ok(v) = v.trim_end_matches('%').parse::<f64>() else { ok = false; break };
+                    match k {
+                        "x" => geo[0] = v,
+                        "y" => geo[1] = v,
+                        "w" => geo[2] = v,
+                        "h" => geo[3] = v,
+                        _ => { ok = false; break }
+                    }
+                }
+                if ok {
+                    heads.push((offset, offset + line.len(), geo));
+                }
+            }
+        }
+        offset += line.len();
+    }
+    if heads.is_empty() {
+        return None;
+    }
+    let mut blocks = Vec::with_capacity(heads.len());
+    for (i, (_, end, [x, y, w, h])) in heads.iter().enumerate() {
+        let stop = heads.get(i + 1).map_or(content.len(), |n| n.0);
+        let raw = &content[*end..stop];
+        let lead = raw.len() - raw.trim_start().len();
+        let text = raw.trim();
+        let start = end + lead;
+        blocks.push(Block { x: *x, y: *y, w: *w, h: *h, markdown: text.to_string(), range: start..start + text.len() });
+    }
+    Some(blocks)
+}
+
+/// A rendered freeform block: geometry in percent plus its HTML.
+#[derive(Debug, Clone)]
+pub struct RenderedBlock {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+    pub html: String,
+}
+
 /// Result of rendering markdown — either a single block or split columns
 pub enum MarkdownOutput {
     /// Standard single-content slide
     Single(String),
+    /// Freeform slide: positioned blocks (`::block …::` markers).
+    Blocks(Vec<RenderedBlock>),
     /// Two-column slide with optional heading, left column, right column
     TwoCols {
         heading: String,
@@ -711,6 +792,40 @@ fn html_escape(input: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn splits_blocks_with_geometry_and_ranges() {
+        let body = "intro ignored\n::block x=5 y=10 w=40 h=20::\n# Title\n\n::block x=50 y=10 w=45 h=60::\n![](media/a.png)\n";
+        let blocks = split_blocks(body).unwrap();
+        assert_eq!(blocks.len(), 2);
+        assert_eq!((blocks[0].x, blocks[0].y, blocks[0].w, blocks[0].h), (5.0, 10.0, 40.0, 20.0));
+        assert_eq!(blocks[0].markdown, "# Title");
+        assert_eq!(&body[blocks[0].range.clone()], "# Title");
+        assert_eq!(blocks[1].markdown, "![](media/a.png)");
+        assert_eq!(&body[blocks[1].range.clone()], "![](media/a.png)");
+    }
+
+    #[test]
+    fn no_markers_or_bad_markers_are_not_blocks() {
+        assert!(split_blocks("just text").is_none());
+        assert!(split_blocks("::block x=1 y=2 w=oops h=4::\nx").is_none());
+        assert!(split_blocks("```\n::block x=1 y=2 w=3 h=4::\n```\n").is_none());
+        let pct = split_blocks("::block x=5% y=10% w=40% h=20%::\nhi").unwrap();
+        assert_eq!(pct[0].w, 40.0);
+    }
+
+    #[test]
+    fn renders_blocks_as_positioned_divs() {
+        let out = render_markdown("::block x=5 y=10 w=40 h=20::\n**bold**", &MediaConfig::default());
+        let MarkdownOutput::Blocks(b) = out else { panic!("expected blocks") };
+        assert_eq!(b.len(), 1);
+        assert!(b[0].html.contains("<strong>bold</strong>"));
+    }
 }
 
 #[cfg(test)]
