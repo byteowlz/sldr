@@ -15,7 +15,8 @@ binary.
 | `parity.py` | Deterministic CLI (uv script, deps inline): `ingest`, `baseline`, `render`, `score`, `gap`, `report` |
 | `pi-extension/index.ts` | pi tools `parity_score` (numbers + original/sldr/difference image) and `parity_gap` (typed gap record); points sldr at the case's own library |
 | `skill/sldr-parity/` | The procedure the agent follows inside a case |
-| `run-case.sh` | One pi run on one case, isolated (no global extensions/skills), transcript kept |
+| `run-case.sh` | One pi run on one case, isolated (no global extensions/skills), transcript kept; `PARITY_TUI=1` opens the pi TUI instead |
+| `run-deck.sh` | Every case of a deck in order (skips scored ones unless `PARITY_REDO=1`), then rescore all and report |
 
 ## The lab
 
@@ -27,9 +28,10 @@ reach sldr's issue tracker.
 ```
 ~/sldr-lab/
   decks/<deck>/original.pdf     the source deck rendered once (cached)
+  decks/<deck>/lib/             the deck's shared flavors/ and layouts/ (house style, built once)
   cases/<deck>-sNN/
     case.json  original.png  extract.json  media/
-    lib/ config/ out/            the case's own sldr library and config
+    lib/ config/ out/            the case's sldr library (flavors/, layouts/ link to the deck's) and config
     score.json  compare.png  heatmap.png  history.jsonl  gaps.jsonl
     runs/<timestamp>/pi.jsonl    agent transcripts
   report.html
@@ -39,11 +41,19 @@ reach sldr's issue tracker.
 
 ```bash
 P=tools/parity/parity.py
-$P ingest ~/decks/talk.pptx --slides 1,4-9 --case-prefix talk   # cases + original renders
+$P ingest ~/decks/talk.pptx --slides all --case-prefix talk     # or --slides 1,4-9
+tools/parity/run-deck.sh talk --thinking medium                 # whole deck, one pi session per slide
+tools/parity/run-case.sh talk-s04 --model anthropic/claude-sonnet-5   # one slide, another model
+PARITY_TUI=1 tools/parity/run-case.sh talk-s04                   # watch and steer in the pi TUI
 $P baseline talk-s04 --library ~/sldr --slide talk/04-intro --flavor house  # score a hand port
-tools/parity/run-case.sh talk-s04 --model anthropic/claude-sonnet-5 --thinking medium
+$P rescore talk                                                  # after shared-style changes
 $P report                                                        # ~/sldr-lab/report.html
 ```
+
+Batch runs use `pi -p --mode json` (print mode; the event stream is the transcript). The cases
+of a deck share its flavors and layouts: the first slide builds the house style, later slides reuse
+and refine it, and `run-deck.sh` rescores every slide at the end because a shared change can shift
+earlier ones. Each slide still gets its own pi session, score and gaps.
 
 ## Scores
 

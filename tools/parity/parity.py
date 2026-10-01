@@ -21,6 +21,7 @@ sldr-parity skill) does the recreating. One folder per case:
 Commands
   ingest  DECK --slides 1,4-6 [--case-prefix NAME]   create cases from a deck
   baseline CASE --library DIR --slide NAME [--flavor F]  score an existing hand port
+  rescore PREFIX      score every case of a deck again (after shared-style changes)
   render  CASE        build the case's sldr slide and rasterize it
   score   CASE        render, then compare with the original (SSIM, heatmap, text recall)
   gap     CASE --kind K --feature F --evidence E    record one remaining difference
@@ -349,8 +350,14 @@ def cmd_ingest(a) -> None:
             shutil.rmtree(case)
         (case / "media").mkdir(parents=True)
         lib = case / "lib"
-        for sub in ("slides", "playlists", "flavors", "layouts"):
+        for sub in ("slides", "playlists"):
             (lib / sub).mkdir(parents=True)
+        # Flavors and layouts are shared by every case of the deck: the house
+        # style is built once and refined, not rebuilt per slide.
+        for sub in ("flavors", "layouts"):
+            shared = deck_dir / "lib" / sub
+            shared.mkdir(parents=True, exist_ok=True)
+            (lib / sub).symlink_to(shared, target_is_directory=True)
         slide = prs.slides[n - 1]
         extract = {
             "deck": str(deck), "slide": n, "of": total,
@@ -544,6 +551,15 @@ def cmd_score(a) -> None:
     print(json.dumps(r, indent=2, ensure_ascii=False))
 
 
+def cmd_rescore(a) -> None:
+    cases = sorted(p for p in (LAB / "cases").glob(f"{a.prefix}-s*") if (p / "case.json").exists())
+    for c in cases:
+        if not (c / "lib" / "slides" / "slide.md").exists():
+            continue
+        r = score(c, note="deck rescore after shared-style changes")
+        print(f"{c.name}  ssim {r['ssim']:.3f}  match {r['match']:.0%}  text {r['text_recall']:.0%}")
+
+
 def cmd_gap(a) -> None:
     case = case_dir(a.case)
     if a.kind not in GAP_KINDS:
@@ -602,6 +618,7 @@ def main() -> None:
     p = sub.add_parser("baseline"); p.add_argument("case"); p.add_argument("--library", required=True)
     p.add_argument("--slide", required=True); p.add_argument("--flavor"); p.add_argument("--note"); p.set_defaults(fn=cmd_baseline)
     p = sub.add_parser("render"); p.add_argument("case"); p.set_defaults(fn=cmd_render)
+    p = sub.add_parser("rescore"); p.add_argument("prefix"); p.set_defaults(fn=cmd_rescore)
     p = sub.add_parser("score"); p.add_argument("case"); p.add_argument("--note"); p.set_defaults(fn=cmd_score)
     p = sub.add_parser("gap"); p.add_argument("case"); p.add_argument("--kind", required=True)
     p.add_argument("--feature", required=True); p.add_argument("--evidence", required=True); p.set_defaults(fn=cmd_gap)
