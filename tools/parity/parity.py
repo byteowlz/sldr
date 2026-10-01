@@ -485,6 +485,86 @@ def label(img: Image.Image, text: str) -> Image.Image:
     return img
 
 
+FREEFORM_LAYOUTS = {"freeform", "framed-freeform"}
+
+
+def nativeness(case: Path, which: str) -> dict:
+    """How much of the recreation is sldr, not HTML around it (0–1).
+
+    layout   built-in 1.0 · a shared deck layout 0.6 · freeform 0.5 · none/raw 0
+    markdown share of the body that is markdown rather than HTML tags
+    pptx     1.0 when `sldr export --format pptx` passes strict (custom_css
+             excepted), minus 0.15 per other reported loss
+    native = 0.3 layout + 0.3 markdown + 0.4 pptx
+    """
+    meta = load(case / "case.json")
+    target = meta["baseline"] if which == "baseline" else meta["sldr"]
+    env = dict(os.environ, XDG_CONFIG_HOME=target["config"])
+    if which == "baseline":
+        lib = Path(target["library"])
+        slide_md = next(iter(lib.glob(f"slides/{target['slide']}*.md")), None)
+    else:
+        lib = Path(target["library"])
+        slide_md = lib / "slides" / "slide.md"
+    text = slide_md.read_text() if slide_md and slide_md.exists() else ""
+    m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
+    front, body = (m.group(1), m.group(2)) if m else ("", text)
+    lm = re.search(r"^layout:\s*(\S+)", front, re.M)
+    layout = lm.group(1).strip("\"'") if lm else "default"
+    shared = (lib / "layouts" / f"{layout}.html")
+    if layout in FREEFORM_LAYOUTS:
+        layout_score = 0.5
+    elif shared.exists():
+        layout_score = 0.6
+    elif layout in BUILTIN_LAYOUTS():
+        layout_score = 1.0
+    else:
+        layout_score = 0.0
+    html_chars = sum(len(t) for t in re.findall(r"<[^>]+>", body))
+    markdown_score = 1.0 if not body.strip() else max(0.0, 1 - html_chars / max(len(body), 1) * 2)
+    report = case / f"{which}.pptx-report.json"
+    r = run(["sldr", "export", target["playlist"], "--format", "pptx", "--allow-lossy",
+             "-o", str(case / f"{which}.pptx"), "--report-json", str(report)], env=env)
+    losses = []
+    if report.exists():
+        try:
+            for f in load(report).get("findings", []):
+                # Every layout has CSS and every image flavor bakes its background: not losses.
+                if f.get("feature") in ("custom_css", "background_override"):
+                    continue
+                if f.get("disposition") in ("unsupported", "baked", "conflicting", "Unsupported", "Baked", "Conflicting"):
+                    losses.append(f"{f.get('feature')}@{f.get('zone') or f.get('element') or ''}")
+        except Exception:
+            losses.append("report unreadable")
+    elif r.returncode != 0:
+        losses.append("export failed")
+    pptx_score = max(0.0, 1 - 0.15 * len(losses))
+    native = round(0.3 * layout_score + 0.3 * markdown_score + 0.4 * pptx_score, 3)
+    return {"native": native, "layout": layout, "layout_score": layout_score,
+            "markdown_score": round(markdown_score, 3), "pptx_score": round(pptx_score, 3), "pptx_losses": losses[:12]}
+
+
+_BUILTINS: list[str] | None = None
+
+
+def BUILTIN_LAYOUTS() -> list[str]:
+    global _BUILTINS
+    if _BUILTINS is None:
+        # A scratch config dir: no library, so only the binary's own layouts list.
+        scratch = LAB / ".builtins-config"
+        scratch.mkdir(parents=True, exist_ok=True)
+        r = run(["sldr", "ls", "layouts", "--json"], env=dict(os.environ, XDG_CONFIG_HOME=str(scratch)))
+        names: list[str] = []
+        try:
+            data = json.loads(r.stdout)
+            items = data if isinstance(data, list) else data.get("items", data.get("layouts", []))
+            names = [i["name"] if isinstance(i, dict) else str(i) for i in items]
+        except Exception:
+            names = re.findall(r"^\s{4}([a-z0-9-]+)\s", r.stdout, re.M)
+        _BUILTINS = names
+    return _BUILTINS
+
+
 def score(case: Path, which: str = "case", note: str | None = None) -> dict:
     from skimage.metrics import structural_similarity
 
@@ -528,9 +608,11 @@ def score(case: Path, which: str = "case", note: str | None = None) -> dict:
     missing = [w for w in dict.fromkeys(want) if w not in have]
     recall = round(1 - len(missing) / len(set(want)), 3) if want else 1.0
 
+    native = nativeness(case, which)
     result = {
         "which": which, "at": dt.datetime.now().isoformat(timespec="seconds"),
         "ssim": round(float(ssim), 4), "match": near, "color_error": round(float(color_err), 4),
+        **native,
         "text_recall": recall, "missing_words": missing[:40],
         "worst_regions": diff_regions(err),
         "compare": str(case / f"compare{suffix}.png"), "heatmap": str(case / f"heatmap{suffix}.png"),
@@ -557,7 +639,7 @@ def cmd_rescore(a) -> None:
         if not (c / "lib" / "slides" / "slide.md").exists():
             continue
         r = score(c, note="deck rescore after shared-style changes")
-        print(f"{c.name}  ssim {r['ssim']:.3f}  match {r['match']:.0%}  text {r['text_recall']:.0%}")
+        print(f"{c.name}  ssim {r['ssim']:.3f}  native {r['native']:.2f}  match {r['match']:.0%}  text {r['text_recall']:.0%}")
 
 
 def cmd_gap(a) -> None:
@@ -584,7 +666,7 @@ def cmd_report(a) -> None:
             s = c / f"score{suffix}.json"
             if s.exists():
                 r = load(s)
-                cells.append(f"<div><b>{title}</b> SSIM {r['ssim']:.3f} | text {r['text_recall']:.0%}"
+                cells.append(f"<div><b>{title}</b> SSIM {r['ssim']:.3f} | native {r.get('native', 0):.2f} ({r.get('layout', '?')}) | text {r['text_recall']:.0%}"
                              f"<br><img src='{os.path.relpath(r['compare'], LAB)}'></div>")
         g = c / "gaps.jsonl"
         if g.exists():

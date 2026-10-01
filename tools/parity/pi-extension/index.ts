@@ -49,7 +49,7 @@ export default function (pi: ExtensionAPI) {
 		label: "Parity score",
 		description:
 			"Build this case's sldr slide (lib/slides, playlist 'case'), render it at 1920x1080 and compare it with " +
-			"original.png. Returns SSIM (structure, 1.0 = identical), color error, text recall, the words still missing, " +
+			"original.png. Returns the visual score (SSIM, 1.0 = identical; match %, color error, text recall, missing words) AND the native score (how much is sldr: layout kind, markdown share, strict PPTX export), " +
 			"the worst regions as % boxes, and an image: original | sldr | difference (red = differs). Call it after every " +
 			"change; the score history is kept in history.jsonl.",
 		parameters: Type.Object({
@@ -64,7 +64,8 @@ export default function (pi: ExtensionAPI) {
 			if (!r.ok) return text(`parity score failed:\n${r.out}`, true);
 			const score = JSON.parse(readFileSync(join(dir, "score.json"), "utf8"));
 			const summary = [
-				`SSIM ${score.ssim} | match ${Math.round(score.match * 100)}% of the slide (offsets up to 6 px tolerated) | color error ${score.color_error} | text recall ${Math.round(score.text_recall * 100)}%`,
+				`visual: SSIM ${score.ssim} | match ${Math.round(score.match * 100)}% of the slide (offsets up to 6 px tolerated) | color error ${score.color_error} | text recall ${Math.round(score.text_recall * 100)}%`,
+				`native: ${score.native} (layout ${score.layout} → ${score.layout_score}, markdown ${score.markdown_score}, pptx ${score.pptx_score}${score.pptx_losses?.length ? `; losses: ${score.pptx_losses.join(", ")}` : ""}). Both must be high: a slide that only looks right is not done.`,
 				score.missing_words.length ? `missing words: ${score.missing_words.join(" ")}` : "no missing words",
 				`worst regions (% of slide): ${JSON.stringify(score.worst_regions)}`,
 			].join("\n");

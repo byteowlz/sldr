@@ -31,6 +31,8 @@ You are in a **case folder**. Your job: make sldr render `original.png` as close
 
 ## Rules
 
+- **Stay native.** Use a built-in layout whenever one fits; the deck's shared layouts next; a new layout in `lib/layouts/` only for a composition the deck repeats. For the one slide nothing fits, use `framed-freeform` / `freeform` with `::block x= y= w= h=::` markdown blocks. **Never raw HTML or inline SVG in the slide**, and never absolute positioning in a custom layout: the slide must stay markdown that PowerPoint can edit. `parity_score` reports a *native* score next to the visual one; a slide that only looks right scores low. If you had to use blocks or a one-off layout, record what was missing as a `missing_feature` gap.
+
 - Never edit sldr's source, the user's library (`~/sldr`), or anything outside this case folder.
 - No names, brands, client or company details in gap records: they leave this folder.
 - A custom layout that only fits this one slide is fine as a probe, but record the gap it papers over (`missing_feature`), so the real fix lands in sldr.
