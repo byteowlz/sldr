@@ -535,7 +535,7 @@ fn default_logo_width() -> String {
 }
 
 fn default_logo_opacity() -> f32 {
-    0.8
+    1.0
 }
 
 /// Whether a flavor layout list (`all`, exact names, or `prefix*`) covers `layout`.

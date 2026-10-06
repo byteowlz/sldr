@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
 - The presenter reads the language from the URL (`#/de/3` or `?lang=de`) and writes it back, so a language is shareable and scriptable; the device's last choice is the fallback.
 
 ### Fixed
+- Strict native PPTX export no longer fails on built-in layouts: their scoped CSS is how they are authored, their zones are the contract. A user layout's CSS is still reported.
+- The PPTX subheadline placeholder is accent-colored like the HTML.
+- Positioned flavor logos default to full opacity (was 0.8, which washed out brand marks); set `opacity` to dim one.
+- PDF export names a crashed browser (exit 139) and suggests `CHROME_BIN`.
 - Exports (PDF, PNG, PowerPoint pictures) no longer bake a video's control bar into the frame.
 - `framed-full`: the source line sat on the footer line; it now sits above it like on every other framed layout.
 

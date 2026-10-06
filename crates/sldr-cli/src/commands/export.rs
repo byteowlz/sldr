@@ -1181,8 +1181,12 @@ fn export_pdf(html: &str, output_path: &std::path::Path) -> Result<()> {
             } else {
                 tail.join("\n")
             };
+            let status = match out.status.code() {
+                Some(139) | None => format!("the browser crashed ({}); try another browser via CHROME_BIN", out.status),
+                Some(code) => format!("browser exit status {code}"),
+            };
             anyhow::bail!(
-                "Headless browser did not produce a PDF at {}.\n{detail}",
+                "Headless browser did not produce a PDF at {} ({status}).\n{detail}",
                 output_path.display()
             );
         }

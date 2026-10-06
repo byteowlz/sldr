@@ -582,6 +582,13 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
                 "<a:lstStyle><a:lvl1pPr><a:defRPr sz=\"4800\"/></a:lvl1pPr></a:lstStyle>",
             ),
             _ if ph == "title" => ("<a:bodyPr><a:normAutofit/></a:bodyPr>", "<a:lstStyle/>"),
+            // The subheadline is accent-colored in HTML (`--sldr-subheadline-color`,
+            // default the accent); the layout placeholder says the same, so both
+            // outputs agree without per-slide formatting.
+            "subheadline" => (
+                "<a:bodyPr><a:normAutofit/></a:bodyPr>",
+                "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1800\"><a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle>",
+            ),
             _ => ("<a:bodyPr/>", "<a:lstStyle/>"),
         };
         sps.push_str(&format!(

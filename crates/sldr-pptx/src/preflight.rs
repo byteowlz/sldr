@@ -11,9 +11,14 @@ pub(crate) fn deck(slides: &[SlideInput]) -> Report {
             report.record(Some(&part), &part, &slide.layout.name, "missing_zones", D::Unsupported,
                 "Annotate this layout with zones or use --flatten");
         }
-        if slide.layout.css.as_ref().is_some_and(|css| !css.trim().is_empty()) {
+        // A built-in layout's scoped CSS is how it is authored; its zones are
+        // the PPTX contract, so there is nothing lost. A user layout's CSS is
+        // a real unknown: report it.
+        let user_layout = sldr_renderer::builtin_layout_source(&slide.layout.name)
+            .is_none_or(|src| sldr_renderer::LayoutDef::from_source(&slide.layout.name, src).css != slide.layout.css);
+        if user_layout && slide.layout.css.as_ref().is_some_and(|css| !css.trim().is_empty()) {
             report.record(Some(&part), &part, "layout", "custom_css", D::Unsupported,
-                "Native zones do not project custom layout CSS; use explicit lossy/flatten policy");
+                "Native zones do not project this user layout's CSS; check the result or export with --allow-lossy");
         }
         let mut names = BTreeSet::new();
         for zone in &slide.layout.zones {
