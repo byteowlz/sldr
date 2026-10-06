@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-06
+
 ### Added
+- Freeform blocks: `::block x= y= w= h=::` markdown placed at exact spots on the `freeform` and `framed-freeform` layouts; each block exports to PowerPoint as an editable text box or a picture and imports back (ADR-0012). The escape hatch for the slide no layout fits.
+- `framed-rows`: a list as an editorial table (lead left, context right).
+- Flavor logos accept layout families (`layouts = ["framed*"]`); diagram bodies (cards, flow, timeline, rows, quote) export as pictures of the render while chrome stays editable.
+- `tools/parity`: a harness that recreates real PowerPoint slides in sldr with a pi agent and scores the result visually and for sldr-nativeness.
 - `sldr export --format png [--scale N]`: one PNG per slide, per language.
 - Native PPTX embeds videos as movies (mp4, m4v, webm, mov) at their zone, shown as the poster frame (`![alt](clip.mp4 "poster.jpg")`); previously a video slide exported empty.
 - `source_show_url` (flavor or slide): prints the source URL after its label, in HTML and PowerPoint, so provenance survives print.
