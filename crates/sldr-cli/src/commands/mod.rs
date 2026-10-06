@@ -13,6 +13,7 @@ pub mod interchange;
 pub mod init;
 pub mod json_output;
 pub mod list;
+pub mod master;
 pub mod media;
 pub mod new;
 pub mod open;

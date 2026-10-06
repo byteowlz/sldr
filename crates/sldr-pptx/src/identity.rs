@@ -10,8 +10,11 @@ pub(crate) const NS: &str = "https://sldr.dev/pptx/identity/v1";
 /// Where the manifest lives: a standard Office custom-XML data-store item
 /// related to the presentation part. PowerPoint preserves these on save; it
 /// silently discarded the earlier root-related `customXml/sldr.xml`.
-const ITEM: &str = "customXml/item1.xml";
-const ITEM_PROPS: &str = "customXml/itemProps1.xml";
+/// Native decks use `customXml/item1.xml`; a master package may already carry
+/// items, so the first free `itemN` is taken (readers find the manifest by root).
+fn free_item(parts: &[(String, String)]) -> usize {
+    (1..).find(|n| !parts.iter().any(|(p, _)| p == &format!("customXml/item{n}.xml"))).unwrap_or(1)
+}
 /// Pre-2026-09-28 packages (not preserved by PowerPoint, still readable).
 const LEGACY_PART: &str = "customXml/sldr.xml";
 const EXT: &str = "{3A4FAD9F-7390-4FD1-A48A-B34F786773ED}";
@@ -66,7 +69,7 @@ pub(crate) fn attach(parts: &mut Vec<(String, String)>, slides: &[SlideInput]) -
             let props = shape.descendants().find(|n| n.has_tag_name((P, "cNvPr"))).context("shape without cNvPr")?;
             let zone = props.attribute("name").context("shape without zone")?.to_lowercase();
             let element_id = hash(format!("{id}:{zone}").as_bytes());
-            let owner = if input.details.flavor_owned.iter().any(|z| z.eq_ignore_ascii_case(&zone)) {
+            let owner = if input.details.flavor_owned.iter().any(|z| z.eq_ignore_ascii_case(&zone)) || zone == crate::SLIDE_NUMBER_ZONE {
                 "flavor"
             } else if input.details.rendered.iter().any(|z| z.eq_ignore_ascii_case(&zone)) {
                 "render"
@@ -91,18 +94,20 @@ pub(crate) fn attach(parts: &mut Vec<(String, String)>, slides: &[SlideInput]) -
     // Deterministic data-store GUID from the manifest content.
     let h = hash(item.as_bytes());
     let guid = format!("{{{}-{}-{}-{}-{}}}", &h[0..8], &h[8..12], &h[12..16], &h[16..20], &h[20..32]).to_uppercase();
-    parts.push((ITEM.into(), item));
-    parts.push((ITEM_PROPS.into(), format!(
+    let n = free_item(parts);
+    let (item_part, props_part) = (format!("customXml/item{n}.xml"), format!("customXml/itemProps{n}.xml"));
+    parts.push((item_part.clone(), item));
+    parts.push((props_part.clone(), format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><ds:datastoreItem ds:itemID=\"{guid}\" xmlns:ds=\"http://schemas.openxmlformats.org/officeDocument/2006/customXml\"><ds:schemaRefs><ds:schemaRef ds:uri=\"{NS}\"/></ds:schemaRefs></ds:datastoreItem>"
     )));
-    parts.push(("customXml/_rels/item1.xml.rels".into(), format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"{}/customXmlProps\" Target=\"itemProps1.xml\"/></Relationships>",
+    parts.push((format!("customXml/_rels/item{n}.xml.rels"), format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"{}/customXmlProps\" Target=\"itemProps{n}.xml\"/></Relationships>",
         crate::package::R
     )));
     let rels = &mut parts.iter_mut().find(|(p, _)| p == "ppt/_rels/presentation.xml.rels").context("missing presentation relationships")?.1;
-    *rels = rels.replace("</Relationships>", &format!("<Relationship Id=\"rIdSldrManifest\" Type=\"{}/customXml\" Target=\"../{ITEM}\"/></Relationships>", crate::package::R));
+    *rels = rels.replace("</Relationships>", &format!("<Relationship Id=\"rIdSldrManifest\" Type=\"{}/customXml\" Target=\"../{item_part}\"/></Relationships>", crate::package::R));
     let ct = &mut parts.iter_mut().find(|(p, _)| p == "[Content_Types].xml").context("missing content types")?.1;
-    *ct = ct.replace("</Types>", &format!("<Override PartName=\"/{ITEM_PROPS}\" ContentType=\"application/vnd.openxmlformats-officedocument.customXmlProperties+xml\"/></Types>"));
+    *ct = ct.replace("</Types>", &format!("<Override PartName=\"/{props_part}\" ContentType=\"application/vnd.openxmlformats-officedocument.customXmlProperties+xml\"/></Types>"));
     Ok(())
 }
 fn extension(id: &str, prefix: &str) -> String {

@@ -114,6 +114,10 @@ fn plan_slide(original: &Slide, s: &ImportedSlide, plan: &mut Plan) {
         if !edited {
             continue;
         }
+        // A master's slide number is regenerated on every export.
+        if z.zone == sldr_pptx::SLIDE_NUMBER_ZONE {
+            continue;
+        }
         if z.owner == "flavor" {
             plan.skipped.push((z.zone.clone(), "comes from the flavor (shared); edit the flavor to change it".into()));
             continue;

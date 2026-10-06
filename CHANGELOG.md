@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Template-backed PowerPoint export (trx-4s9s.11, ADR-0010): `sldr export <deck> --format pptx --master-map org.map.toml` places slides on a real PowerPoint master's own layouts and placeholder indices, so slides pasted into decks on that master with "Use Destination Theme" keep their layout. The master is copied, never modified (its sha256 is reported); its theme, layouts and artwork stay as they are; its own slides, sections, thumbnail and document metadata are dropped. The map is explicit (sldr layout + zone -> master layout + placeholder idx, optional `fallback`, `positions` for zones without a placeholder, `slide_number`); a map that does not fit fails before anything is written. Edits come back with `sldr import --apply` under `--strict`.
+- `sldr master <file.pptx> [--skeleton|--json]`: inventory of a master's slide masters, layouts and placeholders; `--skeleton` prints a map to fill in (nothing pre-mapped).
+
+### Fixed
+- Import accepts a zone exported as a text box when its identity proves sldr wrote it, and a master's slide-number field (writer-owned, never written back).
+
 ## [0.10.0] - 2026-10-06
 
 ### Added

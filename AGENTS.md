@@ -33,6 +33,8 @@ sldr watch name_of_playlist --flavor dark --port 8080
 sldr open name_of_presentation                       # Open built HTML in browser
 sldr export name_of_playlist --format pdf            # Export to PDF via headless Chrome
 sldr export name_of_playlist --format pptx --allow-lossy  # Editable PPTX (native text + pictures; --flatten = screenshots)
+sldr export name_of_playlist --format pptx --master-map org.map.toml  # Slides on a real PowerPoint master's own layouts (paste-safe)
+sldr master org-master.pptx [--skeleton]             # Inventory a master; --skeleton prints a map to fill in
 sldr import deck.pptx --apply [--dry-run]            # Write edits made in PowerPoint back into the original slides
 sldr preview slide_name                              # Quick single-slide preview
 sldr add name_of_presentation slide_names            # Append slides to a playlist

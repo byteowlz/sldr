@@ -56,9 +56,15 @@ pub fn run(
     scale: f64,
     template: bool,
     flatten: bool,
+    master_map: Option<&str>,
     options: &super::interchange::Options,
 ) -> Result<()> {
     let config = Config::load()?;
+    // Template-backed export (trx-4s9s.11): slides on a real master's layouts.
+    let master = master_map.map(load_master_map).transpose()?;
+    if master.is_some() && (format != "pptx" || flatten || template) {
+        anyhow::bail!("--master-map works with --format pptx (native, not --flatten or --template)");
+    }
     if !matches!(format, "pdf" | "pptx" | "png") {
         anyhow::bail!("Unsupported export format: {format}. Supported: pdf, pptx, png");
     }
@@ -89,6 +95,7 @@ pub fn run(
     // Build the presentation first
     let playlist = super::build::load_playlist(&config, playlist_name)?;
     let flavor_name = flavor
+        .or_else(|| master.as_ref().and_then(|(_, m)| m.flavor.clone()))
         .or(playlist.flavor.clone())
         .unwrap_or_else(|| config.config.default_flavor.clone());
     let flavor = super::build::load_flavor(&config, &flavor_name)?;
@@ -201,7 +208,7 @@ pub fn run(
                 _ => base_path.clone(),
             };
             let result = options.diagnose(build_native_deck(&config, &resolved_slides, &flavor, &title,
-                lang_opt.as_deref(), &default_language), &base_path)?;
+                lang_opt.as_deref(), &default_language, master.as_ref().map(|(b, m)| (b.as_slice(), m))), &base_path)?;
             report.findings.extend(result.report.findings);
             staged.push((ensure_ext(&path, "pptx"), result.value));
         }
@@ -266,6 +273,18 @@ pub fn run(
     }
 
     Ok(())
+}
+
+/// Read a `--master-map` TOML and the master `.pptx` it names (relative to the
+/// map file). The map is validated against the master when the deck is built.
+fn load_master_map(path: &str) -> Result<(Vec<u8>, sldr_pptx::MasterMap)> {
+    let map_path = Path::new(path);
+    let text = std::fs::read_to_string(map_path).with_context(|| format!("cannot read master map {path}"))?;
+    let map: sldr_pptx::MasterMap = toml::from_str(&text).with_context(|| format!("invalid master map {path}"))?;
+    let master = map.master.as_deref().with_context(|| format!("{path}: set `master = \"<file.pptx>\"` (relative to the map)"))?;
+    let master_path = map_path.parent().unwrap_or(Path::new(".")).join(master);
+    let bytes = std::fs::read(&master_path).with_context(|| format!("cannot read master {}", master_path.display()))?;
+    Ok((bytes, map))
 }
 
 /// Force a path's extension (`foo.pdf` → `foo.pptx`).
@@ -372,6 +391,7 @@ fn build_native_deck(
     title: &str,
     lang: Option<&str>,
     default_lang: &str,
+    master: Option<(&[u8], &sldr_pptx::MasterMap)>,
 ) -> Result<sldr_pptx::Conversion<Vec<u8>>> {
     let mut registry = sldr_renderer::LayoutRegistry::builtin();
     for dir in config.layout_dirs() {
@@ -714,15 +734,22 @@ fn build_native_deck(
         } });
     }
 
-    let mut theme = sldr_pptx::Theme::from_flavor(flavor);
-    let brand_browser = browser.clone().or_else(|| find_browser().ok());
-    let (brand, brand_warnings) = super::brand::resolve(flavor, brand_browser.as_deref());
-    for w in &brand_warnings {
-        println!("  {} flavor {w}", "warning:".yellow());
-    }
-    theme.brand = brand;
-    let mut result = sldr_pptx::build_deck_with_report(&theme, title, &inputs)?;
-    result.report.findings.extend(sldr_pptx::flavor_report(flavor, &theme.brand).findings);
+    let mut result = if let Some((master_bytes, map)) = master {
+        // The master carries theme and artwork; the flavor's branding is not
+        // projected (nothing to report about it).
+        sldr_pptx::build_deck_on_master(master_bytes, map, title, &inputs)?
+    } else {
+        let mut theme = sldr_pptx::Theme::from_flavor(flavor);
+        let brand_browser = browser.clone().or_else(|| find_browser().ok());
+        let (brand, brand_warnings) = super::brand::resolve(flavor, brand_browser.as_deref());
+        for w in &brand_warnings {
+            println!("  {} flavor {w}", "warning:".yellow());
+        }
+        theme.brand = brand;
+        let mut result = sldr_pptx::build_deck_with_report(&theme, title, &inputs)?;
+        result.report.findings.extend(sldr_pptx::flavor_report(flavor, &theme.brand).findings);
+        result
+    };
     for (i, input) in inputs.iter().enumerate() {
         for (name, content) in &input.fields {
             if matches!(content, ZoneContent::Picture { fit: Some(_), .. }) {

@@ -61,7 +61,7 @@ enum Commands {
 
         /// Inline all media as data URIs into one universal HTML file
         /// (default output is a presentation directory with media siblings
-        /// in assets/ — the browser-native form)
+        /// in assets/ â the browser-native form)
         #[arg(long)]
         single_file: bool,
     },
@@ -131,7 +131,7 @@ enum Commands {
         #[arg(long, default_value = "pdf")]
         format: String,
 
-        /// PNG only: pixel scale (1 = 1920×1080, 2 = 3840×2160)
+        /// PNG only: pixel scale (1 = 1920Ã1080, 2 = 3840Ã2160)
         #[arg(long, default_value_t = 1.0)]
         scale: f64,
 
@@ -145,8 +145,29 @@ enum Commands {
         #[arg(long)]
         flatten: bool,
 
+        /// PPTX only: place the slides on a real PowerPoint master's own layouts
+        /// and placeholders, per this mapping file (see `sldr master <file.pptx>
+        /// --skeleton`). Pasting them into decks on that master keeps their layout.
+        #[arg(long, value_name = "MAP.toml")]
+        master_map: Option<String>,
+
         #[command(flatten)]
         interchange: commands::interchange::Options,
+    },
+
+    /// Inventory a PowerPoint master (.pptx/.potx): slide masters, layouts and
+    /// their placeholders — what a `--master-map` is written against
+    Master {
+        /// The master .pptx / .potx
+        file: String,
+
+        /// Print a mapping skeleton (TOML) to fill in instead of the inventory
+        #[arg(long)]
+        skeleton: bool,
+
+        /// Print the inventory as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Import a sldr-generated .pptx back into slide markdown (round-trip)
@@ -221,7 +242,7 @@ enum Commands {
     /// External tools (web-to-slide pipelines, MCP servers, custom scripts)
     /// drive sldr over HTTP instead of forking the CLI per call. Boundary:
     /// sldr handles slide/playlist/asset CRUD + rendering. It does NOT fetch
-    /// URLs, OCR, or summarize content — those are agent jobs.
+    /// URLs, OCR, or summarize content â those are agent jobs.
     ///
     /// Endpoints are listed at GET / (the root URL).
     Serve {
@@ -241,7 +262,7 @@ enum Commands {
     /// Render the bundled sample deck against a flavor and open it.
     ///
     /// The sample deck is a canonical set of placeholder slides exercising
-    /// every major layout — useful for evaluating a flavor visually without
+    /// every major layout â useful for evaluating a flavor visually without
     /// authoring real content. Same artifact also powers the flavor builder
     /// gallery and the agent slide catalog (GET /api/sample on `sldr serve`).
     Sample {
@@ -276,8 +297,8 @@ enum Commands {
 
     /// Print the raw source of a layout or flavor (what the name resolves to)
     ///
-    /// `ls` lists names; `show` prints the actual source — the authored
-    /// layout `.html` or flavor `.toml` — honoring the same resolution order
+    /// `ls` lists names; `show` prints the actual source â the authored
+    /// layout `.html` or flavor `.toml` â honoring the same resolution order
     /// as a build (user library/config dirs override built-ins). Source to
     /// stdout (pipeable), origin to stderr. For learning the format, copying
     /// a starting point, or seeing what a name really resolves to.
@@ -310,7 +331,7 @@ enum Commands {
 
     /// Rank every layout by fit for a slide: what each would hide, fold into
     /// the plain content slot, or leave empty. Arithmetic over slots, not a
-    /// recommendation — the visual layout picker shows the same list.
+    /// recommendation â the visual layout picker shows the same list.
     LayoutsFor {
         /// Slide (name, fuzzy name, or path)
         slide: String,
@@ -639,6 +660,7 @@ fn main() -> anyhow::Result<()> {
             scale,
             template,
             flatten,
+            master_map,
             interchange,
         } => commands::export::run(
             playlist.as_deref(),
@@ -649,8 +671,11 @@ fn main() -> anyhow::Result<()> {
             scale,
             template,
             flatten,
+            master_map.as_deref(),
             &interchange,
         ),
+
+        Commands::Master { file, skeleton, json } => commands::master::run(&file, skeleton, json),
 
         Commands::Import { file, out, apply, dry_run, interchange } => {
             if apply {

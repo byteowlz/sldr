@@ -199,7 +199,7 @@ fn build_deck_bytes(theme: &crate::Theme, title: &str, slides: &[SlideInput]) ->
     for (i, slide) in slides.iter().enumerate() {
         let n1 = i + 1;
         let li = layout_index[slide.layout.name.as_str()];
-        let (xml, rels) = build_slide(slide, li, &mut media);
+        let (xml, rels) = build_slide(slide, &Target::native(li), &mut media);
         parts.push((format!("ppt/slides/slide{n1}.xml"), xml));
         parts.push((format!("ppt/slides/_rels/slide{n1}.xml.rels"), rels));
     }
@@ -210,16 +210,58 @@ fn build_deck_bytes(theme: &crate::Theme, title: &str, slides: &[SlideInput]) ->
     crate::zip_mixed(&parts, &media)
 }
 
+/// Where a slide lands: its slideLayout, the slide size, how its text zones
+/// become shapes, and the media naming. Native export uses sldr's own
+/// generated layouts ([`Target::native`]); template-backed export
+/// (`crate::master`) points at a real master's layouts and placeholders.
+pub(crate) struct Target {
+    /// Relationship target of the slideLayout, relative to `ppt/slides/`.
+    pub layout_target: String,
+    /// Slide size in EMU; zone percentages scale to it.
+    pub size: (i64, i64),
+    /// Prefix for media part names, so new media never collides with a
+    /// master's own `ppt/media/imageN`.
+    pub media_prefix: &'static str,
+    /// Per text zone: the placeholder (or free text box) it becomes. Empty =
+    /// the zone's own `ph`/`idx` (native export).
+    pub zones: HashMap<String, ZoneTarget>,
+    /// `(type, idx, number)` of a slide-number placeholder to fill.
+    pub slide_number: Option<(String, u32, usize)>,
+}
+
+/// How one text zone is represented on a master-backed slide.
+pub(crate) enum ZoneTarget {
+    /// The master layout's placeholder: geometry and text style inherited.
+    Placeholder { typ: Option<String>, idx: Option<u32> },
+    /// No counterpart on the master: a text box at this box (% of slide).
+    TextBox { x: f64, y: f64, w: f64, h: f64 },
+}
+
+impl Target {
+    pub(crate) fn native(layout_index: usize) -> Self {
+        Target {
+            layout_target: format!("../slideLayouts/slideLayout{layout_index}.xml"),
+            size: (crate::SLIDE_W_EMU, crate::SLIDE_H_EMU),
+            media_prefix: "",
+            zones: HashMap::new(),
+            slide_number: None,
+        }
+    }
+}
+
 /// Build one slide's XML + rels. Iterates the layout's zones: `placeholder-text`
 /// zones become filled `<p:sp>` placeholders (geometry inherited from the
 /// layout); `picture` zones whose content is a [`ZoneContent::Picture`] become
 /// positioned, embedded `<p:pic>` (geometry from the zone). `media` accumulates
 /// the image parts across the whole deck; the returned rels reference them.
-fn build_slide(
+pub(crate) fn build_slide(
     slide: &SlideInput,
-    layout_index: usize,
+    target: &Target,
     media: &mut Vec<(String, Vec<u8>)>,
 ) -> (String, String) {
+    let ex = |pct: f64| (target.size.0 as f64 * pct / 100.0).round() as i64;
+    let ey = |pct: f64| (target.size.1 as f64 * pct / 100.0).round() as i64;
+    let mp = target.media_prefix;
     let lookup: HashMap<&str, &ZoneContent> = slide
         .fields
         .iter()
@@ -245,18 +287,18 @@ fn build_slide(
                 None => (BLANK_PNG.to_vec(), "png".to_string()),
             };
             let poster_n = media.len() + 1;
-            media.push((format!("ppt/media/image{poster_n}.{poster_ext}"), poster_bytes.clone()));
+            media.push((format!("ppt/media/{mp}image{poster_n}.{poster_ext}"), poster_bytes.clone()));
             let movie_n = media.len() + 1;
-            media.push((format!("ppt/media/media{movie_n}.{ext}"), bytes.clone()));
+            media.push((format!("ppt/media/{mp}media{movie_n}.{ext}"), bytes.clone()));
             let (rel_img, rel_video, rel_media) = (next_rel, next_rel + 1, next_rel + 2);
             next_rel += 3;
             image_rels.push_str(&format!(
-                "<Relationship Id=\"rId{rel_img}\" Type=\"{R}/image\" Target=\"../media/image{poster_n}.{poster_ext}\"/>\
-<Relationship Id=\"rId{rel_video}\" Type=\"{R}/video\" Target=\"../media/media{movie_n}.{ext}\"/>\
-<Relationship Id=\"rId{rel_media}\" Type=\"http://schemas.microsoft.com/office/2007/relationships/media\" Target=\"../media/media{movie_n}.{ext}\"/>",
+                "<Relationship Id=\"rId{rel_img}\" Type=\"{R}/image\" Target=\"../media/{mp}image{poster_n}.{poster_ext}\"/>\
+<Relationship Id=\"rId{rel_video}\" Type=\"{R}/video\" Target=\"../media/{mp}media{movie_n}.{ext}\"/>\
+<Relationship Id=\"rId{rel_media}\" Type=\"http://schemas.microsoft.com/office/2007/relationships/media\" Target=\"../media/{mp}media{movie_n}.{ext}\"/>",
                 R = crate::package::R,
             ));
-            let (zx, zy, zw, zh) = (crate::emu_x(zone.x), crate::emu_y(zone.y), crate::emu_x(zone.w), crate::emu_y(zone.h));
+            let (zx, zy, zw, zh) = (ex(zone.x), ey(zone.y), ex(zone.w), ey(zone.h));
             let (x, y, cx, cy) = match crate::imagesize::dimensions(&poster_bytes) {
                 Some((iw, ih)) if iw > 1 && ih > 1 => {
                     let scale = (zw as f64 / iw as f64).min(zh as f64 / ih as f64);
@@ -282,13 +324,13 @@ fn build_slide(
         // positioned <p:pic> at the zone's box.
         if let Some(ZoneContent::Picture { bytes, ext, fit }) = content {
             let media_n = media.len() + 1;
-            let media_path = format!("ppt/media/image{media_n}.{ext}");
+            let media_path = format!("ppt/media/{mp}image{media_n}.{ext}");
             media.push((media_path, bytes.clone()));
 
             let rel = next_rel;
             next_rel += 1;
             image_rels.push_str(&format!(
-                "<Relationship Id=\"rId{rel}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/image{media_n}.{ext}\"/>"
+                "<Relationship Id=\"rId{rel}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/{mp}image{media_n}.{ext}\"/>"
             ));
 
             // Zone box in EMU. A picture keeps its aspect ratio, always: it
@@ -296,10 +338,10 @@ fn build_slide(
             // gives or, failing that, the one its header declares. Only an
             // unreadable header fills the box.
             let (zx, zy, zw, zh) = (
-                crate::emu_x(zone.x),
-                crate::emu_y(zone.y),
-                crate::emu_x(zone.w),
-                crate::emu_y(zone.h),
+                ex(zone.x),
+                ey(zone.y),
+                ex(zone.w),
+                ey(zone.h),
             );
             let (x, y, cx, cy) = match fit.or_else(|| crate::imagesize::dimensions(bytes)).as_ref() {
                 Some((iw, ih)) if *iw > 0 && *ih > 0 => {
@@ -346,7 +388,7 @@ fn build_slide(
                 r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
 <p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
 <p:txBody><a:bodyPr wrap="square"><a:normAutofit/></a:bodyPr>{lst}{paragraphs}</p:txBody></p:sp>"#,
-                x = crate::emu_x(zone.x), y = crate::emu_y(zone.y), cx = crate::emu_x(zone.w), cy = crate::emu_y(zone.h),
+                x = ex(zone.x), y = ey(zone.y), cx = ex(zone.w), cy = ey(zone.h),
                 lst = crate::TEXT_BOX_LST,
             ));
             continue;
@@ -354,13 +396,6 @@ fn build_slide(
 
         // Otherwise: a placeholder-text zone becomes a filled text placeholder.
         if zone.rep == crate::ZoneRep::PlaceholderText && zone.ph.is_some() {
-            let id = next_id;
-            next_id += 1;
-            let ph = zone.ph.as_deref().unwrap_or("body");
-            let idx_attr = match zone.idx {
-                Some(idx) => format!(" idx=\"{idx}\""),
-                None => String::new(),
-            };
             let label = crate::xml_escape(&crate::title_case(&zone.name));
             let paragraphs = match content {
                 Some(ZoneContent::Text(t)) => mdooxml::plain_paragraph(t, lang),
@@ -375,12 +410,51 @@ fn build_slide(
                 },
                 _ => mdooxml::plain_paragraph("", lang),
             };
+            // The placeholder it becomes: the zone's own (native export) or the
+            // mapped master placeholder; a zone with no master counterpart is a
+            // text box at its box, emitted only when it has content.
+            let (typ, idx) = match target.zones.get(&zone.name) {
+                Some(ZoneTarget::TextBox { x, y, w, h }) => {
+                    if content.is_none() { continue; }
+                    let id = next_id;
+                    next_id += 1;
+                    let lst = match zone.name.as_str() {
+                        "footer" => crate::chrome_lst("1200"),
+                        "source" => crate::chrome_lst("1050"),
+                        _ => crate::TEXT_BOX_LST.to_string(),
+                    };
+                    shapes.push_str(&format!(
+                        r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
+<p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+<p:txBody><a:bodyPr wrap="square" anchor="t"/>{lst}{paragraphs}</p:txBody></p:sp>"#,
+                        x = ex(*x), y = ey(*y), cx = ex(*w), cy = ey(*h),
+                    ));
+                    continue;
+                }
+                Some(ZoneTarget::Placeholder { typ, idx }) => (typ.clone(), *idx),
+                None => (Some(zone.ph.clone().unwrap_or_else(|| "body".into())), zone.idx),
+            };
+            let id = next_id;
+            next_id += 1;
+            let type_attr = typ.map(|t| format!(" type=\"{t}\"")).unwrap_or_default();
+            let idx_attr = idx.map(|i| format!(" idx=\"{i}\"")).unwrap_or_default();
             shapes.push_str(&format!(
-                r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{ph}"{idx_attr}/></p:nvPr></p:nvSpPr>
+                r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph{type_attr}{idx_attr}/></p:nvPr></p:nvSpPr>
 <p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>{paragraphs}</p:txBody></p:sp>"#
             ));
         }
         // (picture zone with no picture content → nothing emitted)
+    }
+
+    // A master's slide-number placeholder, holding the slide's own number so a
+    // PowerPoint save (which refreshes the field) is not mistaken for an edit.
+    if let Some((typ, idx, number)) = &target.slide_number {
+        let id = next_id;
+        shapes.push_str(&format!(
+            r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{name}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="{typ}" idx="{idx}"/></p:nvPr></p:nvSpPr>
+<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:fld id="{{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}}" type="slidenum"><a:rPr lang="{lang}"/><a:t>{number}</a:t></a:fld></a:p></p:txBody></p:sp>"#,
+            name = crate::title_case(crate::SLIDE_NUMBER_ZONE),
+        ));
     }
 
     let xml = format!(
@@ -391,13 +465,14 @@ fn build_slide(
 </p:spTree></p:cSld></p:sld>"#
     );
 
+    let layout_target = &target.layout_target;
     for (id, url) in links {
         image_rels.push_str(&format!("<Relationship Id=\"{id}\" Type=\"{}/hyperlink\" Target=\"{}\" TargetMode=\"External\"/>", crate::package::R, crate::xml_escape(&url)));
     }
     let rels = format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout{layout_index}.xml"/>
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="{layout_target}"/>
 {image_rels}
 </Relationships>"#
     );

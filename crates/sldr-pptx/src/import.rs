@@ -124,11 +124,13 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
             else { props.and_then(|n| n.attribute("name")).unwrap_or("").to_lowercase() };
         // Freeform blocks are `block<N>`: a text box or a picture per block.
         let block = zone.strip_prefix("block").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
-        let known = block || matches!(zone.as_str(), "headline" | "subheadline" | "footer" | "source" | "heading" | "content" | "left" | "right" | "image");
+        let known = block || zone == crate::SLIDE_NUMBER_ZONE || matches!(zone.as_str(), "headline" | "subheadline" | "footer" | "source" | "heading" | "content" | "left" | "right" | "image");
         let pic = shape.has_tag_name((P, "pic"));
         let placeholder = shape.descendants().any(|n| n.has_tag_name((P, "ph")));
         let text_box = shape.descendants().any(|n| n.has_tag_name((P, "cNvSpPr")) && n.attribute("txBox") == Some("1"));
-        if !known || !(pic || (shape.has_tag_name((P, "sp")) && (placeholder || (block && text_box)))) {
+        // A text box is a zone when it is a freeform block, or when its identity
+        // proves the export wrote it (a master-backed zone with no placeholder).
+        if !known || !(pic || (shape.has_tag_name((P, "sp")) && (placeholder || (text_box && (block || mapped.is_some()))))) {
             report.record(Some(path), path, id, &format!("unmapped_{}", shape.tag_name().name()), Disposition::Unsupported,
                 "Added or unmapped object cannot be assigned to a source zone; keep original or explicitly allow omission");
             continue;
@@ -138,7 +140,7 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
                 "Resolve duplicate zone ownership before import");
             continue;
         }
-        audit_shape(shape, path, id, pic, report);
+        audit_shape(shape, path, id, pic, zone == crate::SLIDE_NUMBER_ZONE, report);
         let video = pic && shape.descendants().any(|n| n.has_tag_name((A, "videoFile")));
         if video {
             // The blip is only the poster frame; the slide's own video reference
@@ -216,7 +218,8 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
     Ok(slide)
 }
 
-fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report: &mut Report) {
+/// `fields`: the shape may hold text fields (a master's slide number).
+fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, fields: bool, report: &mut Report) {
     // A free text box carries its own geometry, like a picture.
     let text_box = shape.descendants().any(|n| n.has_tag_name((P, "cNvSpPr")) && n.attribute("txBox") == Some("1"));
     let boxed = picture || text_box;
@@ -228,6 +231,7 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
             Some("http://schemas.microsoft.com/office/powerpoint/2010/main") => name == "media",
             Some(A) => matches!(name, "bodyPr" | "lstStyle" | "lvl1pPr" | "lvl2pPr" | "defRPr" | "solidFill" | "schemeClr" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr" | "normAutofit" | "videoFile") ||
                 (picture && matches!(name, "blip" | "stretch" | "fillRect")) ||
+                (fields && name == "fld") ||
                 (boxed && matches!(name, "xfrm" | "off" | "ext" | "prstGeom" | "avLst")),
             _ => false,
         };
@@ -242,6 +246,7 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
             "pPr" | "lvl1pPr" | "lvl2pPr" => &["lvl", "marL", "indent"], "latin" | "buFont" => &["typeface"],
             "cNvSpPr" => &["txBox"], "bodyPr" => &["wrap", "anchor"], "defRPr" => &["sz"], "schemeClr" => &["val"],
             "videoFile" => &["link"], "media" => &["embed"],
+            "fld" => &["id", "type"],
             "buChar" => &["char"], "spLocks" => &["noGrp"], "picLocks" => &["noChangeAspect"],
             // PowerPoint records how far it shrank text to fit; layout state, not content.
             "normAutofit" => &["fontScale", "lnSpcReduction"],

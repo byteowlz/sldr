@@ -38,6 +38,7 @@ use anyhow::{bail, Result};
 use sldr_renderer::{LayoutDef, Zone, ZoneRep};
 
 mod deck;
+mod master;
 mod brand;
 mod flavor_report;
 mod import;
@@ -52,6 +53,7 @@ mod report;
 mod round_trip_tests;
 
 pub use deck::{build_deck, build_deck_with_report, SlideDetails, SlideInput, ZoneContent, VIDEO_TYPES};
+pub use master::{build_deck_on_master, inspect as inspect_master, map_skeleton, LayoutInfo, LayoutMapping, MasterInfo, MasterInventory, MasterMap, PlaceholderInfo, Position};
 pub use import::{import, import_with_report, ImportedImage, ImportedSlide, ImportedZone};
 pub use flavor_report::flavor_report;
 pub use brand::{css_hex, Brand, BrandImage, BrandLogo};
@@ -571,9 +573,11 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
         let label = xml_escape(&title_case(&zone.name));
         // Deck chrome is small, flush text in HTML (footer ≈1.25u, source
         // ≈1.1u of a 13.33in slide); style it on the layout so slides inherit.
+        let footer_lst = chrome_lst("1200");
+        let source_lst = chrome_lst("1050");
         let (body_pr, lst) = match zone.name.as_str() {
-            "footer" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1200\"/></a:lvl1pPr></a:lstStyle>"),
-            "source" => (CHROME_BODY_PR, "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"1050\"/></a:lvl1pPr></a:lstStyle>"),
+            "footer" => (CHROME_BODY_PR, footer_lst.as_str()),
+            "source" => (CHROME_BODY_PR, source_lst.as_str()),
             // A tall title zone is a display title (cover, section divider):
             // large, sitting on the line below it. Every title shrinks to fit
             // rather than spilling into the subtitle under it.
@@ -625,6 +629,16 @@ pub(crate) fn slide_layout_xml(layout: &TemplateLayout, brand: &Brand) -> String
 /// bullets — what a placeholder inherits from the master, spelled out,
 /// because a text box inherits nothing.
 pub(crate) const TEXT_BOX_LST: &str = "<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:defRPr sz=\"1800\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/></a:defRPr></a:lvl1pPr><a:lvl2pPr marL=\"285750\" indent=\"-285750\"><a:defRPr sz=\"1800\"><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:defRPr></a:lvl2pPr></a:lstStyle>";
+
+/// List style of a chrome line (footer, source): flush, unbulleted, `sz` in
+/// hundredths of a point.
+pub(crate) fn chrome_lst(sz: &str) -> String {
+    format!("<a:lstStyle><a:lvl1pPr marL=\"0\" indent=\"0\"><a:buNone/><a:defRPr sz=\"{sz}\"/></a:lvl1pPr></a:lstStyle>")
+}
+
+/// Zone name of a master's slide-number placeholder (template-backed export).
+/// Writer-owned chrome: recorded as flavor-owned, never written back.
+pub const SLIDE_NUMBER_ZONE: &str = "slide-number";
 
 /// Title zones at least this tall (percent of the slide) are display titles.
 const DISPLAY_TITLE_MIN_H: f64 = 14.0;
