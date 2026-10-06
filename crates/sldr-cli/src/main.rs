@@ -14,9 +14,13 @@ mod scaffolds;
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+/// `0.9.1 (879be1f2a 2026-10-01)`: version plus the commit it was built from,
+/// so a stale install is visible at a glance.
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("SLDR_GIT_HASH"), " ", env!("SLDR_GIT_DATE"), ")");
+
 #[derive(Parser)]
 #[command(name = "sldr")]
-#[command(author, version, about = "Markdown presentations - self-contained HTML output")]
+#[command(author, version = VERSION, about = "Markdown presentations - self-contained HTML output")]
 #[command(propagate_version = true)]
 struct Cli {
     /// Enable debug logging
@@ -123,9 +127,13 @@ enum Commands {
         #[arg(short, long)]
         lang: Option<String>,
 
-        /// Export format: pdf or pptx
+        /// Export format: pdf, pptx or png (one image per slide, per language)
         #[arg(long, default_value = "pdf")]
         format: String,
+
+        /// PNG only: pixel scale (1 = 1920×1080, 2 = 3840×2160)
+        #[arg(long, default_value_t = 1.0)]
+        scale: f64,
 
         /// PPTX only: emit an editable *template* (theme + masters + layouts,
         /// no slides) for the flavor, instead of the deck
@@ -628,6 +636,7 @@ fn main() -> anyhow::Result<()> {
             output,
             lang,
             format,
+            scale,
             template,
             flatten,
             interchange,
@@ -637,6 +646,7 @@ fn main() -> anyhow::Result<()> {
             output,
             lang,
             &format,
+            scale,
             template,
             flatten,
             &interchange,

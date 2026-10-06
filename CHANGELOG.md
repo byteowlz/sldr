@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `sldr export --format png [--scale N]`: one PNG per slide, per language.
+- Native PPTX embeds videos as movies (mp4, m4v, webm, mov) at their zone, shown as the poster frame (`![alt](clip.mp4 "poster.jpg")`); previously a video slide exported empty.
+- `source_show_url` (flavor or slide): prints the source URL after its label, in HTML and PowerPoint, so provenance survives print.
+- The fidelity report names theme fonts that must be installed on the viewing machine (`font_availability`).
+- Browser discovery covers Brave, Arc, Vivaldi, `~/Applications`, and the Playwright and agent-browser caches on macOS; a missing-logo finding now says why.
+- `sldr --version` prints the commit and date the binary was built from.
+- The presenter reads the language from the URL (`#/de/3` or `?lang=de`) and writes it back, so a language is shareable and scriptable; the device's last choice is the fallback.
+
+### Fixed
+- Exports (PDF, PNG, PowerPoint pictures) no longer bake a video's control bar into the frame.
+- `framed-full`: the source line sat on the footer line; it now sits above it like on every other framed layout.
+
+### Changed
+- Image columns of framed image layouts (`.sldr-frame-imgsplit > *`) are flex *columns* (since 0.9.0): `justify-content` places the image vertically, `align-items` horizontally. Images now centre horizontally by default. A flavor that used `justify-content: center` on `.sldr-col-image` for horizontal centring should switch to `align-items: center` (or drop the rule).
+
 ## [0.9.1] - 2026-09-29
 
 ### Fixed

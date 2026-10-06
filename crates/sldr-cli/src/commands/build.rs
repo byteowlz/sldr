@@ -185,7 +185,7 @@ pub fn run(
 
     if pdf {
         println!("\n  {} Exporting to PDF...", ">".cyan());
-        super::export::run(Some(playlist_name), None, None, lang.clone(), "pdf", false, false, &super::interchange::Options::default())?;
+        super::export::run(Some(playlist_name), None, None, lang.clone(), "pdf", 1.0, false, false, &super::interchange::Options::default())?;
     }
 
     Ok(())

@@ -45,11 +45,24 @@
     .filter(function (l) { return l.length > 0; });
   var activeLang = null;
   if (langNames.length > 1) {
-    try {
-      var savedLang = localStorage.getItem("sldr-lang");
-      if (savedLang && langNames.indexOf(savedLang) !== -1) activeLang = savedLang;
-    } catch (err) { /* file:// or private mode */ }
+    // The URL wins (`#/de/3` or `?lang=de`: shareable, scriptable), then the
+    // language chosen last time on this device, then the deck's first.
+    var urlLang = langFromUrl();
+    if (urlLang && langNames.indexOf(urlLang) !== -1) activeLang = urlLang;
+    if (!activeLang) {
+      try {
+        var savedLang = localStorage.getItem("sldr-lang");
+        if (savedLang && langNames.indexOf(savedLang) !== -1) activeLang = savedLang;
+      } catch (err) { /* file:// or private mode */ }
+    }
     if (!activeLang) activeLang = langNames[0];
+  }
+
+  function langFromUrl() {
+    var m = window.location.hash.match(/^#\/?([a-zA-Z][a-zA-Z-]*)\/\d+$/);
+    if (m) return m[1].toLowerCase();
+    var q = window.location.search.match(/[?&]lang=([a-zA-Z-]+)/);
+    return q ? q[1].toLowerCase() : null;
   }
 
   function slidesForLang(lang) {
@@ -966,19 +979,22 @@
   // URL hash routing
   // ---------------------------------------------------------------------------
   function parseHash() {
-    var m = window.location.hash.match(/^#\/?(\d+)$/);
+    // `#/3`, or `#/de/3` on a multi-language deck.
+    var m = window.location.hash.match(/^#\/?(?:[a-zA-Z][a-zA-Z-]*\/)?(\d+)$/);
     if (m) return parseInt(m[1], 10) - 1;
     return -1;
   }
 
   function updateHash() {
-    var newHash = "#/" + (current + 1);
+    var newHash = "#/" + (langNames.length > 1 && activeLang ? activeLang + "/" : "") + (current + 1);
     if (window.location.hash !== newHash) {
       history.replaceState(null, "", newHash);
     }
   }
 
   function onHashChange() {
+    var l = langFromUrl();
+    if (l && l !== activeLang && langNames.indexOf(l) !== -1) setLanguage(l);
     var hash = parseHash();
     if (hash >= 0 && hash < total && hash !== current) {
       goTo(hash);

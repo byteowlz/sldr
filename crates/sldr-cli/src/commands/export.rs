@@ -53,11 +53,18 @@ pub fn run(
     output: Option<String>,
     lang: Option<String>,
     format: &str,
+    scale: f64,
     template: bool,
     flatten: bool,
     options: &super::interchange::Options,
 ) -> Result<()> {
     let config = Config::load()?;
+    if !matches!(format, "pdf" | "pptx" | "png") {
+        anyhow::bail!("Unsupported export format: {format}. Supported: pdf, pptx, png");
+    }
+    if !(0.25..=4.0).contains(&scale) || !scale.is_finite() {
+        anyhow::bail!("--scale must be between 0.25 and 4 (1 = 1920×1080)");
+    }
 
     // Template mode is flavor-scoped, not playlist-scoped: it emits masters +
     // theme + layouts and no slides, so it short-circuits before any slide
@@ -148,14 +155,36 @@ pub fn run(
     let multi = export_langs.len() > 1;
 
     // Base output path: custom --output, or <output_dir>/<playlist>.<ext>.
+    // PNG writes a folder of numbered frames instead of one file.
     let base_path = if let Some(out) = output {
         PathBuf::from(out)
     } else {
         let output_dir = config.output_dir().join(&playlist.name);
         std::fs::create_dir_all(&output_dir)?;
-        let ext = if format == "pptx" { "pptx" } else { "pdf" };
-        output_dir.join(format!("{}.{ext}", playlist.name))
+        match format {
+            "pptx" => output_dir.join(format!("{}.pptx", playlist.name)),
+            "png" => output_dir.join("png"),
+            _ => output_dir.join(format!("{}.pdf", playlist.name)),
+        }
     };
+
+    if format == "png" {
+        let browser = find_browser()?;
+        for lang_opt in &export_langs {
+            let dir = match (lang_opt, multi) {
+                (Some(l), true) => base_path.join(l),
+                _ => base_path.clone(),
+            };
+            std::fs::create_dir_all(&dir)?;
+            for (i, slide) in resolved_slides.iter().enumerate() {
+                let png = raster_slide(slide, &flavor, lang_opt.as_deref(), &default_language, &config, &browser, false, scale)?;
+                let path = dir.join(format!("{:02}.png", i + 1));
+                std::fs::write(&path, png)?;
+            }
+            println!("Exported {} frames to {}", resolved_slides.len(), dir.display());
+        }
+        return Ok(());
+    }
 
     // The native PPTX path (default for --format pptx) maps slides to editable
     // OOXML and never renders HTML/screenshots. `--flatten` opts back into the
@@ -434,13 +463,10 @@ fn build_native_deck(
             let mut fields = Vec::new();
             for (i, b) in sldr_renderer::split_blocks(&lang_sel.content).unwrap_or_default().iter().enumerate() {
                 let zone = format!("block{}", i + 1);
-                let picture = is_single_image(&b.markdown).then(|| resolve_picture(&b.markdown, &slide.path)).flatten();
-                let rep = if picture.is_some() { sldr_renderer::ZoneRep::Picture } else { sldr_renderer::ZoneRep::PlaceholderText };
+                let media = is_single_image(&b.markdown).then(|| resolve_media(&b.markdown, &slide.path)).flatten();
+                let rep = if media.is_some() { sldr_renderer::ZoneRep::Picture } else { sldr_renderer::ZoneRep::PlaceholderText };
                 def.zones.push(sldr_renderer::Zone { name: zone.clone(), ph: None, idx: None, rep, x: b.x, y: b.y, w: b.w, h: b.h });
-                fields.push((zone, match picture {
-                    Some((bytes, ext)) => ZoneContent::Picture { bytes, ext, fit: None },
-                    None => ZoneContent::Markdown(b.markdown.clone()),
-                }));
+                fields.push((zone, media.unwrap_or_else(|| ZoneContent::Markdown(b.markdown.clone()))));
             }
             (Some(def), fields)
         })
@@ -467,7 +493,7 @@ fn build_native_deck(
 
         if !layout.pptx_eligible() {
             if let Some(br) = browser.as_deref() {
-                match raster_slide(slide, flavor, lang, default_lang, config, br, false) {
+                match raster_slide(slide, flavor, lang, default_lang, config, br, false, 1.0) {
                     Ok(png) => {
                         rastered.push((inputs.len(), layout_name.clone()));
                         inputs.push(sldr_pptx::SlideInput {
@@ -536,7 +562,7 @@ fn build_native_deck(
         let bake_names: Vec<String> = bake_zones.iter().map(|z| z.name.clone()).collect();
         let mut rendered: Vec<(String, ZoneContent)> = Vec::new();
         if let (false, Some(br)) = (bake_zones.is_empty(), browser.as_deref()) {
-            match raster_slide(slide, flavor, lang, default_lang, config, br, true).and_then(|png| crop_regions(&png, &bake_zones)) {
+            match raster_slide(slide, flavor, lang, default_lang, config, br, true, 1.0).and_then(|png| crop_regions(&png, &bake_zones)) {
                 Ok(parts) => rendered = parts,
                 Err(e) => println!(
                     "  {} slide '{}': region picture failed ({e})",
@@ -550,10 +576,12 @@ fn build_native_deck(
         // The "Source: …" chrome line, as in HTML: the label is the visible
         // text and, with a source_url, a real hyperlink — never the raw URL
         // printed into the slide.
-        let source_text = chrome
-            .source
-            .as_ref()
-            .map(|src| format!("{} {src}", source_label(lang, default_lang)));
+        // With `source_show_url` the URL is part of the visible text, as in HTML.
+        let show_url = slide.metadata.source_show_url.unwrap_or(flavor.source_show_url);
+        let source_text = chrome.source.as_ref().map(|src| match chrome.source_url.as_deref() {
+            Some(url) if show_url => format!("{} {src} ({url})", source_label(lang, default_lang)),
+            _ => format!("{} {src}", source_label(lang, default_lang)),
+        });
         let source_content = || -> Option<ZoneContent> {
             let text = source_text.clone()?;
             Some(match chrome.source_url.as_ref() {
@@ -613,9 +641,8 @@ fn build_native_deck(
                         _ => None,
                     };
                     if let Some(md) = md {
-                        match resolve_picture(md, &slide.path) {
-                            Some((bytes, ext)) => fields
-                                .push((name.to_string(), ZoneContent::Picture { bytes, ext, fit: None })),
+                        match resolve_media(md, &slide.path) {
+                            Some(content) => fields.push((name.to_string(), content)),
                             // Keep unresolved input at the content seam so it
                             // receives an unsupported disposition in the report.
                             None => fields.push((name.to_string(), ZoneContent::Markdown(md.into()))),
@@ -751,6 +778,7 @@ fn raster_slide(
     config: &Config,
     browser: &Path,
     regions_only: bool,
+    scale: f64,
 ) -> Result<Vec<u8>> {
     let cfg = sldr_renderer::RenderConfig {
         transition: "none".into(),
@@ -765,12 +793,15 @@ fn raster_slide(
     }
     renderer.add_slide(slide)?;
     // The picture is the slide, not the presenter: hide its UI chrome.
-    const HIDE_UI: &str = "<style>.sldr-toolbar,.sldr-nav,.sldr-progress{display:none!important}</style>";
+    // Mark the document as an export: hides the presenter UI and video controls.
+    const HIDE_UI: &str = "<style>.sldr-toolbar,.sldr-nav,.sldr-progress{display:none!important}</style>\
+<script>document.documentElement.setAttribute('data-sldr-export','1')</script>";
     const REGIONS_ONLY: &str = "<style>html,body,.sldr-slide{background:transparent!important}\
         .sldr-framed::before,.sldr-logos,.sldr-logo,.sldr-chrome{display:none!important}</style>";
     let hide = if regions_only { format!("{HIDE_UI}{REGIONS_ONLY}") } else { HIDE_UI.to_string() };
     let html = renderer.render()?.replacen("</head>", &format!("{hide}</head>"), 1);
-    let img = super::brand::screenshot(browser, &html, 1920, 1080, regions_only)?;
+    let (w, h) = ((1920.0 * scale).round() as u32, (1080.0 * scale).round() as u32);
+    let img = super::brand::screenshot(browser, &html, w, h, regions_only)?;
     let mut buf = Vec::new();
     img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
         .context("re-encoding slide screenshot failed")?;
@@ -991,6 +1022,39 @@ fn resolve_picture(image_md: &str, slide_path: &Path) -> Option<(Vec<u8>, String
     let dir = slide_path.parent()?;
     let bytes = std::fs::read(dir.join(&src)).ok()?;
     Some((bytes, ext))
+}
+
+/// The first media reference of a markdown fragment as zone content: a video
+/// (`![alt](clip.mp4 "poster.png")`) becomes an embedded movie with its
+/// poster frame, anything else a picture. `None` when the reference is remote,
+/// unreadable, or a format PowerPoint does not play.
+fn resolve_media(md: &str, slide_path: &Path) -> Option<ZoneContent> {
+    let src = extract_img_src(md)?;
+    let ext = Path::new(&src).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase)?;
+    if !sldr_pptx::VIDEO_TYPES.iter().any(|(e, _)| *e == ext) {
+        return resolve_picture(md, slide_path).map(|(bytes, ext)| ZoneContent::Picture { bytes, ext, fit: None });
+    }
+    if src.starts_with("http://") || src.starts_with("https://") {
+        return None;
+    }
+    let dir = slide_path.parent()?;
+    let bytes = std::fs::read(dir.join(&src)).ok()?;
+    let poster = extract_img_title(md)
+        .and_then(|title| resolve_picture(&format!("![]({title})"), slide_path));
+    Some(ZoneContent::Video { bytes, ext, poster })
+}
+
+/// The `"title"` of the first `![alt](src "title")` in a markdown fragment —
+/// for a video, its poster frame.
+fn extract_img_title(md: &str) -> Option<String> {
+    let start = md.find("![")?;
+    let open = md[start..].find("](")? + start + 2;
+    let close = md[open..].find(')')? + open;
+    let inner = md[open..close].trim();
+    let rest = inner.split_once(char::is_whitespace)?.1.trim();
+    let title = rest.strip_prefix('"').and_then(|r| r.strip_suffix('"'))
+        .or_else(|| rest.strip_prefix('\'').and_then(|r| r.strip_suffix('\'')))?;
+    (!title.is_empty()).then(|| title.to_string())
 }
 
 /// Extract the `src` of the first `![alt](src)` image in a markdown fragment.
@@ -1234,8 +1298,18 @@ fn find_browser() -> Result<PathBuf> {
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
         "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+        "/Applications/Arc.app/Contents/MacOS/Arc",
+        "/Applications/Vivaldi.app/Contents/MacOS/Vivaldi",
         "microsoft-edge",
     ]);
+    // Per-user installs on macOS.
+    let user_apps: Vec<String> = std::env::var_os("HOME").map(PathBuf::from).map(|h| {
+        ["Google Chrome.app/Contents/MacOS/Google Chrome", "Chromium.app/Contents/MacOS/Chromium",
+         "Microsoft Edge.app/Contents/MacOS/Microsoft Edge", "Brave Browser.app/Contents/MacOS/Brave Browser"]
+            .iter().map(|rel| h.join("Applications").join(rel).to_string_lossy().into_owned()).collect()
+    }).unwrap_or_default();
+    candidates.extend(user_apps.iter().map(String::as_str));
 
     for candidate in &candidates {
         let path = PathBuf::from(candidate);
@@ -1262,7 +1336,11 @@ fn find_browser() -> Result<PathBuf> {
     if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
         for pattern in [
             (".cache/ms-playwright", "chromium-", &["chrome-linux64/chrome", "chrome-linux/chrome"][..]),
-            (".agent-browser/browsers", "chrome-", &["chrome"][..]),
+            ("Library/Caches/ms-playwright", "chromium-", &[
+                "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+                "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+            ][..]),
+            (".agent-browser/browsers", "chrome-", &["chrome", "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"][..]),
         ] {
             if let Some(found) = newest_tool_browser(&home.join(pattern.0), pattern.1, pattern.2) {
                 return Ok(found);
@@ -1279,10 +1357,9 @@ fn find_browser() -> Result<PathBuf> {
     }
 
     anyhow::bail!(
-        "No Chrome/Chromium browser found. Install one of:\n\
-         - chromium\n\
-         - google-chrome\n\
-         Or set CHROME_BIN environment variable."
+        "No Chrome/Chromium browser found (looked in PATH, /Applications, ~/Applications, \
+         Playwright and agent-browser caches). Install Chrome, Chromium, Edge or Brave, \
+         or set CHROME_BIN to the browser executable."
     );
 }
 

@@ -173,6 +173,15 @@ html.dark {
   }
 }
 
+/* Exports show a video as its poster frame: no control bar baked into a PDF,
+ * PNG or PowerPoint picture. `html[data-sldr-export]` is set by the CLI's
+ * screenshot path (not a print context). */
+@media print {
+  video::-webkit-media-controls, video::-webkit-media-controls-enclosure { display: none !important; }
+}
+html[data-sldr-export] video::-webkit-media-controls,
+html[data-sldr-export] video::-webkit-media-controls-enclosure { display: none !important; }
+
 /* Decoration motion kill-switch. The reduced-motion case is handled by the
  * global accessibility reset below (which the M-key opt-in lifts). This
  * rule covers the other direction: a user explicitly turning effects OFF
@@ -368,7 +377,12 @@ html[data-sldr-motion="off"] .sldr-fx::after {
 .sldr-framed .sldr-frame-imgsplit > * {
   display: flex;
   flex-direction: column;
+  /* The column is a flex *column*: `justify-content` is vertical placement,
+   * `align-items` horizontal. Images sit centred horizontally by default,
+   * which is what flavors written for the old row direction meant by
+   * `justify-content: center` on the image column. */
   justify-content: center;
+  align-items: center;
   gap: calc(var(--sldr-uh) * 1.1 * var(--sldr-density-scale));
   min-height: 0;
   max-height: 100%;
@@ -427,6 +441,7 @@ html[data-sldr-motion="off"] .sldr-fx::after {
   text-overflow: ellipsis;
 }
 .sldr-chrome .sldr-source-label { color: var(--sldr-accent); }
+.sldr-chrome .sldr-source-url { opacity: 0.75; word-break: break-all; }
 .sldr-chrome .sldr-source a {
   color: inherit;
   text-decoration: underline;

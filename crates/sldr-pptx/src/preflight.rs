@@ -36,7 +36,7 @@ pub(crate) fn deck(slides: &[SlideInput]) -> Report {
             }
             let zone = slide.layout.zones.iter().find(|z| z.name == *name);
             let supported = zone.is_some_and(|z| match content {
-                ZoneContent::Picture { .. } => true,
+                ZoneContent::Picture { .. } | ZoneContent::Video { .. } => true,
                 // A placeholder, or a free text box (no placeholder type).
                 _ => z.rep == ZoneRep::PlaceholderText,
             });
@@ -48,6 +48,13 @@ pub(crate) fn deck(slides: &[SlideInput]) -> Report {
                 ZoneContent::Markdown(md) => markdown(md, &part, name, &mut report),
                 ZoneContent::Picture { bytes, ext, .. } if bytes.is_empty() || !matches!(ext.as_str(), "png" | "jpeg" | "jpg" | "gif") => {
                     report.record(Some(&part), &part, name, "invalid_image", D::Conflicting, "Supply nonempty supported image bytes and extension");
+                }
+                ZoneContent::Video { bytes, ext, .. } if bytes.is_empty() || !crate::deck::VIDEO_TYPES.iter().any(|(e, _)| e == ext) => {
+                    report.record(Some(&part), &part, name, "invalid_video", D::Conflicting, "Supply nonempty mp4/m4v/webm/mov bytes");
+                }
+                ZoneContent::Video { poster, .. } => {
+                    report.record(Some(&part), &part, name, "video", D::Converted,
+                        if poster.is_some() { "Embedded as a movie with its poster frame" } else { "Embedded as a movie without a poster: blank until played" });
                 }
                 _ => {},
             }

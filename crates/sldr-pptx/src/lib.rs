@@ -51,7 +51,7 @@ mod report;
 #[cfg(test)]
 mod round_trip_tests;
 
-pub use deck::{build_deck, build_deck_with_report, SlideDetails, SlideInput, ZoneContent};
+pub use deck::{build_deck, build_deck_with_report, SlideDetails, SlideInput, ZoneContent, VIDEO_TYPES};
 pub use import::{import, import_with_report, ImportedImage, ImportedSlide, ImportedZone};
 pub use flavor_report::flavor_report;
 pub use brand::{css_hex, Brand, BrandImage, BrandLogo};
@@ -356,6 +356,10 @@ pub(crate) fn content_types(layout_count: usize, slide_count: usize) -> String {
 <Default Extension="jpeg" ContentType="image/jpeg"/>
 <Default Extension="jpg" ContentType="image/jpeg"/>
 <Default Extension="gif" ContentType="image/gif"/>
+<Default Extension="mp4" ContentType="video/mp4"/>
+<Default Extension="m4v" ContentType="video/mp4"/>
+<Default Extension="webm" ContentType="video/webm"/>
+<Default Extension="mov" ContentType="video/quicktime"/>
 <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
 <Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/>
 <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>

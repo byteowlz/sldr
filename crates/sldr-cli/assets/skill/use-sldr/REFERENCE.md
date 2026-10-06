@@ -36,6 +36,7 @@ subtitle: smaller line        # chrome subheadline (framed layouts)
 layout: framed                # which layout (default: "default")
 source: "Article title | Site"   # web-clipping attribution line (framed layouts)
 source_url: https://…            # makes the source line a link
+source_show_url: true            # also print the URL as text (readable in print/PDF/PNG/PowerPoint)
 footer: "© My Org"               # per-slide footer; overrides the flavor's default
 align: left|center|right         # horizontal override
 valign: top|center|bottom        # vertical override
@@ -88,7 +89,7 @@ Author your own layout: an HTML file with `{{slot}}` placeholders (`{{content}}`
 
 ## Flavors
 
-A flavor is `flavor.toml` (+ optional `flavor.css` escape hatch + an `assets/` dir) under `~/sldr/flavors/<name>/`. Key sections: `[colors]` (+ `[dark_colors]`), `[typography]`, `[background]` (`background_type = "color"|"gradient"|"image"|"svg"`, `value = …`; image/svg files in `assets/` are embedded), `[shape]`/`[shadow]`/`[motion]`/`[spacing]`, `[decoration]` (`effect = "stardust"|"aurora"|"grain"|"spotlight"|"bokeh"|"grid-pan"`), `[code] syntax_theme`, a top-level `footer = "…"` with `chrome_layouts = [...]` (which layouts show the footer/source — default: framed family; `["all"]` for every layout), and `[[logos]]` blocks (`file`, `x`/`y`/`width` as `%`, `layouts = [...]` — exact names, `"all"`, or a family prefix like `"framed*"` so layouts added later are covered). Restyle a whole deck by swapping the flavor; tokens are the contract, `flavor.css` is the unbounded escape hatch (promote recurring patterns into tokens, don't add speculatively). For sizing/spacing/chrome knobs see **Tuning** below.
+A flavor is `flavor.toml` (+ optional `flavor.css` escape hatch + an `assets/` dir) under `~/sldr/flavors/<name>/`. Key sections: `[colors]` (+ `[dark_colors]`), `[typography]`, `[background]` (`background_type = "color"|"gradient"|"image"|"svg"`, `value = …`; image/svg files in `assets/` are embedded), `[shape]`/`[shadow]`/`[motion]`/`[spacing]`, `[decoration]` (`effect = "stardust"|"aurora"|"grain"|"spotlight"|"bokeh"|"grid-pan"`), `[code] syntax_theme`, a top-level `footer = "…"` with `chrome_layouts = [...]` (which layouts show the footer/source — default: framed family; `["all"]` for every layout), `source_show_url = true` (print the source URL after its label on every slide), and `[[logos]]` blocks (`file`, `x`/`y`/`width` as `%`, `layouts = [...]` — exact names, `"all"`, or a family prefix like `"framed*"` so layouts added later are covered). Restyle a whole deck by swapping the flavor; tokens are the contract, `flavor.css` is the unbounded escape hatch (promote recurring patterns into tokens, don't add speculatively). For sizing/spacing/chrome knobs see **Tuning** below.
 
 The bundled flavors are installed to disk (`~/.config/sldr/flavors/`) on `sldr init` and are **editable seeds** — edit, rename, copy, or delete any of them; your library flavors in `~/sldr/flavors/` override the bundled ones by name. They are not sacred: `sldr init --force` re-installs/overwrites the bundled set, so it is always safe to hack on a copy and restore later. Read any flavor's resolved source with `sldr show flavor <name>` (origin reported on stderr).
 

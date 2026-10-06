@@ -139,6 +139,18 @@ fn read_slide(package: &Package, path: &str, index: usize, record: Option<&crate
             continue;
         }
         audit_shape(shape, path, id, pic, report);
+        let video = pic && shape.descendants().any(|n| n.has_tag_name((A, "videoFile")));
+        if video {
+            // The blip is only the poster frame; the slide's own video reference
+            // stays. Nothing here maps back, so the zone is recorded unchanged.
+            report.record(Some(path), path, id, "video", Disposition::Converted,
+                "Movie frame read as the slide's video; edits to it do not map back");
+            owners.insert(zone.clone(), mapped.map(|e| e.owner.clone()).unwrap_or_else(|| "slide".into()));
+            slide.zones.push(ImportedZone { zone: zone.clone(), value: String::new(), image: None, changed: Some(false),
+                owner: mapped.map(|e| e.owner.clone()).unwrap_or_else(|| "slide".into()) });
+            zones.insert(zone, "![](VIDEO)".to_string());
+            continue;
+        }
         let value = if pic {
             let rid = shape.descendants().find(|n| n.has_tag_name((A, "blip")))
                 .and_then(|n| n.attribute((R, "embed"))).context("picture has no embedded relationship")?;
@@ -212,8 +224,9 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
         if crate::identity::is_identity_node(node) { continue; }
         let name = node.tag_name().name();
         let known = match node.tag_name().namespace() {
-            Some(P) => matches!(name, "sp" | "pic" | "nvSpPr" | "nvPicPr" | "cNvPr" | "cNvSpPr" | "cNvPicPr" | "nvPr" | "ph" | "spPr" | "txBody" | "blipFill"),
-            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "lvl1pPr" | "lvl2pPr" | "defRPr" | "solidFill" | "schemeClr" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr" | "normAutofit") ||
+            Some(P) => matches!(name, "sp" | "pic" | "nvSpPr" | "nvPicPr" | "cNvPr" | "cNvSpPr" | "cNvPicPr" | "nvPr" | "ph" | "spPr" | "txBody" | "blipFill" | "extLst" | "ext"),
+            Some("http://schemas.microsoft.com/office/powerpoint/2010/main") => name == "media",
+            Some(A) => matches!(name, "bodyPr" | "lstStyle" | "lvl1pPr" | "lvl2pPr" | "defRPr" | "solidFill" | "schemeClr" | "p" | "pPr" | "r" | "rPr" | "t" | "latin" | "buNone" | "buFont" | "buChar" | "buAutoNum" | "br" | "hlinkClick" | "spLocks" | "picLocks" | "endParaRPr" | "normAutofit" | "videoFile") ||
                 (picture && matches!(name, "blip" | "stretch" | "fillRect")) ||
                 (boxed && matches!(name, "xfrm" | "off" | "ext" | "prstGeom" | "avLst")),
             _ => false,
@@ -225,13 +238,14 @@ fn audit_shape(shape: Node<'_, '_>, path: &str, id: &str, picture: bool, report:
         let allowed: &[&str] = match name {
             "cNvPr" => &["id", "name"], "ph" => &["type", "idx"],
             "rPr" | "endParaRPr" => &["lang", "b", "i", "dirty", "sz", "strike"],
-            "buAutoNum" => &["type", "startAt"], "hlinkClick" => &["id"],
+            "buAutoNum" => &["type", "startAt"], "hlinkClick" => &["id", "action"],
             "pPr" | "lvl1pPr" | "lvl2pPr" => &["lvl", "marL", "indent"], "latin" | "buFont" => &["typeface"],
             "cNvSpPr" => &["txBox"], "bodyPr" => &["wrap", "anchor"], "defRPr" => &["sz"], "schemeClr" => &["val"],
+            "videoFile" => &["link"], "media" => &["embed"],
             "buChar" => &["char"], "spLocks" => &["noGrp"], "picLocks" => &["noChangeAspect"],
             // PowerPoint records how far it shrank text to fit; layout state, not content.
             "normAutofit" => &["fontScale", "lnSpcReduction"],
-            "blip" => &["embed"], "off" => &["x", "y"], "ext" => &["cx", "cy"],
+            "blip" => &["embed"], "off" => &["x", "y"], "ext" => &["cx", "cy", "uri"],
             "prstGeom" => &["prst"], _ => &[],
         };
         for attr in node.attributes() {
@@ -341,6 +355,9 @@ fn parse_source(source: &str) -> (String, Option<String>) {
     if let Some(inner) = source.strip_prefix('[') {
         if let Some((text, url)) = inner.strip_suffix(')').and_then(|b| b.rsplit_once("](")) {
             let label = text.strip_prefix("Source: ").or_else(|| text.strip_prefix("Quelle: ")).unwrap_or(text);
+            // `source_show_url` prints the URL after the label; it is not part of the label.
+            let shown = format!(" ({url})");
+            let label = label.strip_suffix(shown.as_str()).unwrap_or(label);
             return (label.into(), Some(url.into()));
         }
     }

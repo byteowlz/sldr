@@ -105,6 +105,12 @@ pub struct Flavor {
     #[serde(default)]
     pub chrome_layouts: Vec<String>,
 
+    /// Print the source URL after the source label (`Source: label (https://…)`),
+    /// so provenance is readable on paper, in PDF/PNG and in PowerPoint, where
+    /// a link is not clickable. A slide's own `source_show_url` overrides it.
+    #[serde(default)]
+    pub source_show_url: bool,
+
     /// Path to additional assets (logos, images)
     #[serde(default)]
     pub assets_dir: Option<String>,
@@ -604,6 +610,7 @@ impl Default for Flavor {
             logos: Vec::new(),
             footer: None,
             chrome_layouts: Vec::new(),
+            source_show_url: false,
             assets_dir: None,
             custom_css: None,
             source_dir: None,

@@ -269,6 +269,11 @@ pub struct SlideMetadata {
     #[serde(default)]
     pub source_url: Option<String>,
 
+    /// Show the source URL as text after the label (overrides the flavor's
+    /// `source_show_url`): provenance that survives print and PowerPoint.
+    #[serde(default)]
+    pub source_show_url: Option<bool>,
+
     /// Per-slide override for the deck footer line (the `{{footer}}` slot).
     /// Falls back to the flavor's `footer` when omitted.
     #[serde(default)]

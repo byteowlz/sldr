@@ -327,6 +327,10 @@ impl HtmlRenderer {
         // The "Source:" prefix is a built-in UI label, localized by the same
         // active language as the chrome/body (not a frontmatter string).
         let source_label = source_label_for(request, &self.config.default_language);
+        let show_url = slide
+            .metadata
+            .source_show_url
+            .unwrap_or_else(|| self.flavors.first().is_some_and(|f| f.source_show_url));
         let chrome = Chrome {
             headline: resolved.title.as_deref().map(|t| {
                 format!("<h1 class=\"sldr-headline\">{}</h1>", html_escape_text(t))
@@ -346,7 +350,7 @@ impl HtmlRenderer {
             source: resolved.source.as_deref().map(|s| {
                 format!(
                     "<div class=\"sldr-source\">{}</div>",
-                    render_source(s, resolved.source_url.as_deref(), source_label)
+                    render_source(s, resolved.source_url.as_deref(), source_label, show_url)
                 )
             }),
         };
@@ -894,10 +898,17 @@ fn source_label_for(requested: Option<&str>, deck_default: &str) -> &'static str
 /// Render the web-clipping source line: "<prefix> …", linked when a URL is
 /// given. `prefix` is the localized label (e.g. "Source:", "Quelle:").
 /// Self-contained — the link is inert until clicked.
-fn render_source(text: &str, url: Option<&str>, prefix: &str) -> String {
+/// The source line. With `show_url`, the URL follows the label as text —
+/// readable where links are not clickable (paper, PDF, PNG, PowerPoint).
+fn render_source(text: &str, url: Option<&str>, prefix: &str, show_url: bool) -> String {
     let text_esc = html_escape_text(text);
     let prefix_esc = html_escape_text(prefix);
     match url {
+        Some(u) if show_url => format!(
+            "<span class=\"sldr-source-label\">{prefix_esc}</span> <a href=\"{0}\">{text_esc}</a> <span class=\"sldr-source-url\">({1})</span>",
+            html_escape_attr(u),
+            html_escape_text(u)
+        ),
         Some(u) => format!(
             "<span class=\"sldr-source-label\">{prefix_esc}</span> <a href=\"{}\">{text_esc}</a>",
             html_escape_attr(u)
@@ -923,10 +934,13 @@ mod tests {
 
     #[test]
     fn render_source_uses_localized_prefix() {
-        let html = render_source("NPR", Some("https://npr.org"), "Quelle:");
+        let html = render_source("NPR", Some("https://npr.org"), "Quelle:", false);
         assert!(html.contains(">Quelle:</span>"));
         assert!(html.contains("href=\"https://npr.org\""));
         assert!(!html.contains("Source:"));
+        assert!(!html.contains("sldr-source-url"));
+        let shown = render_source("NPR", Some("https://npr.org"), "Source:", true);
+        assert!(shown.contains("<span class=\"sldr-source-url\">(https://npr.org)</span>"));
     }
 
     #[test]

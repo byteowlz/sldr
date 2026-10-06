@@ -38,7 +38,27 @@ pub enum ZoneContent {
         ext: String,
         fit: Option<(u32, u32)>,
     },
+    /// A video embedded as a movie (`mp4` / `webm` / `mov` / `m4v`) at the
+    /// zone box, shown as its poster frame until played. Without a poster a
+    /// blank frame is used so the slide is never empty.
+    Video {
+        bytes: Vec<u8>,
+        ext: String,
+        poster: Option<(Vec<u8>, String)>,
+    },
 }
+
+/// Extensions the writer embeds as movies, with their content types.
+pub const VIDEO_TYPES: [(&str, &str); 4] =
+    [("mp4", "video/mp4"), ("m4v", "video/mp4"), ("webm", "video/webm"), ("mov", "video/quicktime")];
+
+/// A 1×1 transparent PNG: the poster of a video that has none.
+const BLANK_PNG: &[u8] = &[
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41,
+    0x54, 0x78, 0x9C, 0x63, 0x60, 0x00, 0x02, 0x00, 0x00, 0x05, 0x00, 0x01, 0xE2, 0x26, 0x05, 0x9B, 0x00, 0x00, 0x00, 0x00,
+    0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+];
 
 /// One slide to export: the layout it uses and the content for each zone.
 /// The caller (CLI) decides which zone gets which content and whether it is
@@ -216,6 +236,47 @@ fn build_slide(
     for zone in &slide.layout.zones {
         let content = lookup.get(zone.name.as_str()).copied();
 
+        // A video: a <p:pic> whose blip is the poster frame, with the movie
+        // linked (a:videoFile) and embedded (p14:media) — the form PowerPoint
+        // 2010+ writes itself, playable in PowerPoint and Quick Look.
+        if let Some(ZoneContent::Video { bytes, ext, poster }) = content {
+            let (poster_bytes, poster_ext) = match poster {
+                Some((b, e)) => (b.clone(), e.clone()),
+                None => (BLANK_PNG.to_vec(), "png".to_string()),
+            };
+            let poster_n = media.len() + 1;
+            media.push((format!("ppt/media/image{poster_n}.{poster_ext}"), poster_bytes.clone()));
+            let movie_n = media.len() + 1;
+            media.push((format!("ppt/media/media{movie_n}.{ext}"), bytes.clone()));
+            let (rel_img, rel_video, rel_media) = (next_rel, next_rel + 1, next_rel + 2);
+            next_rel += 3;
+            image_rels.push_str(&format!(
+                "<Relationship Id=\"rId{rel_img}\" Type=\"{R}/image\" Target=\"../media/image{poster_n}.{poster_ext}\"/>\
+<Relationship Id=\"rId{rel_video}\" Type=\"{R}/video\" Target=\"../media/media{movie_n}.{ext}\"/>\
+<Relationship Id=\"rId{rel_media}\" Type=\"http://schemas.microsoft.com/office/2007/relationships/media\" Target=\"../media/media{movie_n}.{ext}\"/>",
+                R = crate::package::R,
+            ));
+            let (zx, zy, zw, zh) = (crate::emu_x(zone.x), crate::emu_y(zone.y), crate::emu_x(zone.w), crate::emu_y(zone.h));
+            let (x, y, cx, cy) = match crate::imagesize::dimensions(&poster_bytes) {
+                Some((iw, ih)) if iw > 1 && ih > 1 => {
+                    let scale = (zw as f64 / iw as f64).min(zh as f64 / ih as f64);
+                    let cx = (iw as f64 * scale).round() as i64;
+                    let cy = (ih as f64 * scale).round() as i64;
+                    (zx + (zw - cx) / 2, zy + (zh - cy) / 2, cx, cy)
+                }
+                _ => (zx, zy, zw, zh),
+            };
+            let id = next_id;
+            next_id += 1;
+            let label = crate::xml_escape(&crate::title_case(&zone.name));
+            shapes.push_str(&format!(
+                r#"<p:pic><p:nvPicPr><p:cNvPr id="{id}" name="{label}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr><a:videoFile r:link="rId{rel_video}"/><p:extLst><p:ext uri="{{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}}"><p14:media xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" r:embed="rId{rel_media}"/></p:ext></p:extLst></p:nvPr></p:nvPicPr>
+<p:blipFill><a:blip r:embed="rId{rel_img}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>
+<p:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>"#
+            ));
+            continue;
+        }
+
         // A picture (an `image` zone, or a baked diagram landing in a text
         // zone) wins regardless of the zone's declared rep — it becomes a
         // positioned <p:pic> at the zone's box.
@@ -279,7 +340,7 @@ fn build_slide(
                     links.insert(mdooxml::link_id(url), url.clone());
                     mdooxml::linked_paragraph(text, url, lang)
                 }
-                ZoneContent::Picture { .. } => unreachable!("pictures are handled above"),
+                ZoneContent::Picture { .. } | ZoneContent::Video { .. } => unreachable!("pictures are handled above"),
             };
             shapes.push_str(&format!(
                 r#"<p:sp><p:nvSpPr><p:cNvPr id="{id}" name="{label}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
