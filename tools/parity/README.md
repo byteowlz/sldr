@@ -70,3 +70,11 @@ earlier ones. Each slide still gets its own pi session, score and gaps.
   renders (on a Mac) are the target ground truth.
 - Pixel-identical is not the goal: browsers and PowerPoint rasterize text differently. Use SSIM
   trends, the heatmap and a human eye for the last few percent.
+
+## Multi-engine experiment
+
+The [DeckCraft spike](../../docs/pptx-spike/deckcraft-parity.md) compares the same synthetic
+fixture through Chrome, DeckCraft and LibreOffice, with explicit font/page normalization
+and WordCraft's line/coordinate comparator. Reproduction helpers are opt-in `just
+probe-deckcraft-prepare` / `just probe-deckcraft-score`; this is not yet an integrated
+provider in `parity.py` (tracked in trx-4s9s.24), nor proof of PowerPoint compatibility.

@@ -86,6 +86,14 @@ check-print:
     cargo run -q -p sldr-renderer --example print_fixture -- target/interop/print.html
     uv run scripts/check-print.py target/interop/print.html target/interop/print
 
+# Prepare the original synthetic fixture for the optional DeckCraft parity spike
+probe-deckcraft-prepare OUT FONT_DIR:
+    uv run docs/pptx-spike/deckcraft-probe/prepare.py "{{OUT}}" --font-dir "{{FONT_DIR}}"
+
+# Score existing Chrome/DeckCraft/LibreOffice PDFs using a pinned WordCraft comparator
+probe-deckcraft-score OUT WORDCRAFT_XTASK:
+    uv run docs/pptx-spike/deckcraft-probe/measure.py "{{OUT}}" --wordcraft-xtask "{{WORDCRAFT_XTASK}}"
+
 # === Code Quality ===
 
 # Format all code
