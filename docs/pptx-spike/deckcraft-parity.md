@@ -1,7 +1,8 @@
 # DeckCraft as an optional parity engine
 
 Measured 2026-10-15 on macOS arm64. Follow-up: **trx-4s9s.24**, related to
-trx-4s9s.13, trx-4s9s.22, trx-thdw and oqto-mpar.5.
+trx-4s9s.13, trx-4s9s.22, trx-thdw and oqto-mpar.5. Provider preservation fix:
+**trx-4s9s.25** (qualified synthetic subset; see below).
 
 **Decision:** use a pinned, separately installed DeckCraft CLI as an optional
 comparison provider, following tmpltr's external WordCraft transport. Do not link
@@ -89,7 +90,7 @@ Controls and capability checks:
   This is not a dependency/asset audit, independent clean-room verification or
   public-distribution/IP clearance. WASM persistence was not tested.
 
-## Editor round-trip gate: failed
+## Baseline editor round-trip gate: failed
 
 A no-edit `deckcraft-cli convert probe.pptx resaved.pptx` preserves
 `customXml/item1.xml`, its properties and relationships **byte-for-byte**. It
@@ -101,10 +102,63 @@ identity nodes fall from 20 to 3.
 - Resaved `sldr import resaved.pptx --apply --dry-run`: exit 1, **17
   missing_element conflicts** and **17 unsupported/unmapped objects**.
 
-No original Markdown was written. Keep this editor lane blocked until a provider
-fix preserves identities and sldr's structural checks accept a qualified save.
+No original Markdown was written. This unmodified provider remains blocked.
 Never reconstruct identity by display name, position or model guess; never weaken
 fail-closed import to make a vendor round-trip appear supported.
+
+## Provider preservation fix: qualified synthetic subset
+
+A local DeckCraft branch `byteowlz/headless-pptx` at
+`3afb16761e47014d8077918211383634e9e4bf27` fixes both observed no-edit failures:
+
+- Preserve relationship-free `cNvPr/extLst` entries generically, with namespace
+  bindings, through the native model and exporter. Do not special-case sldr or
+  retain stale decorative flags/dangling relationship references.
+- Preserve whether an imported picture omitted `rotWithShape`. With identities
+  retained, adding that attribute was the remaining strict structural mismatch.
+  Explicit true/false and upright edits still work; new pictures and old native
+  models keep their existing serialization.
+
+The [source patch](deckcraft-probe/headless-preservation.patch) applies cleanly to
+upstream `9859da3`; it includes regression tests, headless just recipes and provider
+notes. The unchanged upstream release still strips identities. No upstream PR,
+new official binary, `pptxr` rename or packaging clearance is claimed. Original
+DeckCraft source is MIT OR Apache-2.0; the patch is supplied under the same terms.
+The [MIT notice](deckcraft-probe/deckcraft-LICENSE-MIT) accompanies the patch;
+retain upstream licenses, NOTICE and attribution in any derivative distribution.
+
+### Patched-provider proof (same installed sldr, no importer changes)
+
+- **17/17 shape identities**, all slide identities and custom XML retained.
+- Both no-edit PPTX resave and `.deckcraft` save/reopen pass strict
+  `sldr import --apply --dry-run` with no edits.
+- One `text.replace` edit imports into exactly one disposable Markdown file;
+  its bytes change by exactly the requested sentence substitution. Dry-run
+  leaves every source file unchanged.
+- Missing identity, duplicate identity and a changed picture position each
+  still fail strict import. These are rejected edits, not supported operations.
+- All three direct PNG renders are byte-identical to the unmodified provider.
+- Provider `cargo check` and **572 tests pass, one ignored**; regression tests were
+  observed failing before their fixes. Workspace format check passes. Strict
+  Clippy hits the pre-existing `manual_range_contains` warning in upstream
+  `trendline.rs:468` (also reproduced on the clean base). Excluding only that
+  lint on the command line passes; no source lint suppression is included.
+
+Artifacts: local `LAB/identity-fix/proof.json`, reports, before/after decks and
+red/green logs. Patched binary SHA-256 on this platform:
+`1cac51a0ad9b6bf5f2a14f09841c2b29453a06a235579f790c7e6bd6976ea9f9`.
+This qualifies the tested synthetic content-edit path, not arbitrary Office
+features, general shape editing, PowerPoint compatibility, Linux or WASM.
+
+```bash
+# In a trusted DeckCraft checkout at the pinned base; SLDR is this repo's path.
+git switch -c byteowlz/headless-pptx 9859da39255c0262cd592bb57101d7f2fa961f72
+git am "$SLDR/docs/pptx-spike/deckcraft-probe/headless-preservation.patch"
+just check-headless
+just test-headless
+just build-headless
+# Use this explicitly selected binary; upstream 0.7.0 is not patched.
+```
 
 ## Reproduce the comparison
 
@@ -166,5 +220,5 @@ engines, structured failures/timeouts, inspectable references and pairwise score
 Keep sldr-source-to-PPTX export parity separate from source-PPTX recreation parity.
 Report engine disagreements, never majority-vote them into truth. Add independent
 semantic/geometry checks and opt-in PowerPoint reference evidence before broad
-compatibility claims. Packaging/license review and the editor-identity failure
-remain separate gates; rendering tests do not clear them.
+compatibility claims. Packaging/license review and broader editor qualification
+remain separate gates; the bounded preservation fix above does not clear them.

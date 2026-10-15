@@ -1,3 +1,5 @@
 .trx/issues.jsonl text eol=lf merge=union
 .trx/events.jsonl text eol=lf merge=union
 .trx/verifications.jsonl text eol=lf merge=union
+# Literal unified-patch context lines intentionally include a leading space.
+docs/pptx-spike/deckcraft-probe/headless-preservation.patch -whitespace

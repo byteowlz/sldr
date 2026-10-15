@@ -1,0 +1,555 @@
+From 3afb16761e47014d8077918211383634e9e4bf27 Mon Sep 17 00:00:00 2001
+From: Tommy Falkowski <86825018+WismutHansen@users.noreply.github.com>
+Date: Thu, 15 Oct 2026 15:38:23 +0200
+Subject: [PATCH] trx-4s9s.25: preserve non-visual PPTX extensions and picture
+ omission
+
+Retain relationship-free cNvPr entries with namespace bindings through the model and writer instead of discarding add-in identities. Keep source omission of rotWithShape without changing explicit values or new-picture serialization. Add failing-then-passing public-API regressions and document scoped headless sldr round-trip proof.
+---
+ ROADMAP.md                                |   3 +-
+ crates/model/src/lib.rs                   |   5 +
+ crates/model/src/style.rs                 |   4 +
+ crates/pptx/src/lib.rs                    |   3 +
+ crates/pptx/src/read/dml.rs               |   7 +-
+ crates/pptx/src/read/shapes.rs            |  30 +++++
+ crates/pptx/src/write/dml.rs              |   4 +-
+ crates/pptx/src/write/shapes.rs           |  16 ++-
+ crates/pptx/tests/nonvisual_extensions.rs | 137 ++++++++++++++++++++++
+ crates/pptx/tests/picture_defaults.rs     |  79 +++++++++++++
+ crates/pptx/tests/roundtrip.rs            |   1 +
+ docs/headless-pptx.md                     |  72 ++++++++++++
+ justfile                                  |  12 ++
+ 13 files changed, 365 insertions(+), 8 deletions(-)
+ create mode 100644 crates/pptx/tests/nonvisual_extensions.rs
+ create mode 100644 crates/pptx/tests/picture_defaults.rs
+ create mode 100644 docs/headless-pptx.md
+ create mode 100644 justfile
+
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 8ea976e..ebffc41 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -2,7 +2,7 @@
+ 
+ **Stage: alpha** · next: beta, ~20 points and ~120–210 h away
+ 
+-> **Last reviewed:** 2026-10-14 · **Last updated:** 2026-10-14 · **Change:** major (community PR wave 2026-10-14: ~60 landed items in the progress log, among them the Font, Paragraph, Photo Album, theme colour and font and Date and Time dialogs, presenter and show controls, the SmartArt Text Pane and PPTX corpus slices; breadth 84% after `cargo xtask parity`, ready stays ~55%, stage stays alpha; duplicated rows and headers folded; previous: minor, hours to ~95% per audience added) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
++> **Last reviewed:** 2026-10-15 · **Last updated:** 2026-10-15 · **Change:** minor (local headless preservation patch, no parity percentage changes; previous: major, community PR wave 2026-10-14: ~60 landed items in the progress log, among them the Font, Paragraph, Photo Album, theme colour and font and Date and Time dialogs, presenter and show controls, the SmartArt Text Pane and PPTX corpus slices; breadth 84% after `cargo xtask parity`, ready stays ~55%, stage stays alpha; duplicated rows and headers folded; previous: minor, hours to ~95% per audience added) · **Target:** Microsoft PowerPoint for Mac 16.113 (Microsoft 365)
+ 
+ DeckCraft aims at full PowerPoint parity, and to be better: faster, open (a documented zip+JSON
+ format plus PPTX), scriptable by agents (CLI, JSON control channel, MCP), and available everywhere
+@@ -131,6 +131,7 @@ app's JSON control channel (`deckcraft --control PORT`).
+ 
+ | Date | What landed |
+ |---|---|
++| 2026-10-15 | Local headless patch (sldr trx-4s9s.25): preserve relationship-free cNvPr extension entries and picture-property omission; synthetic strict sldr no-edit and text-edit round trips pass. See [headless-pptx](docs/headless-pptx.md); no broad PowerPoint compatibility claim |
+ | 2026-10-15 | PDF export and rendering: `anchorCtr` centres the drawn text block — right-aligned text no longer ran past the box edge (#736) |
+ | 2026-10-14 | connected MCP rejects unrelated, malformed, incomplete and oversized replies without replay; buffered unsolicited bytes force a fresh connection before sending (#718) |
+ | 2026-10-14 | Empty bulleted and numbered paragraphs show gray markers while editing, including on first click and after Enter. Markers use the list style and stay out of slide shows and exports. |
+diff --git a/crates/model/src/lib.rs b/crates/model/src/lib.rs
+index 275f944..8d7cffd 100644
+--- a/crates/model/src/lib.rs
++++ b/crates/model/src/lib.rs
+@@ -353,6 +353,10 @@ pub struct Shape {
+     /// Add-in tags (`p:custDataLst` → `ppt/tags/tagN.xml`): name/value pairs kept for round trip.
+     #[serde(skip_serializing_if = "Vec::is_empty")]
+     pub tags: Vec<(String, String)>,
++    /// Relationship-free, unmodelled `cNvPr/extLst` entries, with self-contained namespaces.
++    /// The decorative flag is modelled separately and must not be retained here.
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub raw_cnvpr_ext: Option<String>,
+     /// Unmodelled XML kept for round-trip (extension lists etc.).
+     #[serde(skip_serializing_if = "Option::is_none")]
+     pub raw_ext: Option<String>,
+@@ -432,6 +436,7 @@ impl Default for Shape {
+             click: None,
+             hover: None,
+             tags: vec![],
++            raw_cnvpr_ext: None,
+             raw_ext: None,
+             diagram: None,
+         }
+diff --git a/crates/model/src/style.rs b/crates/model/src/style.rs
+index b067c90..f4c2f0e 100644
+--- a/crates/model/src/style.rs
++++ b/crates/model/src/style.rs
+@@ -143,6 +143,10 @@ pub struct PictureFill {
+     /// flipped.
+     #[serde(skip_serializing_if = "std::ops::Not::not")]
+     pub upright: bool,
++    /// Source omitted `rotWithShape`: retain its absence unless `upright` is requested.
++    /// New pictures and legacy models keep the existing explicit property serialization.
++    #[serde(skip_serializing_if = "std::ops::Not::not")]
++    pub implicit_rotation: bool,
+     /// An artistic effect (Picture Format ▸ Artistic Effects). `media` is then the processed
+     /// picture; the original is kept to change or remove the effect.
+     #[serde(skip_serializing_if = "Option::is_none")]
+diff --git a/crates/pptx/src/lib.rs b/crates/pptx/src/lib.rs
+index ec37b76..2ce4b72 100644
+--- a/crates/pptx/src/lib.rs
++++ b/crates/pptx/src/lib.rs
+@@ -24,6 +24,9 @@ pub use xml::{Doc as XmlDoc, El as XmlEl, parse as parse_xml};
+ 
+ use deckcraft_model::Presentation;
+ 
++/// DrawingML's modelled decorative marker in a shape's non-visual extension list.
++pub(crate) const DECORATIVE_EXT_URI: &str = "{C183D7F6-B498-43B3-948B-1728B52AA6E4}";
++
+ /// Extension URI of the PowerPoint 2010 section list in `presentation.xml`.
+ pub(crate) const SECTION_EXT_URI: &str = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}";
+ 
+diff --git a/crates/pptx/src/read/dml.rs b/crates/pptx/src/read/dml.rs
+index c88bd1a..642290f 100644
+--- a/crates/pptx/src/read/dml.rs
++++ b/crates/pptx/src/read/dml.rs
+@@ -125,7 +125,12 @@ pub fn blip_fill(imp: &mut Imp, part: &Part, bf: &El) -> Option<PictureFill> {
+     let blip = bf.child("blip");
+     let media = blip.and_then(|b| media_ref(imp, part, b));
+     let media = media?;
+-    let mut pf = PictureFill { media, upright: !bf.bool("rotWithShape").unwrap_or(true), ..Default::default() };
++    let mut pf = PictureFill {
++        media,
++        upright: !bf.bool("rotWithShape").unwrap_or(true),
++        implicit_rotation: !bf.has_attr("rotWithShape"),
++        ..Default::default()
++    };
+     if let Some(layer) = blip.and_then(|b| b.child("extLst")).and_then(|x| x.find("imgLayer"))
+         && let Some(effect) = layer
+             .elements()
+diff --git a/crates/pptx/src/read/shapes.rs b/crates/pptx/src/read/shapes.rs
+index 3f7072f..f43c1ee 100644
+--- a/crates/pptx/src/read/shapes.rs
++++ b/crates/pptx/src/read/shapes.rs
+@@ -133,6 +133,35 @@ fn is_locked(l: &El) -> bool {
+     set.iter().all(|a| l.bool(a) == Some(true))
+ }
+ 
++/// Keep opaque non-visual metadata, not relationship references we cannot remap or the
++/// decorative marker that the writer regenerates from the editable model flag.
++fn nonvisual_extensions(part: &Part, nv: Option<&El>, props: &El) -> Option<String> {
++    let list = props.child("extLst")?;
++    let mut ns: Vec<_> = part.inner_ns.iter().chain(&part.ns).cloned().collect();
++    // Closest declarations win, including prefixes rebound differently on sibling shapes.
++    for scope in nv.into_iter().chain([props, list]) {
++        for (key, value) in scope.attrs.iter().filter(|(k, _)| k == "xmlns" || k.starts_with("xmlns:")) {
++            ns.retain(|(k, _)| k != key);
++            ns.push((key.clone(), value.clone()));
++        }
++    }
++    let kept: String = list
++        .children_named("ext")
++        .filter(|entry| entry.attr("uri") != Some(crate::DECORATIVE_EXT_URI) && !super::has_rel_refs(entry))
++        .map(|entry| {
++            let mut entry = entry.clone();
++            // keep_xml carries prefixed declarations; unprefixed payloads need the default too.
++            if !entry.has_attr("xmlns")
++                && let Some((_, uri)) = ns.iter().find(|(k, _)| k == "xmlns")
++            {
++                entry.set_attr("xmlns", uri);
++            }
++            super::keep_xml(&entry, &ns)
++        })
++        .collect();
++    (!kept.is_empty()).then_some(kept)
++}
++
+ /// Common non-visual properties (`p:nvSpPr`, `p:nvPicPr`…).
+ fn base(imp: &mut Imp, part: &Part, ctx: &mut IdCtx, nv: Option<&El>) -> Shape {
+     let c = nv.and_then(|n| n.child("cNvPr"));
+@@ -145,6 +174,7 @@ fn base(imp: &mut Imp, part: &Part, ctx: &mut IdCtx, nv: Option<&El>) -> Shape {
+         s.click = c.child("hlinkClick").and_then(|h| dml::hyperlink(imp, part, h));
+         s.hover = c.child("hlinkHover").and_then(|h| dml::hyperlink(imp, part, h));
+         s.decorative = c.find("decorative").and_then(|d| d.bool("val")).unwrap_or(false);
++        s.raw_cnvpr_ext = nonvisual_extensions(part, nv, c);
+     }
+     if let Some(nv) = nv {
+         for e in nv.elements() {
+diff --git a/crates/pptx/src/write/dml.rs b/crates/pptx/src/write/dml.rs
+index 09b298f..9ce5181 100644
+--- a/crates/pptx/src/write/dml.rs
++++ b/crates/pptx/src/write/dml.rs
+@@ -99,7 +99,9 @@ pub fn blip_fill(w: &mut W, x: &mut Exp, o: &mut Out, tag: &str, pf: &PictureFil
+     // `r:link`; `r:embed` may only reference a part inside the package.
+     let linked = x.p.media(pf.media).is_some_and(|m| m.data.is_empty() && m.link.is_some());
+     let rid = x.media_rel(o, pf.media, "image").unwrap_or_else(|| x.placeholder_rel(o));
+-    w.open(tag, A::new().a("rotWithShape", if pf.upright { "0" } else { "1" }));
++    // Preserve a source omission, without changing new pictures or ignoring an explicit edit.
++    let rotation = (!pf.implicit_rotation || pf.upright).then_some(if pf.upright { "0" } else { "1" });
++    w.open(tag, A::new().o("rotWithShape", rotation));
+     let adj = &pf.adjust;
+     let has_kids = pf.alpha.is_some()
+         || adj.brightness != 0.0
+diff --git a/crates/pptx/src/write/shapes.rs b/crates/pptx/src/write/shapes.rs
+index 3c3f95e..9d6c69d 100644
+--- a/crates/pptx/src/write/shapes.rs
++++ b/crates/pptx/src/write/shapes.rs
+@@ -135,7 +135,8 @@ fn cnvpr(w: &mut W, x: &mut Exp, o: &mut Out, id: u32, s: &Shape) {
+         .o("descr", (!s.descr.is_empty()).then_some(s.descr.as_str()))
+         .t("hidden", s.hidden)
+         .o("title", (!s.title.is_empty()).then_some(s.title.as_str()));
+-    if s.click.is_none() && s.hover.is_none() && !s.decorative {
++    let raw = s.raw_cnvpr_ext.as_deref().filter(|xml| !xml.trim().is_empty());
++    if s.click.is_none() && s.hover.is_none() && !s.decorative && raw.is_none() {
+         w.empty("p:cNvPr", a);
+         return;
+     }
+@@ -146,11 +147,16 @@ fn cnvpr(w: &mut W, x: &mut Exp, o: &mut Out, id: u32, s: &Shape) {
+     if let Some(h) = &s.hover {
+         dml::hyperlink(w, x, o, "a:hlinkHover", h);
+     }
+-    if s.decorative {
++    if s.decorative || raw.is_some() {
+         w.open0("a:extLst");
+-        w.open("a:ext", A::new().a("uri", "{C183D7F6-B498-43B3-948B-1728B52AA6E4}"));
+-        w.empty("adec:decorative", A::new().a("xmlns:adec", "http://schemas.microsoft.com/office/drawing/2017/decorative").a("val", "1"));
+-        w.close("a:ext");
++        if s.decorative {
++            w.open("a:ext", A::new().a("uri", crate::DECORATIVE_EXT_URI));
++            w.empty("adec:decorative", A::new().a("xmlns:adec", "http://schemas.microsoft.com/office/drawing/2017/decorative").a("val", "1"));
++            w.close("a:ext");
++        }
++        if let Some(xml) = raw {
++            w.raw(xml);
++        }
+         w.close("a:extLst");
+     }
+     w.close("p:cNvPr");
+diff --git a/crates/pptx/tests/nonvisual_extensions.rs b/crates/pptx/tests/nonvisual_extensions.rs
+new file mode 100644
+index 0000000..a3067a6
+--- /dev/null
++++ b/crates/pptx/tests/nonvisual_extensions.rs
+@@ -0,0 +1,137 @@
++//! Relationship-free add-in identities in cNvPr survive import, native model storage and saves.
++//! Original synthetic metadata only; no third-party deck fixture.
++
++use std::collections::BTreeMap;
++use std::io::{Cursor, Read, Write};
++use std::sync::Arc;
++
++use deckcraft_pptx::{XmlEl, parse_xml};
++use quick_xml::{events::Event, name::ResolveResult, reader::NsReader};
++use zip::write::SimpleFileOptions;
++
++const DECORATIVE: &str = "{C183D7F6-B498-43B3-948B-1728B52AA6E4}";
++
++fn inject(el: &mut XmlEl, next: &mut usize) {
++    if el.is("cNvPr") && el.attr("name").is_some_and(|n| !n.is_empty()) {
++        *next += 1;
++        // Deliberately shadow the same prefix differently on sibling cNvPr elements.
++        // The saved extension must retain the closest binding, not the part's fallback.
++        el.set_attr("xmlns:proof", &format!("urn:deckcraft-test:identity:{next}"));
++        let fragment = format!(
++            r#"<a:extLst xmlns="urn:deckcraft-test:default:{next}"><a:ext uri="urn:deckcraft-test:opaque"><proof:identity id="proof-{next}" label="A &amp; B"/><identity id="default-{next}"/></a:ext><a:ext uri="urn:deckcraft-test:relationship"><proof:linked r:id="rIdMustNotDangle"/></a:ext></a:extLst>"#
++        );
++        let list = parse_xml(fragment.as_bytes()).expect("synthetic extension list").root;
++        if let Some(existing) = el.elements_mut().find(|e| e.is("extLst")) {
++            existing.set_attr("xmlns", &format!("urn:deckcraft-test:default:{next}"));
++            existing.children.extend(list.children);
++        } else {
++            let wrapper = parse_xml(format!("<wrap>{}</wrap>", list.to_xml()).as_bytes()).expect("wrapper");
++            el.children.extend(wrapper.root.children);
++        }
++    }
++    for child in el.elements_mut() {
++        inject(child, next);
++    }
++}
++
++fn fixture() -> (Vec<u8>, usize) {
++    let mut session = deckcraft_engine::Session::new();
++    deckcraft_engine::sample::open_sample(&mut session).expect("sample");
++    let mut doc = session.doc().expect("document").doc.as_ref().clone();
++    Arc::make_mut(&mut doc.slides[0]).shapes[0].decorative = true;
++    let bytes = deckcraft_pptx::export(&doc).expect("export sample");
++    let mut source = zip::ZipArchive::new(Cursor::new(bytes)).expect("zip");
++    let mut target = zip::ZipWriter::new(Cursor::new(Vec::new()));
++    let mut count = 0;
++    for i in 0..source.len() {
++        let mut entry = source.by_index(i).expect("entry");
++        let name = entry.name().to_owned();
++        let mut data = Vec::new();
++        entry.read_to_end(&mut data).expect("read");
++        if name.starts_with("ppt/slides/slide") && name.ends_with(".xml") {
++            let mut doc = parse_xml(&data).expect("slide XML");
++            inject(&mut doc.root, &mut count);
++            data = doc.root.to_xml().into_bytes();
++        }
++        target.start_file(name, SimpleFileOptions::default()).expect("start part");
++        target.write_all(&data).expect("write part");
++    }
++    (target.finish().expect("finish").into_inner(), count * 2)
++}
++
++/// Read resolved namespace URIs as well as ids: unbound/wrong prefixes must not pass.
++fn identities(bytes: &[u8]) -> BTreeMap<String, String> {
++    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).expect("zip");
++    let mut found = BTreeMap::new();
++    for i in 0..zip.len() {
++        let mut entry = zip.by_index(i).expect("entry");
++        if !entry.name().starts_with("ppt/slides/slide") || !entry.name().ends_with(".xml") {
++            continue;
++        }
++        let mut xml = String::new();
++        entry.read_to_string(&mut xml).expect("XML");
++        let mut reader = NsReader::from_str(&xml);
++        loop {
++            let (namespace, event) = reader.read_resolved_event().expect("resolved XML");
++            match event {
++                Event::Start(e) | Event::Empty(e) if e.local_name().as_ref() == b"identity" => {
++                    let ResolveResult::Bound(namespace) = namespace else { panic!("unbound identity namespace") };
++                    let id = e.attributes().map(|a| a.expect("attribute")).find(|a| a.key.as_ref() == b"id").expect("id");
++                    let id = id.normalized_value(quick_xml::XmlVersion::Implicit1_0).expect("id value").into_owned();
++                    let uri = std::str::from_utf8(namespace.as_ref()).expect("URI").to_owned();
++                    assert!(found.insert(id, uri).is_none(), "identity duplicated");
++                }
++                Event::Eof => break,
++                _ => {}
++            }
++        }
++    }
++    found
++}
++
++fn first_slide_xml(bytes: &[u8]) -> String {
++    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).expect("zip");
++    std::io::read_to_string(zip.by_name("ppt/slides/slide1.xml").expect("slide 1")).expect("XML")
++}
++
++#[test]
++fn nonvisual_identities_survive_import_model_serialization_and_two_saves() {
++    let (original, count) = fixture();
++    assert!(count > 10, "exercise multiple shape kinds and slides");
++    let expected = identities(&original);
++    assert_eq!(expected.len(), count);
++    let imported = deckcraft_pptx::import(&original).expect("import");
++    // The same serde model is carried by the native .deckcraft manifest.
++    let stored = serde_json::to_vec(&imported).expect("serialize native model");
++    let reopened = serde_json::from_slice(&stored).expect("deserialize native model");
++    let saved = deckcraft_pptx::export(&reopened).expect("export");
++    assert_eq!(identities(&saved), expected);
++    let again = deckcraft_pptx::export(&deckcraft_pptx::import(&saved).expect("reimport")).expect("second export");
++    assert_eq!(identities(&again), expected);
++}
++
++#[test]
++fn retained_entries_share_one_list_with_editable_decoration_and_no_dangling_relationships() {
++    let (original, _) = fixture();
++    let mut imported = deckcraft_pptx::import(&original).expect("import");
++    let saved = deckcraft_pptx::export(&imported).expect("export");
++    let xml = first_slide_xml(&saved);
++    assert!(!xml.contains("rIdMustNotDangle"));
++    assert!(xml.contains(DECORATIVE));
++    let doc = parse_xml(xml.as_bytes()).expect("XML");
++    let mut properties = Vec::new();
++    doc.root.find_all("cNvPr", &mut properties);
++    for props in properties {
++        assert!(props.children_named("extLst").count() <= 1, "one extension list per cNvPr");
++    }
++    Arc::make_mut(&mut imported.slides[0]).shapes[0].decorative = false;
++    let changed = deckcraft_pptx::export(&imported).expect("export changed decoration");
++    assert!(!first_slide_xml(&changed).contains(DECORATIVE), "no stale retained decorative entry");
++    assert_eq!(identities(&changed), identities(&original));
++}
++
++#[test]
++fn legacy_native_shape_without_new_metadata_field_still_loads() {
++    let shape: deckcraft_model::Shape = serde_json::from_str(r#"{"name":"legacy"}"#).expect("legacy shape");
++    assert_eq!(shape.name, "legacy");
++}
+diff --git a/crates/pptx/tests/picture_defaults.rs b/crates/pptx/tests/picture_defaults.rs
+new file mode 100644
+index 0000000..dcb7500
+--- /dev/null
++++ b/crates/pptx/tests/picture_defaults.rs
+@@ -0,0 +1,79 @@
++//! Keep both the presence and value of a source picture's rotWithShape property.
++
++use std::io::{Cursor, Read, Write};
++use std::sync::Arc;
++
++use deckcraft_model::style::PictureFill;
++use deckcraft_model::{Presentation, Shape, ShapeId, ShapeKind, Xfrm};
++use zip::write::SimpleFileOptions;
++
++fn picture_deck() -> Presentation {
++    let mut p = Presentation::default();
++    let mut image = Cursor::new(Vec::new());
++    image::RgbaImage::from_pixel(2, 2, image::Rgba([10, 60, 100, 255])).write_to(&mut image, image::ImageFormat::Png).expect("original PNG");
++    let media = p.add_media("original.png", "image/png", image.into_inner()).expect("media id");
++    let id = ShapeId(p.alloc_id().expect("shape id"));
++    Arc::make_mut(&mut p.slides[0]).shapes.push(Shape {
++        id,
++        name: "Original picture".into(),
++        xfrm: Some(Xfrm::new(80.0, 100.0, 200.0, 120.0)),
++        kind: ShapeKind::Picture { fill: PictureFill { media, ..Default::default() } },
++        ..Default::default()
++    });
++    p
++}
++
++fn fixture(rotation: Option<bool>) -> Vec<u8> {
++    let original = deckcraft_pptx::export(&picture_deck()).expect("export");
++    let mut source = zip::ZipArchive::new(Cursor::new(original)).expect("ZIP");
++    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
++    for i in 0..source.len() {
++        let entry = source.by_index(i).expect("entry");
++        if entry.name() != "ppt/slides/slide1.xml" {
++            output.raw_copy_file(entry).expect("copy unchanged part");
++            continue;
++        }
++        let xml = std::io::read_to_string(entry).expect("slide XML");
++        let replacement = match rotation {
++            None => "",
++            Some(false) => r#" rotWithShape="0""#,
++            Some(true) => r#" rotWithShape="1""#,
++        };
++        output.start_file("ppt/slides/slide1.xml", SimpleFileOptions::default()).expect("start slide");
++        output.write_all(xml.replace(r#" rotWithShape="1""#, replacement).as_bytes()).expect("write slide");
++    }
++    output.finish().expect("finish ZIP").into_inner()
++}
++
++fn rotation(bytes: &[u8]) -> Option<bool> {
++    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).expect("ZIP");
++    let mut xml = String::new();
++    zip.by_name("ppt/slides/slide1.xml").expect("slide").read_to_string(&mut xml).expect("XML");
++    let doc = deckcraft_pptx::parse_xml(xml.as_bytes()).expect("XML");
++    doc.root.find("blipFill").expect("picture fill").bool("rotWithShape")
++}
++
++#[test]
++fn picture_rotation_preserves_absent_true_and_false_source_properties() {
++    // Newly authored pictures retain the existing explicit-true serialization.
++    assert_eq!(rotation(&deckcraft_pptx::export(&picture_deck()).expect("new export")), Some(true));
++    for original in [None, Some(true), Some(false)] {
++        let source = fixture(original);
++        assert_eq!(rotation(&source), original);
++        let imported = deckcraft_pptx::import(&source).expect("import");
++        let saved = deckcraft_pptx::export(&imported).expect("save");
++        assert_eq!(rotation(&saved), original);
++        let saved_again = deckcraft_pptx::export(&deckcraft_pptx::import(&saved).expect("reimport")).expect("save again");
++        assert_eq!(rotation(&saved_again), original);
++    }
++}
++
++#[test]
++fn changing_an_implicit_picture_to_upright_writes_the_explicit_override() {
++    let mut imported = deckcraft_pptx::import(&fixture(None)).expect("import");
++    let shape = Arc::make_mut(&mut imported.slides[0]).shapes.iter_mut().find(|s| s.name == "Original picture").expect("picture");
++    let ShapeKind::Picture { fill } = &mut shape.kind else { panic!("picture kind") };
++    fill.upright = true;
++    let changed = deckcraft_pptx::export(&imported).expect("save change");
++    assert_eq!(rotation(&changed), Some(false));
++}
+diff --git a/crates/pptx/tests/roundtrip.rs b/crates/pptx/tests/roundtrip.rs
+index 697dad2..0ca2cae 100644
+--- a/crates/pptx/tests/roundtrip.rs
++++ b/crates/pptx/tests/roundtrip.rs
+@@ -242,6 +242,7 @@ pub fn rich_deck() -> Presentation {
+             alpha: Some(0.5),
+             adjust: PictureAdjust { brightness: 0.2, contrast: -0.1, grayscale: true, ..Default::default() },
+             upright: false,
++            implicit_rotation: false,
+             artistic: None,
+         },
+     };
+diff --git a/docs/headless-pptx.md b/docs/headless-pptx.md
+new file mode 100644
+index 0000000..3150781
+--- /dev/null
++++ b/docs/headless-pptx.md
+@@ -0,0 +1,72 @@
++# Headless PPTX preservation patch
++
++Local branch `byteowlz/headless-pptx`, based on upstream
++`9859da39255c0262cd592bb57101d7f2fa961f72`. Tracker: sldr `trx-4s9s.25`.
++This is not an upstream release, rebranding, packaging completion or general
++PowerPoint compatibility certification. Upstream licenses and attribution remain unchanged.
++
++## Defects and fixes
++
++1. The shared shape reader discarded unknown `cNvPr/extLst` entries, while the
++   writer regenerated only hyperlinks and the decorative flag. Consequently,
++   presentation-level custom XML survived but its per-shape identity references
++   did not. `Shape.raw_cnvpr_ext` now carries relationship-free entries through
++   import, serde/native storage and export. Entries retain namespace bindings;
++   the writer combines them with the editable decorative marker in one list.
++2. The picture reader collapsed an omitted `rotWithShape` attribute into its
++   boolean value and the writer always emitted an explicit attribute. Even after
++   identity preservation this changed the source structure on a no-edit save.
++   `PictureFill.implicit_rotation` now retains source omission. Explicit true and
++   false still survive; requesting upright still writes an override. Newly
++   authored pictures and old native models keep their existing serialization.
++
++No consumer identity is interpreted, generated or reconstructed. Relationship-bearing
++opaque entries are not copied without relationship remapping. This bounded
++preservation path does not claim support for arbitrary unknown Office extensions.
++The two model fields are optional/defaulted for old native documents.
++
++## Regression coverage
++
++`nonvisual_extensions` exercises generated multi-slide metadata through the public
++PPTX API, serde/native-model storage and two saves. It checks resolved namespaces,
++including sibling prefix rebinding and inherited default namespaces, unique retained
++identities, no dangling relationship entry, no duplicate list and removal of stale
++modelled decoration. Old native shape JSON still loads.
++
++`picture_defaults` checks absent, explicit true and explicit false source properties
++through two saves, and an explicit upright edit after importing an omitted property.
++Both defect tests were observed failing before their respective fixes.
++
++```bash
++just check-headless
++just test-headless
++cargo fmt -p deckcraft-model -p deckcraft-pptx -- --check
++cargo clippy --locked -p deckcraft-model -p deckcraft-format \
++  -p deckcraft-pptx -p deckcraft-engine --all-targets -- -D warnings
++```
++
++Measured on macOS arm64 / Rust 1.97.0: check passes; **572 tests pass, one ignored**.
++Strict Clippy fails on the unchanged upstream
++`crates/model/src/trendline.rs:468` (`manual_range_contains`), reproduced on the
++unmodified base. A second run excluding only that lint via the command line
++(`-D warnings -A clippy::manual_range_contains`) passes. No source suppression or
++unrelated trendline fix is included. This is not full desktop/WASM CI.
++
++## Real sldr CLI proof
++
++Using the original synthetic three-slide fixture documented in sldr's
++`docs/pptx-spike/deckcraft-parity.md`, with sldr `0.10.0 (8fbbf2a7a)` unchanged:
++
++- All **17 shape identities**, three slide identities and the custom XML survive.
++- No-edit PPTX save and native `.deckcraft` save/reopen both pass strict
++  `sldr import --apply --dry-run` with no edits.
++- `text.replace` changes one sentence; dry-run writes nothing and real apply
++  changes exactly that sentence in exactly one disposable Markdown file.
++- Deliberately removed/duplicated identities and changed picture geometry still
++  fail strict import. No sldr validation was weakened.
++- All three direct PNG renders are byte-identical to the unmodified provider.
++
++Only disposable synthetic libraries were written. No private deck, proprietary
++font, PowerPoint-generated fixture or vendor screenshot is included. Actual
++PowerPoint open/save, arbitrary shape edits, clipboard duplication and full
++cross-renderer fidelity remain separately qualified capabilities.
+diff --git a/justfile b/justfile
+new file mode 100644
+index 0000000..2c1bffd
+--- /dev/null
++++ b/justfile
+@@ -0,0 +1,12 @@
++# Optional headless development lane; no desktop build or provider installation.
++default:
++    @just --list
++
++build-headless:
++    cargo build --locked -p deckcraft-cli
++
++check-headless:
++    cargo check --locked -p deckcraft-cli
++
++test-headless:
++    cargo test --locked -p deckcraft-model -p deckcraft-format -p deckcraft-pptx -p deckcraft-engine
+-- 
+2.54.0
+
