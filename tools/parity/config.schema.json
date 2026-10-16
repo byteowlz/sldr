@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sldr parity optional provider configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600, "default": 60},
+    "cache_enabled": {"type": "boolean", "default": true},
+    "providers": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "deckcraft": {"$ref": "#/$defs/provider"},
+        "libreoffice": {"$ref": "#/$defs/provider"}
+      }
+    },
+    "tools": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "pdftoppm": {"type": "string", "default": ""},
+        "pdftotext": {"type": "string", "default": ""},
+        "pdffonts": {"type": "string", "default": ""}
+      }
+    },
+    "fonts": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "files": {"type": "array", "items": {"type": "string"}, "default": []},
+        "expected": {"type": "array", "items": {"type": "string"}, "default": []}
+      }
+    }
+  },
+  "$defs": {
+    "provider": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "binary": {"type": "string", "default": ""},
+        "revision": {"type": "string", "default": "unspecified", "description": "Operator-supplied provenance label, not source authentication"},
+        "sha256": {"type": "string", "pattern": "^$|^[a-fA-F0-9]{64}$", "default": "", "description": "Optional required executable hash"},
+        "home": {"type": "string", "default": "", "description": "Optional isolated provider HOME; not a security sandbox"}
+      }
+    }
+  }
+}

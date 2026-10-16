@@ -160,7 +160,49 @@ just build-headless
 # Use this explicitly selected binary; upstream 0.7.0 is not patched.
 ```
 
-## Reproduce the comparison
+## Integrated optional-provider lane
+
+`tools/parity/parity.py matrix` now implements the optional provider path (trx-4s9s.24),
+with configuration/discovery, binary and font fingerprints, frozen common inputs,
+immutable references, staging, bounded subprocess supervision and hash-checked
+caches. See [the contract and commands](../../tools/parity/MULTI-ENGINE.md).
+Normal Rust builds do not discover or depend on office providers.
+
+Verification on the same synthetic input: **26 fake-provider/metric tests**, plus
+**78 matching summary/per-slide values** against the unchanged pinned WordCraft
+comparator. The integrated scorer reproduces the original three SSIM/line-break
+rows above. All three declared-font provider results are cache hits on a repeated
+run. A real `ingest --renderer deckcraft` also creates all three attributed cases.
+
+Isolated controls (same provider, normalized geometry and fonts):
+
+| Control | Mean SSIM | Same-break | Word recall |
+|---|---:|---:|---:|
+| Unchanged original | 1.0000 | 100.0% | 100.0% |
+| One original XML text node changed | 0.9972 | 96.7% | 96.81% |
+| Original picture removed | 0.9915 | 100.0% | 100.0% |
+| Patched provider no-edit PPTX resave | 0.9847 | 100.0% | 100.0% |
+
+Only slide 1 changes in the isolated text control; only slide 3 changes in the
+picture control. The diff images were inspected. A vendor-resaved text fixture
+was deliberately NOT used as the isolated control because the resave also changes
+other slides' rendering.
+
+The last row is a new, separately tracked provider gap (**trx-4s9s.26**): all
+identities/content and matched line origins survive, but glyph rendering differs
+on a no-edit resave (per-slide SSIM 0.9894 / 0.9811 / 0.9837). Source input rendered
+by the patched provider is still pixel-identical to the unmodified provider;
+this is resave preservation, not a change to the renderer for unchanged input.
+The identity/content-import qualification above remains valid; full visual no-op
+preservation is NOT certified. No root-cause assertion is made yet.
+
+Current raw evidence stays local under
+`~/sldr-lab/evaluations/multi-engine-adapter/` (`delivered-proof`, `delivered-cache`,
+`delivered-self`, `delivered-text`, `delivered-picture`, `delivered-resave`,
+`delivered-ingest`). These are local paths,
+not cross-machine artifact links. PowerPoint, Linux and WASM remain unverified.
+
+## Reproduce the original comparison spike
 
 The two small scripts are **fixture-specific experiment helpers**, not the
 production multi-provider adapter. They invoke a separately built comparator;

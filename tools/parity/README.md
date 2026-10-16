@@ -12,7 +12,7 @@ binary.
 
 | Piece | What it does |
 |-------|--------------|
-| `parity.py` | Deterministic CLI (uv script, deps inline): `ingest`, `baseline`, `render`, `score`, `gap`, `report` |
+| `parity.py` | Deterministic CLI (uv script, deps inline): `ingest`, `matrix`, `baseline`, `render`, `score`, `gap`, `report` |
 | `pi-extension/index.ts` | pi tools `parity_score` (numbers + original/sldr/difference image) and `parity_gap` (typed gap record); points sldr at the case's own library |
 | `skill/sldr-parity/` | The procedure the agent follows inside a case |
 | `run-case.sh` | One pi run on one case, isolated (no global extensions/skills), transcript kept; `PARITY_TUI=1` opens the pi TUI instead |
@@ -66,15 +66,23 @@ earlier ones. Each slide still gets its own pi session, score and gaps.
 
 ## Caveats
 
-- Originals render through LibreOffice for now; fonts that are not installed shift text. PowerPoint
-  renders (on a Mac) are the target ground truth.
+- New originals default to LibreOffice; `ingest --renderer deckcraft` or `--reference-pdf`
+  explicitly selects another source. Fonts that are not installed shift text. PowerPoint
+  renders (on a Mac) remain a separate target reference, never headless-only proof.
 - Pixel-identical is not the goal: browsers and PowerPoint rasterize text differently. Use SSIM
   trends, the heatmap and a human eye for the last few percent.
 
-## Multi-engine experiment
+## Multi-engine measurements
 
-The [DeckCraft spike](../../docs/pptx-spike/deckcraft-parity.md) compares the same synthetic
-fixture through Chrome, DeckCraft and LibreOffice, with explicit font/page normalization
-and WordCraft's line/coordinate comparator. Reproduction helpers are opt-in `just
-probe-deckcraft-prepare` / `just probe-deckcraft-score`; this is not yet an integrated
-provider in `parity.py` (tracked in trx-4s9s.24), nor proof of PowerPoint compatibility.
+```bash
+just parity-matrix --pptx ~/sldr-lab/probe.pptx \
+  --reference-pdf ~/sldr-lab/chrome.pdf --reference-engine chrome \
+  --config /path/to/pinned-provider.toml --output ~/sldr-lab/runs/probe-01
+just check-parity # isolated fake-provider tests; no office apps or Poppler needed
+```
+
+[Provider/configuration and evidence contract](MULTI-ENGINE.md): optional CLI discovery,
+version/font-keyed cache, immutable references, explicit skips/errors and pairwise
+visual/line/coordinate/word metrics. A completed measurement is not a fidelity verdict.
+The [original DeckCraft spike and preservation patch](../../docs/pptx-spike/deckcraft-parity.md)
+remain separately qualified evidence; matrix rendering does not enable arbitrary editor round trips.

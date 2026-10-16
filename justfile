@@ -86,6 +86,20 @@ check-print:
     cargo run -q -p sldr-renderer --example print_fixture -- target/interop/print.html
     uv run scripts/check-print.py target/interop/print.html target/interop/print
 
+# Optional-provider contracts with fake executables (no office apps or Poppler required)
+check-parity:
+    uv run tools/parity/test.py
+
+# Opt-in real renderers + metric equivalence (PPTX PDF CONFIG WORDCRAFT_XTASK OUTPUT)
+[positional-arguments]
+check-parity-real +ARGS:
+    uv run tools/parity/check_real.py "$@"
+
+# Explicit multi-engine evidence; arguments are forwarded to parity.py matrix
+[positional-arguments]
+parity-matrix +ARGS:
+    uv run tools/parity/parity.py matrix "$@"
+
 # Prepare the original synthetic fixture for the optional DeckCraft parity spike
 probe-deckcraft-prepare OUT FONT_DIR:
     uv run docs/pptx-spike/deckcraft-probe/prepare.py "{{OUT}}" --font-dir "{{FONT_DIR}}"

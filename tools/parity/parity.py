@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["python-pptx>=1.0", "scikit-image>=0.24", "pillow>=10", "numpy>=1.26"]
+# dependencies = ["python-pptx>=1.0", "scikit-image>=0.24", "pillow>=10", "numpy>=1.26", "pypdf==6.20.1"]
 # ///
 """parity — measure how closely sldr can recreate a real PowerPoint slide.
 
@@ -292,21 +292,14 @@ def background_color(part_owner) -> str | None:
 # ---------------------------------------------------------------- ingest
 
 
-def render_deck_pdf(deck: Path, deck_dir: Path) -> Path:
-    """Render the whole deck once (LibreOffice) and cache it."""
-    pdf = deck_dir / "original.pdf"
-    if pdf.exists() and pdf.stat().st_mtime >= deck.stat().st_mtime:
-        return pdf
-    deck_dir.mkdir(parents=True, exist_ok=True)
-    tmp = deck_dir / "lo"
-    tmp.mkdir(exist_ok=True)
-    r = run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(tmp), str(deck)], timeout=900)
-    produced = tmp / (deck.stem + ".pdf")
-    if r.returncode != 0 or not produced.exists():
-        die(f"LibreOffice could not render {deck}: {r.stderr.strip()[:300]}")
-    shutil.move(produced, pdf)
-    shutil.rmtree(tmp, ignore_errors=True)
-    return pdf
+def render_deck_pdf(deck: Path, deck_dir: Path, **options) -> Path:
+    """Default to LibreOffice, with explicit optional providers and immutable references."""
+    from engines import ProviderError
+    from matrix import ReferenceSpec, ingest_reference
+    try:
+        return ingest_reference(deck, deck_dir, LAB / "cache/providers", ReferenceSpec(**options))
+    except (ProviderError, OSError, ValueError) as exc:
+        die(f"Reference rendering failed: {exc}")
 
 
 def write_case_config(case: Path, library: Path, layout_dir: Path) -> None:
@@ -328,6 +321,18 @@ def write_case_config(case: Path, library: Path, layout_dir: Path) -> None:
     )
 
 
+def _case_reference(args, presentation, deck, deck_dir):
+    """One immutable reference and provenance record shared by every case of a deck."""
+    from pdf_metrics import PageSpec
+    pages = PageSpec(count=len(presentation.slides), width=960,
+                     height=960 * presentation.slide_height / presentation.slide_width)
+    pdf = render_deck_pdf(deck, deck_dir, renderer=args.renderer, reference=args.reference_pdf,
+                          reference_engine=args.reference_engine, config=args.config,
+                          override=args.renderer_bin, pages=pages)
+    metadata = deck_dir / "reference.json"
+    return pdf, load(metadata) if metadata.exists() else {"renderer": "legacy-unverified"}
+
+
 def cmd_ingest(a) -> None:
     from pptx import Presentation
 
@@ -336,8 +341,10 @@ def cmd_ingest(a) -> None:
     total = len(prs.slides)
     numbers = parse_slides(a.slides, total)
     prefix = a.case_prefix or slug(deck.stem)
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", prefix):
+        die("--case-prefix must be a plain name (letters, numbers, hyphen, underscore)")
     deck_dir = LAB / "decks" / prefix
-    pdf = render_deck_pdf(deck, deck_dir)
+    pdf, provenance = _case_reference(a, prs, deck, deck_dir)
     theme = theme_of(deck)
     sw, sh = prs.slide_width, prs.slide_height
     for n in numbers:
@@ -382,7 +389,8 @@ def cmd_ingest(a) -> None:
         write_case_config(case, lib, lib / "layouts")
         (lib / "playlists" / "case.toml").write_text(f'name = "case"\ntitle = "{name}"\nslides = ["slide"]\n')
         save(case / "case.json", {
-            "name": name, "deck": str(deck), "slide": n, "renderer": "libreoffice",
+            "name": name, "deck": str(deck), "slide": n, "renderer": provenance["renderer"],
+            "renderer_provenance": provenance,
             "sldr": {"library": str(lib), "playlist": "case", "config": str(case / "config")},
             "created": dt.datetime.now().isoformat(timespec="seconds"),
         })
@@ -696,7 +704,12 @@ def main() -> None:
     ap = argparse.ArgumentParser(prog="parity", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("ingest"); p.add_argument("deck"); p.add_argument("--slides", default="all")
-    p.add_argument("--case-prefix"); p.add_argument("--force", action="store_true"); p.set_defaults(fn=cmd_ingest)
+    p.add_argument("--case-prefix"); p.add_argument("--force", action="store_true")
+    p.add_argument("--renderer", choices=["libreoffice", "deckcraft"], default=None)
+    p.add_argument("--renderer-bin"); p.add_argument("--config", type=Path)
+    p.add_argument("--reference-pdf")
+    p.add_argument("--reference-engine", choices=["reference", "chrome", "powerpoint"], default="reference")
+    p.set_defaults(fn=cmd_ingest)
     p = sub.add_parser("baseline"); p.add_argument("case"); p.add_argument("--library", required=True)
     p.add_argument("--slide", required=True); p.add_argument("--flavor"); p.add_argument("--note"); p.set_defaults(fn=cmd_baseline)
     p = sub.add_parser("render"); p.add_argument("case"); p.set_defaults(fn=cmd_render)
@@ -705,6 +718,8 @@ def main() -> None:
     p = sub.add_parser("gap"); p.add_argument("case"); p.add_argument("--kind", required=True)
     p.add_argument("--feature", required=True); p.add_argument("--evidence", required=True); p.set_defaults(fn=cmd_gap)
     p = sub.add_parser("report"); p.set_defaults(fn=cmd_report)
+    from matrix import add_parser
+    add_parser(sub, LAB)
     a = ap.parse_args()
     a.fn(a)
 
