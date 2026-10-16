@@ -160,7 +160,7 @@ just build-headless
 # Use this explicitly selected binary; upstream 0.7.0 is not patched.
 ```
 
-## Integrated optional-provider lane
+## Integrated optional-provider lane (2026-10-16)
 
 `tools/parity/parity.py matrix` now implements the optional provider path (trx-4s9s.24),
 with configuration/discovery, binary and font fingerprints, frozen common inputs,
