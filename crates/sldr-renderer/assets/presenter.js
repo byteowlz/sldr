@@ -737,6 +737,22 @@
     }
   }
 
+  // Derived surfaces get their own applicable logos, never the active slide's
+  // visibility state. The persistent live overlay remains untouched.
+  function slideLogoLayer(slide) {
+    if (slide.getAttribute('data-chrome') === 'none') return null;
+    var holder = document.createElement('div');
+    holder.className = 'sldr-logos';
+    deckLogos.forEach(function (logo) {
+      var layouts = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
+      if (!logoApplies(layouts, slide.dataset.layout || '')) return;
+      var clone = logo.cloneNode(true);
+      clone.classList.add('sldr-logo-on');
+      holder.appendChild(clone);
+    });
+    return holder.childElementCount ? holder : null;
+  }
+
   // Videos: pause everything that is not on the current slide; on a
   // `sldr:media autoplay` layout (full-screen video) restart the clip from
   // the top. Autoplay with sound needs a prior user gesture — the deck has
@@ -843,10 +859,12 @@
   // at once (the per-slide showSlide hook never fires for the inactive ones).
   window.__sldrFitAll = function () {
     for (var i = 0; i < total; i++) {
+      if (!slides[i].clientWidth || !slides[i].clientHeight) continue;
       renderMermaid(slides[i]);
       setUnit(slides[i]);
       fitSlide(slides[i]);
     }
+    if (overviewOpen) layoutOverview();
   };
 
   // One print preparation path for CLI PDF and the browser's Print command.
@@ -863,7 +881,6 @@
     // not at the slide that inherits them. Give those the print units too.
     document.documentElement.style.setProperty('--sldr-u', 'calc(var(--sldr-print-width) / 100)', 'important');
     document.documentElement.style.setProperty('--sldr-uh', 'calc(var(--sldr-print-height) / 100)', 'important');
-    var overlay = deck.querySelector(':scope > .sldr-logos');
     allSlides.forEach(function (slide) {
       var excluded = slides.indexOf(slide) === -1;
       slide.style.setProperty('display', excluded ? 'none' : 'flex', 'important');
@@ -875,18 +892,12 @@
       slide.style.setProperty('--sldr-uh', 'calc(var(--sldr-print-height) / 100)', 'important');
       slide.toggleAttribute('data-print-excluded', excluded);
       slide.toggleAttribute('data-print-last', slide === slides[slides.length - 1]);
-      if (slide.querySelector('[data-print-logos]') || !overlay) return;
-      var holder = document.createElement('div');
-      holder.className = 'sldr-logos';
-      holder.setAttribute('data-print-logos', '');
-      overlay.querySelectorAll('.sldr-logo').forEach(function (logo) {
-        var layouts = (logo.getAttribute('data-logo-layouts') || '').split(/\s+/);
-        if (!logoApplies(layouts, slide.dataset.layout || '')) return;
-        var clone = logo.cloneNode(true);
-        clone.classList.add('sldr-logo-on');
-        holder.appendChild(clone);
-      });
-      slide.appendChild(holder);
+      if (slide.querySelector('[data-print-logos]')) return;
+      var holder = slideLogoLayer(slide);
+      if (holder) {
+        holder.setAttribute('data-print-logos', '');
+        slide.appendChild(holder);
+      }
     });
     window.__sldrFitAll();
   }
@@ -1217,9 +1228,9 @@
     overviewOpen = !overviewOpen;
 
     if (overviewOpen) {
-      populateOverview();
       overlay.classList.add("sldr-overview-open");
       overlay.setAttribute("aria-hidden", "false");
+      populateOverview();
     } else {
       overlay.classList.remove("sldr-overview-open");
       overlay.setAttribute("aria-hidden", "true");
@@ -1253,6 +1264,9 @@
       clone.removeAttribute("aria-hidden");
       clone.style.position = "relative";
       clone.style.display = "flex";
+      clone.inert = true;
+      var logos = slideLogoLayer(slides[i]);
+      if (logos) clone.appendChild(logos);
 
       var wrapper = document.createElement("div");
       wrapper.className = "sldr-overview-content";
@@ -1270,6 +1284,29 @@
     }
 
     overlay.appendChild(grid);
+    layoutOverview();
+  }
+
+  function layoutOverview() {
+    // Render the live deck's complete canvas, then contain it in each existing
+    // tile. Keeping the same unscaled box also preserves root-derived flavor
+    // tokens; resizing only the clone would inherit the wrong padding/metrics.
+    var w = deck.clientWidth, h = deck.clientHeight;
+    if (!w || !h) return;
+    overlay.querySelectorAll('.sldr-overview-thumb').forEach(function (thumb) {
+      if (!thumb.clientWidth || !thumb.clientHeight) return;
+      var wrapper = thumb.querySelector('.sldr-overview-content');
+      var clone = wrapper.querySelector('.sldr-slide');
+      var scale = Math.min(thumb.clientWidth / w, thumb.clientHeight / h);
+      wrapper.style.width = w + 'px';
+      wrapper.style.height = h + 'px';
+      wrapper.style.left = (thumb.clientWidth - w * scale) / 2 + 'px';
+      wrapper.style.top = (thumb.clientHeight - h * scale) / 2 + 'px';
+      wrapper.style.transform = 'scale(' + scale + ')';
+      setUnit(clone);
+      renderMermaid(clone);
+      fitSlide(clone);
+    });
   }
 
   function onThumbClick(e) {
@@ -1353,6 +1390,7 @@
   function onResize() {
     // The slide box changed size: recompute the unit and the fit scale.
     if (slides[current]) { setUnit(slides[current]); fitSlide(slides[current]); }
+    if (overviewOpen) layoutOverview();
   }
 
   // ---------------------------------------------------------------------------

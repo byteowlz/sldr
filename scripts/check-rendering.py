@@ -153,6 +153,89 @@ def print_fit(f):
     return rows
 
 
+def overview(f):
+    f.run("build-overview", "build", "all", "--lang", "en,de", "--single-file")
+    rows = []
+    with sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=str(f.browser), headless=True)
+        page = browser.new_page(viewport={"width": 1920, "height": 1080})
+        page.goto((f.root / "out/all/index.html").as_uri())
+        page.evaluate("document.fonts.ready")
+        original = page.locator(".sldr-deck > .sldr-slide").evaluate_all(
+            "es => es.map(e=>e.getAttribute('style'))"
+        )
+        page.keyboard.press("o")
+        for width, height in [(1920, 1080), (1280, 720), (800, 600)]:
+            page.set_viewport_size({"width": width, "height": height})
+            page.evaluate("document.fonts.ready")
+            # Dispatch synchronously so layout assertions do not race resize delivery.
+            page.evaluate("window.dispatchEvent(new Event('resize'))")
+            metrics = page.locator(".sldr-overview-thumb").evaluate_all("""es => es.map(e=>{
+                const s=e.querySelector('.sldr-slide'),r=s.getBoundingClientRect(),b=e.getBoundingClientRect();
+                return {layout:s.dataset.layout,lang:s.dataset.lang,width:s.clientWidth,height:s.clientHeight,
+                    box:[r.left,r.top,r.right,r.bottom],button:[b.left,b.top,b.right,b.bottom],
+                    logos:s.querySelectorAll('.sldr-logo-on').length,
+                    direction:getComputedStyle(s).flexDirection,
+                    family:getComputedStyle(s).fontFamily};
+            })""")
+            page.screenshot(path=str(f.root / f"overview-{width}.png"))
+            (f.root / f"overview-{width}.json").write_text(
+                json.dumps(metrics, indent=2)
+            )
+            assert len(metrics) == 6, len(metrics)
+            for row in metrics:
+                assert row["lang"] == "en", row
+                assert (row["width"], row["height"]) == (width, height), row
+                assert row["direction"] == "column" and "Probe" in row["family"], row
+                box, button = row["box"], row["button"]
+                assert box[0] >= button[0] and box[1] >= button[1], row
+                assert box[2] <= button[2] + 1 and box[3] <= button[3] + 1, row
+                assert row["logos"] == (
+                    1 if row["layout"] in ("framed", "framed-cols") else 0
+                ), row
+            rows.append({"viewport": [width, height], "thumbnails": metrics})
+        page.keyboard.press("Escape")
+        # Return to the initial viewport before comparing the live deck's styles.
+        page.set_viewport_size({"width": 1920, "height": 1080})
+        page.evaluate("window.dispatchEvent(new Event('resize'))")
+        after = page.locator(".sldr-deck > .sldr-slide").evaluate_all(
+            "es => es.map(e=>e.getAttribute('style'))"
+        )
+        assert original == after, ("overview mutated live slides", original, after)
+        page.keyboard.press("o")
+        page.locator(".sldr-overview-thumb").nth(2).click()
+        page.wait_for_function(
+            "document.querySelectorAll('.sldr-deck > .sldr-slide.active').length === 1"
+        )
+        assert (
+            page.locator(".sldr-deck > .sldr-slide.active").get_attribute("data-layout")
+            == "framed"
+        )
+        assert page.locator(".sldr-overview").get_attribute("aria-hidden") == "true"
+        page.keyboard.press("l")
+        page.keyboard.press("o")
+        assert (
+            page.locator('.sldr-overview-thumb .sldr-slide[data-lang="de"]').count()
+            == 6
+        )
+        for allowed, expected in [
+            ("framed*", [0, 0, 1, 1, 1, 1]),
+            ("all", [0, 1, 1, 1, 1, 1]),
+        ]:
+            page.keyboard.press("Escape")
+            page.locator(".sldr-deck > .sldr-logos .sldr-logo").evaluate_all(
+                '(es, value) => es.forEach(e=>e.setAttribute("data-logo-layouts",value))',
+                allowed,
+            )
+            page.keyboard.press("o")
+            counts = page.locator(".sldr-overview-thumb").evaluate_all(
+                'es => es.map(e=>e.querySelectorAll(".sldr-logo-on").length)'
+            )
+            assert counts == expected, (allowed, counts)
+        browser.close()
+    return rows
+
+
 def check_selected(f, selected):
     report = {}
     if selected in ("all", "capture"):
@@ -161,6 +244,8 @@ def check_selected(f, selected):
         report["screen-fit"] = screen_fit(f)
     if selected in ("all", "print-fit"):
         report["print-fit"] = print_fit(f)
+    if selected in ("all", "overview"):
+        report["overview"] = overview(f)
     return report
 
 
@@ -182,7 +267,9 @@ def main():
     )
     parser.add_argument("--browser", type=Path, default=None)
     parser.add_argument(
-        "--case", choices=["all", "capture", "screen-fit", "print-fit"], default="all"
+        "--case",
+        choices=["all", "capture", "screen-fit", "print-fit", "overview"],
+        default="all",
     )
     args = parser.parse_args()
     browser = (

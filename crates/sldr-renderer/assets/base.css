@@ -1836,6 +1836,8 @@ html:not(.dark) .sldr-flavor-item {
   aspect-ratio: 16 / 9;
   transition: border-color 0.2s, transform 0.2s;
   padding: 0;
+  font: inherit;
+  text-align: initial;
 }
 
 .sldr-overview-thumb:hover {
@@ -1848,14 +1850,16 @@ html:not(.dark) .sldr-flavor-item {
 }
 
 .sldr-overview-content {
-  width: 100%;
-  height: 100%;
+  position: absolute;
   overflow: hidden;
   pointer-events: none;
-  transform: scale(0.25);
   transform-origin: top left;
-  width: 400%;
-  height: 400%;
+}
+
+.sldr-overview-content > .sldr-slide {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
 }
 
 .sldr-overview-label {

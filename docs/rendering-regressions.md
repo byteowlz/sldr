@@ -41,6 +41,25 @@ survive in the single 1440×810 pt PDF page, in both browser viewports and CLI P
 export. Screen geometry must be identical after the print cycle. The existing
 `just check-print` additionally covers eight viewport/active-slide/language cases.
 
+## Overview (#1)
+
+The existing grid, controls, palette and tile shape are unchanged. Each preview
+uses the live deck's unscaled canvas and contains it inside its tile, rather than
+inheriting stale units into an unrelated 4x wrapper. Fixed dimensions preserve
+framed absolute children and root-derived flavor tokens. Preview content is inert;
+the existing navigation button remains operable. Applicable logos share the same
+layout matching/bare-slide exclusion mechanism as print.
+
+The browser lane captures synthetic evidence at 1920×1080, 1280×720 and 800×600;
+checks full canvas bounds, column flow, fonts and exact/prefix/all logo scope;
+checks live-slide state restoration, thumbnail navigation and language switching.
+
+Studio coverage lookup returned no `sldr` app/target. This is a bounded repair of
+the incumbent overview, not selection of a new visual design. The coverage gap and
+bug-repair-only scope were sent to the Studio owner on the agent messageboard
+(message `f0ea6adb-c04f-4418-b031-d779fbcac943`). Synthetic before/after evidence is
+kept with the regression output; no private presentation is used.
+
 These are browser/export regressions, not general PowerPoint compatibility or
 pixel equivalence certification across different font/renderer versions. Raw
 HTML, PNG, PDF and logs stay in the private output directory.
