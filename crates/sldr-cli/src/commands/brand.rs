@@ -152,17 +152,17 @@ fn encode(img: DynamicImage, alpha: bool) -> Result<BrandImage> {
     }
 }
 
-/// Screenshot `html` at exactly `w`×`h` CSS px (compensating for headless
-/// Chrome's short viewport). `transparent` keeps an alpha background.
+/// Screenshot `html` at exactly `w`×`h` CSS px. Screenshot and dump-DOM
+/// modes have different viewport behavior; never compensate one using the other.
+/// `transparent` keeps an alpha background.
 pub fn screenshot(browser: &Path, html: &str, w: u32, h: u32, transparent: bool) -> Result<DynamicImage> {
     let dir = tempfile::tempdir()?;
     let page = dir.path().join("page.html");
     let png = dir.path().join("shot.png");
-    std::fs::write(&page, html)?;
-    let extra = super::export::viewport_shortfall(browser);
+    std::fs::write(&page, capture_canvas(html, w, h))?;
     let mut cmd = std::process::Command::new(browser);
-    cmd.args(["--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--virtual-time-budget=4000"])
-        .arg(format!("--window-size={w},{}", h + extra))
+    cmd.args(["--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1", "--virtual-time-budget=4000"])
+        .arg(format!("--window-size={w},{h}"))
         .arg(format!("--screenshot={}", png.display()));
     if transparent {
         cmd.arg("--default-background-color=00000000");
@@ -176,13 +176,80 @@ pub fn screenshot(browser: &Path, html: &str, w: u32, h: u32, transparent: bool)
     if !status.success() || !png.exists() {
         bail!("browser did not produce a screenshot");
     }
-    let img = image::open(&png).context("screenshot unreadable")?;
-    Ok(img.crop_imm(0, 0, img.width().min(w), img.height().min(h)))
+    open_capture(&png, w, h)
+}
+
+/// Fix the export canvas independently of Chrome's pre-capture CSS viewport.
+/// Some builds keep `vh` at the dump-DOM height even when the screenshot surface
+/// has the requested height. Never resize the window and crop away authored content.
+pub(crate) fn capture_canvas(html: &str, w: u32, h: u32) -> String {
+    let style = format!("<style>html,body{{width:{w}px!important;height:{h}px!important;margin:0!important}}\
+        .sldr-deck,.sldr-deck[data-aspect-lock]{{width:{w}px!important;height:{h}px!important;\
+        position:relative!important;inset:auto!important;margin:0!important}}</style>");
+    let at = html.find("</head>").or_else(|| html.find("<body")).unwrap_or(0);
+    format!("{}{style}{}", &html[..at], &html[at..])
+}
+
+/// Refuse unexpected capture geometry rather than silently cutting off content.
+pub(crate) fn open_capture(path: &Path, w: u32, h: u32) -> Result<DynamicImage> {
+    let img = image::open(path).context("screenshot unreadable")?;
+    if img.dimensions() != (w, h) {
+        bail!("Screenshot dimensions {:?} do not match requested {w}×{h}; refusing to crop slide content", img.dimensions());
+    }
+    Ok(img)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    fn fake_browser(root: &Path, w: u32, h: u32) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        image::RgbaImage::from_pixel(w, h, image::Rgba([17, 33, 55, 255])).save(root.join("capture.png")).unwrap();
+        let script = root.join("chrome");
+        std::fs::write(&script, format!(r#"#!/usr/bin/env bash
+for arg in "$@"; do
+  if [ "$arg" = --dump-dom ]; then echo VP993VP; exit 0; fi
+done
+printf '%s\n' "$@" > '{dir}/args'
+for arg in "$@"; do
+  case "$arg" in --screenshot=*) cp '{dir}/capture.png' "${{arg#--screenshot=}}";; esac
+done
+"#, dir = root.display())).unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        script
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn screenshot_uses_capture_dimensions_not_dump_dom_shortfall() {
+        let dir = tempfile::tempdir().unwrap();
+        let browser = fake_browser(dir.path(), 960, 540);
+        let img = screenshot(&browser, "<html></html>", 960, 540, false).unwrap();
+        assert_eq!(img.dimensions(), (960, 540));
+        let args = std::fs::read_to_string(dir.path().join("args")).unwrap();
+        assert!(args.lines().any(|a| a == "--window-size=960,540"), "{args}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn screenshot_rejects_unexpected_capture_dimensions_instead_of_cropping() {
+        let dir = tempfile::tempdir().unwrap();
+        let browser = fake_browser(dir.path(), 960, 627);
+        let result = screenshot(&browser, "<html></html>", 960, 540, false);
+        assert!(result.is_err(), "unexpected capture dimensions were accepted");
+        let error = result.err().unwrap();
+        assert!(error.to_string().contains("dimensions"), "{error}");
+    }
+
+    #[test]
+    fn capture_canvas_keeps_doctype_and_precedes_body_layout() {
+        let html = capture_canvas("<!doctype html><html><body>sample</body></html>", 960, 540);
+        assert!(html.starts_with("<!doctype html>"));
+        assert!(html.contains("height:540px!important"));
+        assert!(html.find("<style>").unwrap() < html.find("<body>").unwrap());
+    }
 
     #[test]
     fn lengths_to_percent() {

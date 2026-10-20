@@ -87,6 +87,10 @@ check-print:
     uv run scripts/check-print.py target/interop/print.html target/interop/print
 
 # Optional-provider contracts with fake executables (no office apps or Poppler required)
+check-rendering OUT FONT_DIR:
+    cargo build -p sldr-cli
+    uv run scripts/check-rendering.py "{{OUT}}" --font-dir "{{FONT_DIR}}"
+
 check-parity:
     uv run tools/parity/test.py
 

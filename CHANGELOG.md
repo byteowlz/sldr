@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - `sldr master <file.pptx> [--skeleton|--json]`: inventory of a master's slide masters, layouts and placeholders; `--skeleton` prints a map to fill in (nothing pre-mapped).
 
 ### Fixed
+- PNG and PPTX raster captures use an explicit pixel canvas, not a viewport shortfall measured in Chrome's unrelated dump-DOM mode. Unexpected screenshot dimensions fail instead of silently cropping authored content (#2).
 - Import accepts a zone exported as a text box when its identity proves sldr wrote it, and a master's slide-number field (writer-owned, never written back).
 
 ## [0.10.0] - 2026-10-06

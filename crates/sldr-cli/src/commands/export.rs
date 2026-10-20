@@ -866,29 +866,6 @@ fn crop_regions(png: &[u8], zones: &[&sldr_renderer::Zone]) -> Result<Vec<(Strin
         .collect()
 }
 
-/// How many pixels shorter than its window headless Chrome's viewport is
-/// (e.g. 1080 → 993). Measured once per process by asking the page itself.
-pub(crate) fn viewport_shortfall(browser: &Path) -> u32 {
-    static CACHE: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
-    *CACHE.get_or_init(|| {
-        let measure = || -> Option<u32> {
-            let dir = tempfile::tempdir().ok()?;
-            let page = dir.path().join("vp.html");
-            std::fs::write(&page, "<html><body><script>document.body.textContent='VP'+innerHeight+'VP'</script></body></html>").ok()?;
-            let out = std::process::Command::new(browser)
-                .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1920,1080", "--dump-dom"])
-                .arg(format!("file://{}", page.display()))
-                .stderr(std::process::Stdio::null())
-                .output()
-                .ok()?;
-            let text = String::from_utf8_lossy(&out.stdout);
-            let h: u32 = text.split("VP").nth(1)?.parse().ok()?;
-            Some(1080u32.saturating_sub(h))
-        };
-        measure().unwrap_or(0)
-    })
-}
-
 /// Extract speaker notes from a slide's markdown, mirroring the HTML renderer.
 fn speaker_notes(content: &str) -> Option<String> {
     if let Some(idx) = content.find("<!-- notes -->") {
@@ -1234,7 +1211,7 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
     );
 
     let temp_dir = tempfile::tempdir()?;
-    let html_owned = html.to_string();
+    let html_owned = super::brand::capture_canvas(html, 1920, 1080);
 
     let rt = tokio::runtime::Runtime::new()?;
     let images = rt.block_on(async {
@@ -1257,11 +1234,9 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        // Screenshot each slide by navigating to #/N. The window is enlarged
-        // by headless Chrome's viewport shortfall and each shot cropped back
-        // to 1920×1080, so slides fill the frame instead of leaving a band.
-        let extra = viewport_shortfall(&browser);
-        let window = format!("--window-size=1920,{}", 1080 + extra);
+        // Screenshot mode owns its exact viewport; dump-DOM measurements
+        // must not enlarge the slide and cause a destructive post-capture crop.
+        let window = "--window-size=1920,1080";
         let mut image_paths = Vec::new();
         for i in 1..=slide_count {
             let url = format!("http://127.0.0.1:{port}/#{i}");
@@ -1269,10 +1244,11 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
 
             let status = tokio::process::Command::new(&browser)
                 .args([
-                    "--headless",
+                    "--headless=new",
                     "--disable-gpu",
                     "--no-sandbox",
-                    &window,
+                    "--force-device-scale-factor=1",
+                    window,
                     "--hide-scrollbars",
                     "--virtual-time-budget=3000",
                     &format!("--screenshot={}", img_path.display()),
@@ -1287,12 +1263,8 @@ fn export_pptx(html: &str, slide_count: usize, output_path: &std::path::Path) ->
             if !status.success() {
                 anyhow::bail!("Chrome screenshot failed for slide {i}");
             }
-            if extra > 0 {
-                let img = image::open(&img_path).with_context(|| format!("slide {i} screenshot unreadable"))?;
-                img.crop_imm(0, 0, img.width().min(1920), img.height().min(1080))
-                    .save(&img_path)
-                    .with_context(|| format!("cropping slide {i} screenshot failed"))?;
-            }
+            super::brand::open_capture(&img_path, 1920, 1080)
+                .with_context(|| format!("slide {i} capture geometry is invalid"))?;
 
             image_paths.push(img_path);
         }
