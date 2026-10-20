@@ -161,6 +161,12 @@ def overview(f):
         page = browser.new_page(viewport={"width": 1920, "height": 1080})
         page.goto((f.root / "out/all/index.html").as_uri())
         page.evaluate("document.fonts.ready")
+        german = page.locator(
+            '.sldr-deck > .sldr-slide[data-lang="de"] .sldr-block p'
+        ).filter(has_text="Deutsche Sprachprüfung")
+        assert german.evaluate("e => e.matches(':lang(de)')"), (
+            "freeform must inherit semantic German"
+        )
         original = page.locator(".sldr-deck > .sldr-slide").evaluate_all(
             "es => es.map(e=>e.getAttribute('style'))"
         )
@@ -172,7 +178,7 @@ def overview(f):
             page.evaluate("window.dispatchEvent(new Event('resize'))")
             metrics = page.locator(".sldr-overview-thumb").evaluate_all("""es => es.map(e=>{
                 const s=e.querySelector('.sldr-slide'),r=s.getBoundingClientRect(),b=e.getBoundingClientRect();
-                return {layout:s.dataset.layout,lang:s.dataset.lang,width:s.clientWidth,height:s.clientHeight,
+                return {layout:s.dataset.layout,lang:s.dataset.lang,semantic:s.lang,width:s.clientWidth,height:s.clientHeight,
                     box:[r.left,r.top,r.right,r.bottom],button:[b.left,b.top,b.right,b.bottom],
                     logos:s.querySelectorAll('.sldr-logo-on').length,
                     direction:getComputedStyle(s).flexDirection,
@@ -184,7 +190,7 @@ def overview(f):
             )
             assert len(metrics) == 6, len(metrics)
             for row in metrics:
-                assert row["lang"] == "en", row
+                assert row["lang"] == row["semantic"] == "en", row
                 assert (row["width"], row["height"]) == (width, height), row
                 assert row["direction"] == "column" and "Probe" in row["family"], row
                 box, button = row["box"], row["button"]

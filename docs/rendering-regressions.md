@@ -60,6 +60,15 @@ bug-repair-only scope were sent to the Studio owner on the agent messageboard
 (message `f0ea6adb-c04f-4418-b031-d779fbcac943`). Synthetic before/after evidence is
 kept with the regression output; no private presentation is used.
 
+## Language semantics (#5)
+
+Both freeform layouts have Rust regression coverage for English/German variants;
+their section `lang` matches `data-lang` and is inherited by spatial blocks. The
+browser lane verifies `:lang(de)` on real freeform text and language attributes in
+preview clones. Attribute-escaping has a negative injection control. Navigation
+still uses `data-lang`; source markdown and the language-selection contract are
+unchanged.
+
 These are browser/export regressions, not general PowerPoint compatibility or
 pixel equivalence certification across different font/renderer versions. Raw
 HTML, PNG, PDF and logs stay in the private output directory.

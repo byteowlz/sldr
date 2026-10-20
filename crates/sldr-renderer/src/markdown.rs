@@ -785,8 +785,8 @@ fn write_close_tag(out: &mut String, tag: TagEnd) {
     }
 }
 
-/// Basic HTML escaping for text content
-fn html_escape(input: &str) -> String {
+/// HTML escaping for text and double-quoted attributes.
+pub(crate) fn html_escape(input: &str) -> String {
     input
         .replace('&', "&amp;")
         .replace('<', "&lt;")

@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - `sldr master <file.pptx> [--skeleton|--json]`: inventory of a master's slide masters, layouts and placeholders; `--skeleton` prints a map to fill in (nothing pre-mapped).
 
 ### Fixed
+- Language-tagged slide variants emit semantic HTML `lang` as well as navigation `data-lang`, including freeform blocks; language values are attribute-escaped (#5).
 - Overview thumbnails contain a complete, independently fitted slide canvas, including absolute/framed layouts and applicable flavor logos. Resizing preserves the live deck's geometry; preview clones inherit the presentation font instead of the browser's button font (#1).
 - Print preparation establishes the page box before `beforeprint` measurements, refits when print media activates, and restores screen state afterward (#3). Centered/end-aligned overflow is measured from its full extent, with correct safe-alignment origins and a refit after fonts load (#4).
 - PNG and PPTX raster captures use an explicit pixel canvas, not a viewport shortfall measured in Chrome's unrelated dump-DOM mode. Unexpected screenshot dimensions fail instead of silently cropping authored content (#2).

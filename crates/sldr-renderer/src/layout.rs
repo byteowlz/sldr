@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-use crate::markdown::MarkdownOutput;
+use crate::markdown::{html_escape, MarkdownOutput};
 
 /// Options for `wrap_slide`. Bundled into a struct so we can grow the
 /// per-slide knob set (alignment, transitions, click-step density, etc.)
@@ -933,7 +933,8 @@ pub fn wrap_slide(opts: SlideOpts<'_>, def: &LayoutDef) -> String {
         let _ = write!(html, " style=\"--sldr-type-scale:{s}\"");
     }
     if let Some(l) = lang {
-        let _ = write!(html, " data-lang=\"{l}\"");
+        let l = html_escape(l);
+        let _ = write!(html, " data-lang=\"{l}\" lang=\"{l}\"");
     }
     if def.chrome_none {
         html.push_str(" data-chrome=\"none\"");

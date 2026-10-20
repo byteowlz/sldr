@@ -11,7 +11,7 @@ use sldr_core::flavor::Flavor;
 use sldr_core::slide::Slide;
 use tracing::info;
 
-use crate::markdown::{render_markdown, MarkdownOutput, MediaConfig};
+use crate::markdown::{html_escape as html_escape_attr, render_markdown, MarkdownOutput, MediaConfig};
 use crate::media::{self, ImageMode, MediaEmbed};
 use crate::layout::{wrap_slide, Chrome, LayoutRegistry, SlideOpts};
 
@@ -848,15 +848,6 @@ fn extract_speaker_notes(content: &str) -> Option<String> {
     None
 }
 
-/// Escape a string for use in an HTML attribute value
-fn html_escape_attr(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
 /// Escape text for safe placement in element content (chrome slots carry
 /// plain frontmatter text, never markdown).
 fn html_escape_text(input: &str) -> String {
@@ -990,6 +981,38 @@ mod tests {
         let html = renderer.render().unwrap();
         assert!(html.contains("<title>My Talk</title>"));
         assert!(html.contains("data-transition=\"slide-left\""));
+    }
+
+    #[test]
+    fn test_freeform_variants_have_semantic_language() {
+        for layout in ["freeform", "framed-freeform"] {
+            let slide = Slide::from_str("language", "language.md", &format!(
+                "---\nlayout: {layout}\n---\n::lang:en::\n::block x=5 y=5 w=80 h=80::\nEnglish sentinel\n::lang:de::\n::block x=5 y=5 w=80 h=80::\nDeutsche Sprachprüfung\n"
+            ));
+            let mut renderer = HtmlRenderer::new(RenderConfig {
+                languages: vec!["en".into(), "de".into()],
+                ..Default::default()
+            });
+            renderer.add_slide(&slide).unwrap();
+            let html = renderer.render().unwrap();
+            for lang in ["en", "de"] {
+                assert!(html.contains(&format!("data-lang=\"{lang}\" lang=\"{lang}\"")), "{layout}/{lang}");
+            }
+            assert!(html.contains("English sentinel") && html.contains("Deutsche Sprachprüfung"));
+        }
+    }
+
+    #[test]
+    fn test_language_attributes_are_escaped() {
+        let slide = Slide::from_str("language", "language.md", "# Neutral content");
+        let mut renderer = HtmlRenderer::new(RenderConfig {
+            languages: vec!["en".into(), "de\" onfocus=\"bad".into()],
+            ..Default::default()
+        });
+        renderer.add_slide(&slide).unwrap();
+        let html = renderer.render().unwrap();
+        assert!(html.contains("data-lang=\"de&quot; onfocus=&quot;bad\" lang=\"de&quot; onfocus=&quot;bad\""));
+        assert!(!html.contains("onfocus=\"bad\""));
     }
 
     #[test]
