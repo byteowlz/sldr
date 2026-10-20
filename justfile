@@ -86,11 +86,12 @@ check-print:
     cargo run -q -p sldr-renderer --example print_fixture -- target/interop/print.html
     uv run scripts/check-print.py target/interop/print.html target/interop/print
 
-# Optional-provider contracts with fake executables (no office apps or Poppler required)
+# Real-browser export regressions (new private output dir + open font directory)
 check-rendering OUT FONT_DIR:
     cargo build -p sldr-cli
     uv run scripts/check-rendering.py "{{OUT}}" --font-dir "{{FONT_DIR}}"
 
+# Optional-provider contracts with fake executables (no office apps or Poppler required)
 check-parity:
     uv run tools/parity/test.py
 

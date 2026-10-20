@@ -5,6 +5,8 @@
 """Real installed-Chrome regression lane. Synthetic/private output, no model calls."""
 
 import argparse
+import hashlib
+import subprocess
 import io
 import json
 import os
@@ -12,6 +14,8 @@ from pathlib import Path
 import shutil
 import sys
 import zipfile
+import posixpath
+import xml.etree.ElementTree as ET
 
 from PIL import Image
 import fitz
@@ -48,18 +52,33 @@ def capture(f):
         with Image.open(out / "01.png") as image:
             assert image.size == (int(1920 * scale), int(1080 * scale)), image.size
             corners(image)
-    out = f.root / "region.pptx"
-    f.run("region", "export", "markers", "--format", "pptx", "--allow-lossy", "-o", out)
-    with zipfile.ZipFile(out) as package:
-        full = []
-        for name in package.namelist():
-            if name.startswith("ppt/media/") and name.endswith(".png"):
-                image = Image.open(io.BytesIO(package.read(name)))
-                if image.size == (1920, 1080):
-                    full.append(image)
-        assert len(full) == 1, len(full)
-        corners(full[0])
-    return {"png_scales": [1, 0.5], "native_region_corners": "passed"}
+    for name, options in [("region", []), ("flattened", ["--flatten"])]:
+        out = f.root / f"{name}.pptx"
+        f.run(
+            name,
+            "export",
+            "markers",
+            "--format",
+            "pptx",
+            "--allow-lossy",
+            *options,
+            "-o",
+            out,
+        )
+        with zipfile.ZipFile(out) as package:
+            full = []
+            for entry in package.namelist():
+                if entry.startswith("ppt/media/") and entry.endswith(".png"):
+                    image = Image.open(io.BytesIO(package.read(entry)))
+                    if image.size == (1920, 1080):
+                        full.append(image)
+            assert len(full) == 1, len(full)
+            corners(full[0])
+    return {
+        "png_scales": [1, 0.5],
+        "native_region_corners": "passed",
+        "flattened_corners": "passed",
+    }
 
 
 def body_bounds(page):
@@ -242,6 +261,156 @@ def overview(f):
     return rows
 
 
+def svg_block(f):
+    source = f.root / "library/slides/svg.md"
+    source.write_text(
+        source.read_text().replace(
+            "::block x=6",
+            "::block x=8 y=30 w=30 h=10::\nEditable neighbor\n::block x=6",
+        )
+    )
+    destination, report = f.root / "svg.pptx", f.root / "svg-report.json"
+    destination.write_bytes(b"EXISTING DESTINATION")
+    f.run(
+        "svg-strict",
+        "export",
+        "svg",
+        "--format",
+        "pptx",
+        "-o",
+        destination,
+        "--report-json",
+        report,
+        expected=1,
+    )
+    assert destination.read_bytes() == b"EXISTING DESTINATION"
+    strict = json.loads(report.read_text())["findings"]
+    assert any(
+        x["element"] == "block2"
+        and x["feature"] == "svg_raster"
+        and x["disposition"] == "baked"
+        for x in strict
+    ), strict
+    f.run(
+        "svg-lossy",
+        "export",
+        "svg",
+        "--format",
+        "pptx",
+        "--allow-lossy",
+        "-o",
+        destination,
+        "--report-json",
+        report,
+    )
+    findings = json.loads(report.read_text())["findings"]
+    assert not any(x["disposition"] == "unsupported" for x in findings), findings
+    ns = {
+        "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+        "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    }
+    with zipfile.ZipFile(destination) as package:
+        slide = ET.fromstring(package.read("ppt/slides/slide1.xml"))
+        assert any(
+            t.text == "Editable neighbor" for t in slide.findall(".//a:t", ns)
+        ), "neighbor must remain native text"
+        picture = next(
+            p
+            for p in slide.findall(".//p:pic", ns)
+            if p.find("p:nvPicPr/p:cNvPr", ns).get("name") == "Block2"
+        )
+        rid = picture.find("p:blipFill/a:blip", ns).get("{" + ns["r"] + "}embed")
+        rels = ET.fromstring(package.read("ppt/slides/_rels/slide1.xml.rels"))
+        target = next(r.get("Target") for r in rels if r.get("Id") == rid)
+        image = Image.open(
+            io.BytesIO(package.read(posixpath.normpath("ppt/slides/" + target)))
+        ).convert("RGBA")
+        assert image.size == (806, 648), image.size
+        assert image.getpixel((30, 30)) == (0, 176, 96, 255)
+        assert image.getpixel((180, 60)) == (23, 75, 255, 255)
+        assert image.getpixel((600, 500))[3] == 0, (
+            "region must not bake background/chrome"
+        )
+        assert not any(
+            a > 200 and max(r, g, b) < 60 for r, g, b, a in image.get_flattened_data()
+        ), "native neighbor was baked into the SVG"
+        image.save(f.root / "svg-region.png")
+        size = ET.fromstring(package.read("ppt/presentation.xml")).find("p:sldSz", ns)
+        transform = picture.find("p:spPr/a:xfrm", ns)
+        for tag, keys, fractions in [
+            ("a:off", ("x", "y"), (0.06, 0.24)),
+            ("a:ext", ("cx", "cy"), (0.42, 0.60)),
+        ]:
+            node = transform.find(tag, ns)
+            for key, axis, fraction in zip(keys, ("cx", "cy"), fractions):
+                # Pixel crops quantize fractional source bounds; native aspect-fit
+                # may center by a fraction of one 1920x1080 source pixel.
+                tolerance = int(size.get(axis)) / (1920 if axis == "cx" else 1080)
+                assert (
+                    abs(int(node.get(key)) - int(size.get(axis)) * fraction)
+                    <= tolerance
+                )
+    # Also cover a block overlapping the headline: chrome remains native, not
+    # duplicated into its PNG, and the original block2 index is retained.
+    source.write_text(source.read_text().replace("x=6 y=24", "x=6 y=0"))
+    f.run(
+        "svg-overlap",
+        "export",
+        "svg",
+        "--format",
+        "pptx",
+        "--allow-lossy",
+        "-o",
+        f.root / "overlap.pptx",
+    )
+    with zipfile.ZipFile(f.root / "overlap.pptx") as package:
+        images = [
+            Image.open(io.BytesIO(package.read(n))).convert("RGBA")
+            for n in package.namelist()
+            if n.startswith("ppt/media/") and n.endswith(".png")
+        ]
+        crop = next(i for i in images if i.size == (806, 648))
+        assert not any(
+            a > 200 and max(r, g, b) < 60 for r, g, b, a in crop.get_flattened_data()
+        ), "chrome/neighbor leaked into SVG crop"
+    # A broken local SVG stays an explicitly unsupported picture, never 'converted' text.
+    asset = f.root / "library/slides/media/diagram.svg"
+    original_svg = asset.read_bytes()
+    asset.write_text("<svg this is malformed")
+    f.run(
+        "svg-broken",
+        "export",
+        "svg",
+        "--format",
+        "pptx",
+        "--allow-lossy",
+        "-o",
+        f.root / "broken.pptx",
+        "--report-json",
+        f.root / "broken.json",
+    )
+    broken = json.loads((f.root / "broken.json").read_text())["findings"]
+    assert any(
+        x["element"] == "block2"
+        and x["feature"] == "svg_raster"
+        and x["disposition"] == "unsupported"
+        for x in broken
+    ), broken
+    assert not any(
+        x["element"] == "block2" and x["disposition"] == "converted" for x in broken
+    ), broken
+    asset.write_bytes(original_svg)
+    source.write_text(source.read_text().replace("x=6 y=0", "x=6 y=24"))
+    return {
+        "strict_destination": "unchanged",
+        "picture": "Block2",
+        "geometry": "passed",
+        "pixels": "passed",
+        "broken": "reported",
+    }
+
+
 def check_selected(f, selected):
     report = {}
     if selected in ("all", "capture"):
@@ -252,7 +421,34 @@ def check_selected(f, selected):
         report["print-fit"] = print_fit(f)
     if selected in ("all", "overview"):
         report["overview"] = overview(f)
+    if selected in ("all", "svg"):
+        report["svg"] = svg_block(f)
     return report
+
+
+def provenance(f):
+    def digest(path):
+        with path.open("rb") as stream:
+            return hashlib.file_digest(stream, "sha256").hexdigest()
+
+    version = f.run("binary-version", "--version").stdout.strip()
+    browser = subprocess.run(
+        [str(f.browser), "--version"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=15,
+    ).stdout.strip()
+    fonts = f.root / "library/flavors/probe/assets"
+    return {
+        "binary_sha256": digest(f.binary),
+        "binary_version": version,
+        "browser_version": browser,
+        "fonts_sha256": {
+            name: digest(fonts / name)
+            for name in ["DejaVuSans.ttf", "DejaVuSans-Bold.ttf"]
+        },
+    }
 
 
 def main():
@@ -274,7 +470,7 @@ def main():
     parser.add_argument("--browser", type=Path, default=None)
     parser.add_argument(
         "--case",
-        choices=["all", "capture", "screen-fit", "print-fit", "overview"],
+        choices=["all", "capture", "screen-fit", "print-fit", "overview", "svg"],
         default="all",
     )
     args = parser.parse_args()
@@ -296,7 +492,7 @@ def main():
     root.mkdir(parents=True, exist_ok=False)
     prepare(root, args.font_dir.resolve())
     f = Fixture(root, args.binary.resolve(), browser)
-    report = check_selected(f, args.case)
+    report = {"provenance": provenance(f), **check_selected(f, args.case)}
     (root / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"status": "passed", "report": str(root / "report.json")}))
 

@@ -13,6 +13,8 @@ use sldr_core::config::Config;
 use sldr_core::slide::Slide;
 use sldr_pptx::ZoneContent;
 
+mod blocks;
+
 /// A tiny JS snippet injected into the page that expands all slides
 /// for printing (shows all slides, no transitions, no toolbar).
 const PRINT_PREP_SCRIPT: &str = r"
@@ -184,7 +186,7 @@ pub fn run(
             };
             std::fs::create_dir_all(&dir)?;
             for (i, slide) in resolved_slides.iter().enumerate() {
-                let png = raster_slide(slide, &flavor, lang_opt.as_deref(), &default_language, &config, &browser, false, scale)?;
+                let png = raster_slide(slide, &flavor, lang_opt.as_deref(), &default_language, &config, &browser, RasterView::Slide(scale))?;
                 let path = dir.join(format!("{:02}.png", i + 1));
                 std::fs::write(&path, png)?;
             }
@@ -409,7 +411,7 @@ fn build_native_deck(
     // cropped from the real slide and placed as a picture.
     let needs_raster = slides.iter().any(|s| {
         let name = s.metadata.layout.as_deref().unwrap_or("default");
-        registry.get(name).is_some_and(|l| !l.pptx_eligible() || has_bake(l))
+        registry.get(name).is_some_and(|l| !l.pptx_eligible() || has_bake(l) || blocks::needs_browser(s, l, lang, default_lang))
     });
     let raster_layout = sldr_renderer::LayoutDef::from_source(RASTER_LAYOUT, RASTER_LAYOUT_SOURCE);
     // Export-time views of layouts (the layout files are untouched):
@@ -456,8 +458,8 @@ fn build_native_deck(
             Err(_) => {
                 println!(
                     "  {} no browser found — mermaid diagrams export as code text and \
-                     slides on layouts without PPTX zones can't be pictured. \
-                     Install Chrome/Chromium, or use --flatten.",
+                     SVG blocks and slides on layouts without PPTX zones can't be pictured. \
+                     Install Chrome/Chromium, or set CHROME_BIN.",
                     "note:".yellow()
                 );
                 None
@@ -470,25 +472,17 @@ fn build_native_deck(
     // Freeform slides: their body zones are their own blocks, so each such
     // slide gets a layout view of its own (text boxes / pictures at the
     // block boxes). Built before the loop: the inputs borrow these.
+    let raster = blocks::RasterContext { config, flavor, lang, default_lang, browser: browser.as_deref() };
+    let mut block_report = sldr_pptx::Report::default();
     let (block_layouts, mut block_fields_all): (Vec<Option<sldr_renderer::LayoutDef>>, Vec<Vec<(String, ZoneContent)>>) = slides
-        .iter()
-        .map(|slide| {
+        .iter().enumerate()
+        .map(|(index, slide)| {
             let name = slide.metadata.layout.as_deref().unwrap_or("default");
             let Some(base) = with_overlay.get(name).or_else(|| registry.get(name)) else { return (None, Vec::new()) };
-            if !base.blocks {
-                return (None, Vec::new());
-            }
-            let lang_sel = sldr_core::lang::select_language(&slide.content, lang, default_lang);
-            let mut def = base.clone();
-            let mut fields = Vec::new();
-            for (i, b) in sldr_renderer::split_blocks(&lang_sel.content).unwrap_or_default().iter().enumerate() {
-                let zone = format!("block{}", i + 1);
-                let media = is_single_image(&b.markdown).then(|| resolve_media(&b.markdown, &slide.path)).flatten();
-                let rep = if media.is_some() { sldr_renderer::ZoneRep::Picture } else { sldr_renderer::ZoneRep::PlaceholderText };
-                def.zones.push(sldr_renderer::Zone { name: zone.clone(), ph: None, idx: None, rep, x: b.x, y: b.y, w: b.w, h: b.h });
-                fields.push((zone, media.unwrap_or_else(|| ZoneContent::Markdown(b.markdown.clone()))));
-            }
-            (Some(def), fields)
+            if !base.blocks { return (None, Vec::new()); }
+            let block = blocks::prepare(slide, base, &raster, index);
+            block_report.findings.extend(block.report.findings);
+            (Some(block.layout), block.fields)
         })
         .unzip();
 
@@ -513,7 +507,7 @@ fn build_native_deck(
 
         if !layout.pptx_eligible() {
             if let Some(br) = browser.as_deref() {
-                match raster_slide(slide, flavor, lang, default_lang, config, br, false, 1.0) {
+                match raster_slide(slide, flavor, lang, default_lang, config, br, RasterView::Slide(1.0)) {
                     Ok(png) => {
                         rastered.push((inputs.len(), layout_name.clone()));
                         inputs.push(sldr_pptx::SlideInput {
@@ -582,7 +576,7 @@ fn build_native_deck(
         let bake_names: Vec<String> = bake_zones.iter().map(|z| z.name.clone()).collect();
         let mut rendered: Vec<(String, ZoneContent)> = Vec::new();
         if let (false, Some(br)) = (bake_zones.is_empty(), browser.as_deref()) {
-            match raster_slide(slide, flavor, lang, default_lang, config, br, true, 1.0).and_then(|png| crop_regions(&png, &bake_zones)) {
+            match raster_slide(slide, flavor, lang, default_lang, config, br, RasterView::Regions).and_then(|png| crop_regions(&png, &bake_zones)) {
                 Ok(parts) => rendered = parts,
                 Err(e) => println!(
                     "  {} slide '{}': region picture failed ({e})",
@@ -750,6 +744,7 @@ fn build_native_deck(
         result.report.findings.extend(sldr_pptx::flavor_report(flavor, &theme.brand).findings);
         result
     };
+    result.report.findings.extend(block_report.findings);
     for (i, input) in inputs.iter().enumerate() {
         for (name, content) in &input.fields {
             if matches!(content, ZoneContent::Picture { fit: Some(_), .. }) {
@@ -792,8 +787,10 @@ pub(crate) const RASTER_LAYOUT: &str = sldr_pptx::RASTER_LAYOUT_NAME;
 const RASTER_LAYOUT_SOURCE: &str =
     "<!-- sldr:zone name=image rep=picture x=0 y=0 w=100 h=100 -->\n<div class=\"sldr-content\">{{image}}</div>\n";
 
-/// Render one slide with the real renderer and screenshot it at 1920×1080.
-/// Render one slide to a 1920×1080 PNG. `regions_only` renders it for
+#[derive(Clone, Copy)]
+enum RasterView { Slide(f64), Regions, Block(usize) }
+
+/// Render one slide to a 1920×1080 PNG. Region views render it for
 /// cropping `rep=bake` regions: transparent, without the page background,
 /// scrim, logos or chrome — PowerPoint's master already draws those, and a
 /// second copy inside the crop would never line up with it.
@@ -804,9 +801,9 @@ fn raster_slide(
     default_lang: &str,
     config: &Config,
     browser: &Path,
-    regions_only: bool,
-    scale: f64,
+    view: RasterView,
 ) -> Result<Vec<u8>> {
+    let (regions_only, scale) = match view { RasterView::Slide(scale) => (false, scale), _ => (true, 1.0) };
     let cfg = sldr_renderer::RenderConfig {
         transition: "none".into(),
         speaker_notes: false,
@@ -824,21 +821,23 @@ fn raster_slide(
     const HIDE_UI: &str = "<style>.sldr-toolbar,.sldr-nav,.sldr-progress{display:none!important}</style>\
 <script>document.documentElement.setAttribute('data-sldr-export','1')</script>";
     const REGIONS_ONLY: &str = "<style>html,body,.sldr-slide{background:transparent!important}\
-        .sldr-framed::before,.sldr-logos,.sldr-logo,.sldr-chrome{display:none!important}</style>";
+        .sldr-framed::before,.sldr-logos,.sldr-logo,.sldr-chrome{display:none!important}\
+        .sldr-frame-head,.sldr-footer,.sldr-source{visibility:hidden!important}</style>";
     let hide = if regions_only { format!("{HIDE_UI}{REGIONS_ONLY}") } else { HIDE_UI.to_string() };
-    let html = renderer.render()?.replacen("</head>", &format!("{hide}</head>"), 1);
+    let mut html = renderer.render()?.replacen("</head>", &format!("{hide}</head>"), 1);
+    if let RasterView::Block(index) = view {
+        // Keep the original DOM/indices and layout while excluding neighboring
+        // native content from the crop. No remote assets are fetched by this view.
+        let scope = format!("<style>.sldr-block:not([data-block=\"{index}\"]){{visibility:hidden!important}}</style>");
+        html = html.replacen("</head>", &format!("{scope}</head>"), 1);
+        html = html.replacen("<head>", "<head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data: blob:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; media-src data: blob:; form-action 'none'; base-uri 'none'\">", 1);
+    }
     let (w, h) = ((1920.0 * scale).round() as u32, (1080.0 * scale).round() as u32);
     let img = super::brand::screenshot(browser, &html, w, h, regions_only)?;
     let mut buf = Vec::new();
     img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
         .context("re-encoding slide screenshot failed")?;
     Ok(buf)
-}
-
-/// Whether a markdown fragment is exactly one image and nothing else.
-fn is_single_image(md: &str) -> bool {
-    let t = md.trim();
-    t.starts_with("![") && t.ends_with(')') && t.matches("![").count() == 1 && !t.contains('\n')
 }
 
 /// Whether a layout declares any `rep=bake` region.

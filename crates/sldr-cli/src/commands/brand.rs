@@ -152,6 +152,30 @@ fn encode(img: DynamicImage, alpha: bool) -> Result<BrandImage> {
     }
 }
 
+/// Validate SVG image decoding, not viewport geometry. A successful Chrome exit
+/// alone also occurs for broken images. Keep SVG in an image context (no scripts)
+/// and disallow network resources in this isolated probe.
+pub(crate) fn check_svg(browser: &Path, bytes: &[u8]) -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let page = dir.path().join("svg.html");
+    let html = format!(r#"<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; script-src 'unsafe-inline'"></head><body data-sldr-svg="pending"><img id="probe"><script>
+var img=document.getElementById('probe');
+img.onload=function(){{document.body.setAttribute('data-sldr-svg','decoded')}};
+img.onerror=function(){{document.body.setAttribute('data-sldr-svg','failed')}};
+img.src='data:image/svg+xml;base64,{}';
+</script></body></html>"#, b64(bytes));
+    std::fs::write(&page, html)?;
+    let out = std::process::Command::new(browser)
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--virtual-time-budget=4000", "--dump-dom"])
+        .arg(format!("--user-data-dir={}", dir.path().join("profile").display()))
+        .arg(format!("file://{}", page.display()))
+        .stderr(std::process::Stdio::null()).output().context("SVG decoder could not start")?;
+    if !out.status.success() || !String::from_utf8_lossy(&out.stdout).contains("data-sldr-svg=\"decoded\"") {
+        bail!("SVG image was not decoded by Chrome/Chromium");
+    }
+    Ok(())
+}
+
 /// Screenshot `html` at exactly `w`×`h` CSS px. Screenshot and dump-DOM
 /// modes have different viewport behavior; never compensate one using the other.
 /// `transparent` keeps an alpha background.
@@ -241,6 +265,14 @@ done
         assert!(result.is_err(), "unexpected capture dimensions were accepted");
         let error = result.err().unwrap();
         assert!(error.to_string().contains("dimensions"), "{error}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn successful_browser_exit_is_not_svg_decode_evidence() {
+        let dir = tempfile::tempdir().unwrap();
+        let browser = fake_browser(dir.path(), 960, 540);
+        assert!(check_svg(&browser, b"<svg/>").is_err());
     }
 
     #[test]

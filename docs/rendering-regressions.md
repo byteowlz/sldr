@@ -69,6 +69,28 @@ preview clones. Attribute-escaping has a negative injection control. Navigation
 still uses `data-lang`; source markdown and the language-selection contract are
 unchanged.
 
+## SVG freeform pictures (#6)
+
+Local SVG-only blocks are validated in Chrome's image context, then their real
+layout is rendered with non-target blocks and chrome excluded from the transparent
+crop. Original DOM indices and layout are preserved; remote resources are blocked
+in this view. The CLI adapter supplies PNG bytes to the existing pure PPTX writer.
+No new source syntax, writer image format or model service is involved.
+
+The `svg_raster` finding is `baked`, not native editable vector conversion. Strict
+export rejects that loss without replacing an existing destination; `--allow-lossy`
+is required. Missing/invalid SVGs or failed/unavailable Chrome produce an
+`unsupported` picture binding, not a successful text conversion. Mixed text/image
+blocks, remote SVGs and SVGs in other native picture slots retain their prior
+unsupported behavior.
+
+The browser lane verifies the actual package picture/relationship, original block2
+identity, placement within one source pixel (fractional crop quantization), expected
+colored pixels, transparent empty area and editable neighboring text. An overlapping
+headline/neighbor must not leak into the PNG. A malformed SVG is the negative
+control. Fast tests cover local/single-image classification, absent browser and a
+successful browser exit without decode evidence.
+
 These are browser/export regressions, not general PowerPoint compatibility or
 pixel equivalence certification across different font/renderer versions. Raw
 HTML, PNG, PDF and logs stay in the private output directory.
