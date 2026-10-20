@@ -38,6 +38,9 @@
    * sizes sensibly. --sldr-u = horizontal unit, --sldr-uh = vertical. */
   --sldr-u: 1vw;
   --sldr-uh: 1vh;
+  /* Also read before print media activates; keep aligned with @page below. */
+  --sldr-print-width: 1920px;
+  --sldr-print-height: 1080px;
 
   /* Color — base values can be hex, rgb(), or oklch().
    * Derived tokens (border, accent-dim, muted) auto-tint from the base
@@ -2160,8 +2163,6 @@ html:not(.dark) .sldr-source-textarea {
 
 @media print {
   :root {
-    --sldr-print-width: 1920px;
-    --sldr-print-height: 1080px;
     --sldr-u: calc(var(--sldr-print-width) / 100);
     --sldr-uh: calc(var(--sldr-print-height) / 100);
   }

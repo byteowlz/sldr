@@ -26,6 +26,21 @@ PNG surface while `vh` still reflects its earlier layout viewport. Export fixes
 the pixel canvas before presenter initialization and checks the output dimensions.
 Flattened PPTX uses the same fixed-canvas and dimension validation contract.
 
+## Fitting and print (#3, #4)
+
+An oversized statement must remain inside its region at 800×600 and 1920×1080,
+with center, safe-center and end alignment. Measurement temporarily starts the
+content at the scroll origin so negative overflow is not lost; authored alignment
+is restored before scaling. Font readiness is part of fitting.
+
+Native `page.pdf()` is tested **without** pre-emulating print media: `beforeprint`
+can precede activation of print CSS. The callback must already see 1920×1080;
+root-derived padding and slide units use that box. Actual print-media activation
+refits again for print-specific rules. All five repeated sentence starts/ends must
+survive in the single 1440×810 pt PDF page, in both browser viewports and CLI PDF
+export. Screen geometry must be identical after the print cycle. The existing
+`just check-print` additionally covers eight viewport/active-slide/language cases.
+
 These are browser/export regressions, not general PowerPoint compatibility or
 pixel equivalence certification across different font/renderer versions. Raw
 HTML, PNG, PDF and logs stay in the private output directory.

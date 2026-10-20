@@ -764,13 +764,15 @@
     }
   }
 
+  var printSlideStyles = null;
+
   // Resolution-independent sizing: set the slide-relative unit (1% of the
   // slide box) so every `calc(var(--sldr-u) * N)` length renders identically
   // at any display size — type is a fraction of the slide, not the viewport.
   // Set on the slide element so its own padding picks it up too. Must run
   // before fitSlide (which measures the now-correctly-sized content).
   function setUnit(slide) {
-    if (!slide || window.matchMedia('print').matches) return;
+    if (!slide || printSlideStyles || window.matchMedia('print').matches) return;
     var w = slide.clientWidth, h = slide.clientHeight;
     if (w > 0 && h > 0) {
       slide.style.setProperty("--sldr-u", w / 100 + "px");
@@ -784,6 +786,32 @@
   // chrome (headline/subheadline/footer/source) and the deck-level logos —
   // which live in *separate* elements — are never scaled and never collide
   // with the body. Only ever shrinks; a slide that already fits is untouched.
+  function contentExtent(el, justify) {
+    // Unsafe centered/end-aligned flex overflow can extend above scroll origin,
+    // where scrollHeight cannot see it. Measure from the start, then restore the
+    // authored alignment before applying the visual-only scale.
+    var old = el.style.getPropertyValue('justify-content');
+    var priority = el.style.getPropertyPriority('justify-content');
+    var align = justify.replace(/^(safe|unsafe) /, '');
+    var measureFromStart = align === 'center' || align === 'flex-end' || align === 'end';
+    if (measureFromStart) el.style.setProperty('justify-content', 'flex-start', 'important');
+    var extent = { height: el.scrollHeight, width: el.scrollWidth };
+    if (measureFromStart) {
+      if (old) el.style.setProperty('justify-content', old, priority);
+      else el.style.removeProperty('justify-content');
+    }
+    return extent;
+  }
+
+  function contentOrigin(justify, overflows) {
+    // Safe alignment falls back to start only when that axis overflows.
+    if (justify.indexOf('safe ') === 0 && overflows) return 'center top';
+    var align = justify.replace(/^(safe|unsafe) /, '');
+    var y = align === 'center' ? 'center'
+      : (align === 'flex-end' || align === 'end' ? 'bottom' : 'top');
+    return 'center ' + y;
+  }
+
   function fitSlide(slide) {
     if (!slide) return;
     var regions = slide.querySelectorAll(".sldr-content, .sldr-frame-body");
@@ -795,7 +823,9 @@
       el.style.transform = "";
       var availH = el.clientHeight, availW = el.clientWidth;
       if (!availH || !availW) continue;
-      var needH = el.scrollHeight, needW = el.scrollWidth;
+      var jc = getComputedStyle(el).justifyContent;
+      var extent = contentExtent(el, jc);
+      var needH = extent.height, needW = extent.width;
       var scale = Math.min(1, availH / needH, availW / needW);
       if (scale < 0.999) {
         // Anchor the shrink to the region's own vertical alignment, so scaled
@@ -803,10 +833,7 @@
         // box centre. A top-anchored body (e.g. framed, default) keeps its top
         // edge — otherwise a shrunk table drifts down, gapping the top and
         // spilling toward the footer.
-        var jc = getComputedStyle(el).justifyContent;
-        var originY = jc === "center" ? "center"
-          : (jc === "flex-end" || jc === "end" ? "bottom" : "top");
-        el.style.transformOrigin = "center " + originY;
+        el.style.transformOrigin = contentOrigin(jc, needH > availH);
         el.style.transform = "scale(" + scale + ")";
       }
     }
@@ -826,9 +853,27 @@
   // CSS owns print geometry; this hook measures body fit only after that
   // geometry is active. Chrome's beforeprint event is synchronous.
   function preparePrint() {
+    // Chrome can fire beforeprint BEFORE print media/layout is active. Establish
+    // the very same CSS-owned page box synchronously, including inactive slides.
+    // Repeated beforeprint events must not replace the original screen snapshot.
+    if (!printSlideStyles) {
+      printSlideStyles = [document.documentElement].concat(allSlides).map(function (el) { return [el, el.getAttribute('style')]; });
+    }
+    // Root-derived tokens (e.g. padding) resolve where they are declared,
+    // not at the slide that inherits them. Give those the print units too.
+    document.documentElement.style.setProperty('--sldr-u', 'calc(var(--sldr-print-width) / 100)', 'important');
+    document.documentElement.style.setProperty('--sldr-uh', 'calc(var(--sldr-print-height) / 100)', 'important');
     var overlay = deck.querySelector(':scope > .sldr-logos');
     allSlides.forEach(function (slide) {
-      slide.toggleAttribute('data-print-excluded', slides.indexOf(slide) === -1);
+      var excluded = slides.indexOf(slide) === -1;
+      slide.style.setProperty('display', excluded ? 'none' : 'flex', 'important');
+      slide.style.setProperty('position', 'relative', 'important');
+      slide.style.setProperty('inset', 'auto', 'important');
+      slide.style.setProperty('width', 'var(--sldr-print-width)', 'important');
+      slide.style.setProperty('height', 'var(--sldr-print-height)', 'important');
+      slide.style.setProperty('--sldr-u', 'calc(var(--sldr-print-width) / 100)', 'important');
+      slide.style.setProperty('--sldr-uh', 'calc(var(--sldr-print-height) / 100)', 'important');
+      slide.toggleAttribute('data-print-excluded', excluded);
       slide.toggleAttribute('data-print-last', slide === slides[slides.length - 1]);
       if (slide.querySelector('[data-print-logos]') || !overlay) return;
       var holder = document.createElement('div');
@@ -847,6 +892,13 @@
   }
 
   function finishPrint() {
+    if (printSlideStyles) {
+      printSlideStyles.forEach(function (entry) {
+        if (entry[1] === null) entry[0].removeAttribute('style');
+        else entry[0].setAttribute('style', entry[1]);
+      });
+      printSlideStyles = null;
+    }
     deck.querySelectorAll('[data-print-logos]').forEach(function (el) { el.remove(); });
     allSlides.forEach(function (slide) {
       slide.removeAttribute('data-print-excluded');
@@ -860,6 +912,11 @@
   }
   window.addEventListener('beforeprint', preparePrint);
   window.addEventListener('afterprint', finishPrint);
+  window.matchMedia('print').addEventListener('change', function (event) {
+    // Refit after actual print rules activate as well (including authored CSS).
+    if (event.matches) preparePrint();
+    else finishPrint();
+  });
 
   function showSlide(index, dir, prevIndex) {
     // Clean up any in-flight animations first to prevent stuck states.
@@ -1571,4 +1628,10 @@
   // ---------------------------------------------------------------------------
   updateProgress();
   init();
+  // The first fit may use fallback metrics; embedded/custom fonts can settle
+  // after boot (or after a language/flavor switch). Refit with their real metrics.
+  if (document.fonts) {
+    document.fonts.ready.then(window.__sldrFitAll);
+    document.fonts.addEventListener('loadingdone', window.__sldrFitAll);
+  }
 })();
