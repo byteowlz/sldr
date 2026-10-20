@@ -228,9 +228,9 @@ mod tests {
     use super::*;
 
     #[cfg(unix)]
-    fn fake_browser(root: &Path, w: u32, h: u32) -> std::path::PathBuf {
+    fn fake_browser(root: &Path, w: u32, h: u32) -> Result<std::path::PathBuf> {
         use std::os::unix::fs::PermissionsExt;
-        image::RgbaImage::from_pixel(w, h, image::Rgba([17, 33, 55, 255])).save(root.join("capture.png")).unwrap();
+        image::RgbaImage::from_pixel(w, h, image::Rgba([17, 33, 55, 255])).save(root.join("capture.png"))?;
         let script = root.join("chrome");
         std::fs::write(&script, format!(r#"#!/usr/bin/env bash
 for arg in "$@"; do
@@ -240,39 +240,41 @@ printf '%s\n' "$@" > '{dir}/args'
 for arg in "$@"; do
   case "$arg" in --screenshot=*) cp '{dir}/capture.png' "${{arg#--screenshot=}}";; esac
 done
-"#, dir = root.display())).unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-        script
+"#, dir = root.display()))?;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))?;
+        Ok(script)
     }
 
     #[test]
     #[cfg(unix)]
-    fn screenshot_uses_capture_dimensions_not_dump_dom_shortfall() {
-        let dir = tempfile::tempdir().unwrap();
-        let browser = fake_browser(dir.path(), 960, 540);
-        let img = screenshot(&browser, "<html></html>", 960, 540, false).unwrap();
+    fn screenshot_uses_capture_dimensions_not_dump_dom_shortfall() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let browser = fake_browser(dir.path(), 960, 540)?;
+        let img = screenshot(&browser, "<html></html>", 960, 540, false)?;
         assert_eq!(img.dimensions(), (960, 540));
-        let args = std::fs::read_to_string(dir.path().join("args")).unwrap();
+        let args = std::fs::read_to_string(dir.path().join("args"))?;
         assert!(args.lines().any(|a| a == "--window-size=960,540"), "{args}");
+        Ok(())
     }
 
     #[test]
     #[cfg(unix)]
-    fn screenshot_rejects_unexpected_capture_dimensions_instead_of_cropping() {
-        let dir = tempfile::tempdir().unwrap();
-        let browser = fake_browser(dir.path(), 960, 627);
-        let result = screenshot(&browser, "<html></html>", 960, 540, false);
-        assert!(result.is_err(), "unexpected capture dimensions were accepted");
-        let error = result.err().unwrap();
+    fn screenshot_rejects_unexpected_capture_dimensions_instead_of_cropping() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let browser = fake_browser(dir.path(), 960, 627)?;
+        let error = screenshot(&browser, "<html></html>", 960, 540, false)
+            .err().context("unexpected capture dimensions were accepted")?;
         assert!(error.to_string().contains("dimensions"), "{error}");
+        Ok(())
     }
 
     #[test]
     #[cfg(unix)]
-    fn successful_browser_exit_is_not_svg_decode_evidence() {
-        let dir = tempfile::tempdir().unwrap();
-        let browser = fake_browser(dir.path(), 960, 540);
+    fn successful_browser_exit_is_not_svg_decode_evidence() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let browser = fake_browser(dir.path(), 960, 540)?;
         assert!(check_svg(&browser, b"<svg/>").is_err());
+        Ok(())
     }
 
     #[test]
@@ -280,7 +282,7 @@ done
         let html = capture_canvas("<!doctype html><html><body>sample</body></html>", 960, 540);
         assert!(html.starts_with("<!doctype html>"));
         assert!(html.contains("height:540px!important"));
-        assert!(html.find("<style>").unwrap() < html.find("<body>").unwrap());
+        assert!(html.find("<style>").zip(html.find("<body>")).is_some_and(|(style, body)| style < body));
     }
 
     #[test]

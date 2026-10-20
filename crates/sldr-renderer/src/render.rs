@@ -984,7 +984,7 @@ mod tests {
     }
 
     #[test]
-    fn test_freeform_variants_have_semantic_language() {
+    fn test_freeform_variants_have_semantic_language() -> Result<()> {
         for layout in ["freeform", "framed-freeform"] {
             let slide = Slide::from_str("language", "language.md", &format!(
                 "---\nlayout: {layout}\n---\n::lang:en::\n::block x=5 y=5 w=80 h=80::\nEnglish sentinel\n::lang:de::\n::block x=5 y=5 w=80 h=80::\nDeutsche Sprachprüfung\n"
@@ -993,26 +993,28 @@ mod tests {
                 languages: vec!["en".into(), "de".into()],
                 ..Default::default()
             });
-            renderer.add_slide(&slide).unwrap();
-            let html = renderer.render().unwrap();
+            renderer.add_slide(&slide)?;
+            let html = renderer.render()?;
             for lang in ["en", "de"] {
                 assert!(html.contains(&format!("data-lang=\"{lang}\" lang=\"{lang}\"")), "{layout}/{lang}");
             }
             assert!(html.contains("English sentinel") && html.contains("Deutsche Sprachprüfung"));
         }
+        Ok(())
     }
 
     #[test]
-    fn test_language_attributes_are_escaped() {
+    fn test_language_attributes_are_escaped() -> Result<()> {
         let slide = Slide::from_str("language", "language.md", "# Neutral content");
         let mut renderer = HtmlRenderer::new(RenderConfig {
             languages: vec!["en".into(), "de\" onfocus=\"bad".into()],
             ..Default::default()
         });
-        renderer.add_slide(&slide).unwrap();
-        let html = renderer.render().unwrap();
+        renderer.add_slide(&slide)?;
+        let html = renderer.render()?;
         assert!(html.contains("data-lang=\"de&quot; onfocus=&quot;bad\" lang=\"de&quot; onfocus=&quot;bad\""));
         assert!(!html.contains("onfocus=\"bad\""));
+        Ok(())
     }
 
     #[test]

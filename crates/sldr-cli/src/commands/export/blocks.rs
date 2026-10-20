@@ -180,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_svg_remains_unsupported_picture_and_text_stays_native() {
+    fn unavailable_svg_remains_unsupported_picture_and_text_stays_native() -> Result<()> {
         let slide = Slide::from_str("probe", "probe.md", "---\nlayout: freeform\n---\n::block x=5 y=5 w=40 h=40::\n![](missing.svg)\n::block x=50 y=5 w=40 h=40::\nEditable neighbor\n");
         let registry = sldr_renderer::LayoutRegistry::builtin();
         let flavor = Flavor::default();
@@ -192,16 +192,15 @@ mod tests {
             default_lang: "en",
             browser: None,
         };
-        let result = prepare(&slide, registry.get("freeform").unwrap(), &ctx, 0);
+        let result = prepare(&slide, registry.resolve("freeform")?, &ctx, 0);
         assert_eq!(
             result
                 .layout
                 .zones
                 .iter()
                 .find(|z| z.name == "block1")
-                .unwrap()
-                .rep,
-            ZoneRep::Picture
+                .map(|z| z.rep),
+            Some(ZoneRep::Picture)
         );
         assert_eq!(
             result
@@ -209,9 +208,8 @@ mod tests {
                 .zones
                 .iter()
                 .find(|z| z.name == "block2")
-                .unwrap()
-                .rep,
-            ZoneRep::PlaceholderText
+                .map(|z| z.rep),
+            Some(ZoneRep::PlaceholderText)
         );
         assert!(
             matches!(&result.fields[1].1, ZoneContent::Markdown(text) if text.contains("Editable neighbor"))
@@ -221,5 +219,6 @@ mod tests {
             .findings
             .iter()
             .any(|f| f.element == "block1" && f.disposition == Disposition::Unsupported));
+        Ok(())
     }
 }
