@@ -58,12 +58,16 @@ first non-explicit-config run creates a default global TOML. The checked-in
 
 Executable precedence:
 
-1. `--deckcraft-bin` / `--libreoffice-bin` (ingest: `--renderer-bin`).
+1. `--pptx-bin` (alias `--deckcraft-bin`) / `--libreoffice-bin` (ingest: `--renderer-bin`).
 2. A nonempty binary in an explicitly selected `--config` file.
 3. `PARITY_DECKCRAFT_BIN`, `PARITY_LIBREOFFICE_BIN`, or `PARITY_PDFTOPPM_BIN`,
    `PARITY_PDFTOTEXT_BIN`, `PARITY_PDFFONTS_BIN`.
 4. Nonempty local/global config defaults.
-5. PATH: `pptxr` then `deckcraft-cli`, or `soffice`; Poppler uses its own names.
+5. PATH: `pptx-cli`, then legacy `pptxr` / `deckcraft-cli`, or `soffice`; Poppler uses its own names.
+
+The `deckcraft` provider key describes the engine/CLI protocol, not a required
+executable name. The headless extraction is `pptx-cli`; explicit legacy binary,
+revision and SHA pins keep their original meaning and are never migrated silently.
 
 A selected missing/non-executable override is an error, not permission to fall
 back. Paths expand `~`/environment variables for executables and font files;

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from pypdf import PdfWriter
 
@@ -219,6 +220,19 @@ expected = ["ProbeSans"]
         self.assertEqual(
             self.failed_render("raster-dimensions", self.settings), "geometry"
         )
+
+    def test_pptx_cli_discovery_prefers_new_name_without_overriding_pins(self):
+        renamed = self.bin / "pptx-cli"
+        renamed.write_text(FAKE)
+        renamed.chmod(0o755)
+        self.settings.data["providers"]["deckcraft"]["binary"] = ""
+        with mock.patch.dict(os.environ, {"PATH": str(self.bin)}):
+            self.assertEqual(self.settings.binary("deckcraft"), renamed)
+            self.settings.data["providers"]["deckcraft"]["binary"] = str(
+                self.bin / "deck"
+            )
+            self.assertEqual(self.settings.binary("deckcraft"), self.bin / "deck")
+            self.assertEqual(self.settings.binary("deckcraft", str(renamed)), renamed)
 
     def test_selected_missing_tool_does_not_fall_back(self):
         self.settings.data["tools"]["pdffonts"] = "/missing-selected-tool"

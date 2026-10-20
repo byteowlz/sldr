@@ -386,7 +386,7 @@ def add_parser(subparsers, lab):
     )
     p.add_argument("--reference-version", default="unspecified")
     p.add_argument("--config", type=Path)
-    p.add_argument("--deckcraft-bin")
+    p.add_argument("--deckcraft-bin", "--pptx-bin", dest="deckcraft_bin")
     p.add_argument("--libreoffice-bin")
     p.add_argument("--timeout-secs", type=float)
     p.add_argument("--font-file", action="append", default=None)

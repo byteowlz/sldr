@@ -47,7 +47,7 @@ expected = []
 
 
 _BINARIES = {
-    "deckcraft": ("pptxr", "deckcraft-cli"),
+    "deckcraft": ("pptx-cli", "pptxr", "deckcraft-cli"),
     "libreoffice": ("soffice",),
     "pdftoppm": ("pdftoppm",),
     "pdftotext": ("pdftotext",),
