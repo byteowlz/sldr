@@ -52,8 +52,8 @@ pub struct MasterMap {
     /// sldr layout name → master layout + zone placeholders.
     #[serde(default)]
     pub layouts: BTreeMap<String, LayoutMapping>,
-    /// Master layout for sldr layouts not listed. Without it, an unlisted
-    /// layout fails the export.
+    /// Master layout name or `part:<package path>` selector for sldr layouts
+    /// not listed. Without it, an unlisted layout fails the export.
     #[serde(default)]
     pub fallback: Option<String>,
     /// Box (percent of the slide) for zones that have no master placeholder,
@@ -72,7 +72,9 @@ fn default_true() -> bool {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LayoutMapping {
-    /// Master layout name (as shown in PowerPoint; surrounding spaces ignored).
+    /// Master layout name (unique within the selected slide master), or the
+    /// inventory's `part:<package path>` selector. Surrounding spaces ignored;
+    /// `part:` is reserved for explicit selectors, never interpreted as a name.
     pub layout: String,
     /// sldr zone → placeholder `idx` on that layout (`0` = the title).
     /// Text zones not listed become text boxes (see [`MasterMap::positions`]).
@@ -111,8 +113,11 @@ pub struct MasterInfo {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LayoutInfo {
-    /// Display name, trimmed.
+    /// Display name, trimmed. Not necessarily unique within a slide master.
     pub name: String,
+    /// Explicit map selector, stable across layout renames and ordering within
+    /// this package. Re-inventory when replacing the master source asset.
+    pub selector: String,
     pub placeholders: Vec<PlaceholderInfo>,
     #[serde(skip)]
     part: String,
@@ -169,7 +174,7 @@ fn inventory(pkg: &Package) -> Result<MasterInventory> {
                 .unwrap_or("")
                 .trim()
                 .to_string();
-            layouts.push(LayoutInfo { name, placeholders: placeholders(&ldoc, size), part: lpart });
+            layouts.push(LayoutInfo { name, selector: format!("part:{lpart}"), placeholders: placeholders(&ldoc, size), part: lpart });
         }
         masters.push(MasterInfo { index: masters.len() + 1, theme, heading_font, body_font, layouts });
     }
@@ -230,7 +235,8 @@ pub fn map_skeleton(inv: &MasterInventory, master_file: &str) -> String {
          slide_number = true\n\
          # fallback = \"<master layout for unlisted sldr layouts>\"\n\n\
          # [layouts.framed]\n\
-         # layout = \"<master layout name>\"\n\
+         # layout = \"<unique master layout name or part: selector from inventory>\"\n\
+         # Names must be unique within slide_master; part: selectors never guess.\n\
          # zones = {{ headline = 0, subheadline = <idx>, content = <idx>, footer = <idx> }}\n\n\
          # [positions.source]   # zones without a placeholder become text boxes here (% of slide)\n\
          # x = 4.4\n# y = 88.0\n# w = 45.0\n# h = 3.5\n\n"
@@ -239,10 +245,30 @@ pub fn map_skeleton(inv: &MasterInventory, master_file: &str) -> String {
         s.push_str(&format!("# --- slide_master = {} (theme {:?})\n", m.index, m.theme.as_deref().unwrap_or("")));
         for l in &m.layouts {
             let phs: Vec<String> = l.placeholders.iter().map(|p| format!("{} {}", p.kind, p.idx)).collect();
-            s.push_str(&format!("#   {:?}: {}\n", l.name, phs.join(", ")));
+            s.push_str(&format!("#   {:?}: {} (layout = {:?})\n", l.name, phs.join(", "), l.selector));
         }
     }
     s
+}
+
+/// Resolve names and explicit selectors in the selected master only. A name
+/// collision is a configuration error, even when its placeholders happen to fit.
+fn resolve_layout<'a>(master: &'a MasterInfo, selector: &str) -> Result<&'a LayoutInfo> {
+    let explicit = selector.starts_with("part:");
+    let candidates: Vec<_> = master.layouts.iter().filter(|l| {
+        if explicit { l.selector == selector } else { l.name == selector }
+    }).collect();
+    match candidates.as_slice() {
+        [layout] => Ok(layout),
+        [] => {
+            let available = master.layouts.iter().map(|l| format!("{:?} ({:?})", l.name, l.selector)).collect::<Vec<_>>().join(", ");
+            bail!("master layout {selector:?} does not exist in slide master {}; available: {available}", master.index);
+        }
+        _ => {
+            let selectors = candidates.iter().map(|l| format!("{:?}", l.selector)).collect::<Vec<_>>().join(", ");
+            bail!("master layout {selector:?} is ambiguous in slide master {}; use an explicit layout selector: {selectors}", master.index);
+        }
+    }
 }
 
 /// Export `slides` onto the master in `master_bytes` per `map`. The report
@@ -262,8 +288,6 @@ pub fn build_deck_on_master(master_bytes: &[u8], map: &MasterMap, title: &str, s
     let master = inv.masters.get(mi.wrapping_sub(1)).with_context(|| {
         format!("slide_master = {mi}, but the package has {} slide master(s)", inv.masters.len())
     })?;
-    let by_name: HashMap<&str, &LayoutInfo> = master.layouts.iter().map(|l| (l.name.as_str(), l)).collect();
-    let available = || master.layouts.iter().map(|l| format!("{:?}", l.name)).collect::<Vec<_>>().join(", ");
 
     // Resolve every slide before writing anything: a mapping that does not fit
     // the master is a configuration error, never a partial deck.
@@ -288,9 +312,12 @@ pub fn build_deck_on_master(master_bytes: &[u8], map: &MasterMap, title: &str, s
                 }
             }
         }
-        let Some(layout) = by_name.get(layout_name) else {
-            errors.insert(format!("master layout {layout_name:?} does not exist in slide master {mi}; available: {}", available()));
-            continue;
+        let layout = match resolve_layout(master, layout_name) {
+            Ok(layout) => layout,
+            Err(error) => {
+                errors.insert(error.to_string());
+                continue;
+            }
         };
         let text_zones: Vec<_> = slide.layout.zones.iter().filter(|z| z.rep == ZoneRep::PlaceholderText && z.ph.is_some()).collect();
         let mut zones = HashMap::new();
@@ -739,6 +766,130 @@ mod tests {
                 ("source".into(), ZoneContent::Link { text: "Source: Example".into(), url: "https://example.org/a".into() }),
             ] },
         ]
+    }
+
+    fn duplicate_layout_master() -> Result<Vec<u8>> {
+        let mut pkg = Package::read(&synthetic_master())?;
+        for (n, idx, color) in [(1, 13, "FF0000"), (2, 25, "0000FF")] {
+            let xml = layout(" Content ", &[
+                ph(2, "Title", r#"type="title" idx="0""#, false),
+                ph(3, "Subtitle", &format!(r#"type="body" idx="{idx}""#), true),
+            ].concat()).replace("<p:spTree>", &format!("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"{color}\"/></a:solidFill></p:bgPr></p:bg><p:spTree>"));
+            pkg.parts.insert(format!("ppt/slideLayouts/slideLayout{n}.xml"), xml.into_bytes());
+        }
+        crate::zip_mixed(&[], &pkg.parts.into_iter().collect::<Vec<_>>())
+    }
+
+    fn duplicate_layout_map(selector: &str) -> MasterMap {
+        let mut map = MasterMap { slide_number: false, ..Default::default() };
+        map.layouts.insert("framed-section".into(), LayoutMapping {
+            layout: selector.into(), zones: [("headline".into(), 0)].into(),
+        });
+        map
+    }
+
+    #[test]
+    fn duplicate_layout_names_and_fallback_are_rejected() -> Result<()> {
+        let registry = LayoutRegistry::builtin();
+        let layout = registry.get("framed-section").context("missing test layout")?;
+        let slides = [SlideInput { layout, details: Default::default(), fields: vec![
+            ("headline".into(), ZoneContent::Text("Duplicate layout".into())),
+        ] }];
+        let input = duplicate_layout_master()?;
+        for map in [duplicate_layout_map(" Content "), MasterMap { fallback: Some("Content".into()), ..Default::default() }] {
+            let err = build_deck_on_master(&input, &map, "Deck", &slides).err().context("ambiguous layout must be rejected")?;
+            let message = err.to_string();
+            assert!(message.contains("master layout \"Content\" is ambiguous"), "{message}");
+            for n in [1, 2] {
+                assert!(message.contains(&format!("part:ppt/slideLayouts/slideLayout{n}.xml")), "{message}");
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn explicit_layout_selectors_export_both_candidates_and_reimport_strictly() -> Result<()> {
+        let input = duplicate_layout_master()?;
+        let registry = LayoutRegistry::builtin();
+        let layout = registry.get("framed-section").context("missing test layout")?;
+        let slides = [SlideInput { layout, details: Default::default(), fields: vec![
+            ("headline".into(), ZoneContent::Text("Selected layout".into())),
+            ("subheadline".into(), ZoneContent::Text("Candidate subtitle".into())),
+        ] }];
+        let original = Package::read(&input)?;
+        for (n, idx) in [(1, 13), (2, 25)] {
+            let part = format!("ppt/slideLayouts/slideLayout{n}.xml");
+            let mut map = duplicate_layout_map(&format!(" part:{part} "));
+            map.layouts.get_mut("framed-section").context("missing test mapping")?.zones.insert("subheadline".into(), idx);
+            let out = build_deck_on_master(&input, &map, "Deck", &slides)?;
+            out.report.enforce(false)?;
+            let pkg = Package::read(&out.value)?;
+            pkg.validate()?;
+            let rel = pkg.rels("ppt/slides/slide1.xml")?.into_iter()
+                .find(|r| r.kind.ends_with("/slideLayout")).context("missing layout relationship")?;
+            assert_eq!(rel.target, part);
+            assert_eq!(pkg.text(&part)?, original.text(&part)?, "selected candidate artwork is unchanged");
+            let slide_xml = pkg.text("ppt/slides/slide1.xml")?;
+            assert!(slide_xml.contains(r#"<p:ph type="title" idx="0"/>"#), "{slide_xml}");
+            assert!(slide_xml.contains(&format!(r#"<p:ph type="body" idx="{idx}"/>"#)), "{slide_xml}");
+            let imported = import_with_report(&out.value)?;
+            imported.report.enforce(false)?;
+            assert_eq!(imported.value.len(), 1);
+            assert_eq!(imported.value[0].title.as_deref(), Some("Selected layout"));
+            assert_eq!(imported.value[0].subtitle.as_deref(), Some("Candidate subtitle"));
+
+            // Fallback uses the same selector resolver, with text-box zones.
+            map.fallback = Some(format!("part:{part}"));
+            map.layouts.clear();
+            let fallback = build_deck_on_master(&input, &map, "Deck", &slides)?;
+            fallback.report.enforce(false)?;
+            let fallback_pkg = Package::read(&fallback.value)?;
+            assert!(fallback_pkg.rels("ppt/slides/slide1.xml")?.iter()
+                .any(|r| r.kind.ends_with("/slideLayout") && r.target == part));
+            import_with_report(&fallback.value)?.report.enforce(false)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn inventory_selectors_survive_rename_and_order_changes_but_stale_ones_fail() -> Result<()> {
+        let input = duplicate_layout_master()?;
+        let inv = inspect(&input)?;
+        let skeleton = map_skeleton(&inv, "synthetic.pptx");
+        let json = serde_json::to_value(&inv)?;
+        for (i, layout) in inv.masters[0].layouts.iter().enumerate() {
+            assert_eq!(layout.selector, format!("part:ppt/slideLayouts/slideLayout{}.xml", i + 1));
+            assert!(skeleton.contains(&format!("layout = {:?}", layout.selector)), "{skeleton}");
+            assert_eq!(json["masters"][0]["layouts"][i]["selector"], layout.selector);
+        }
+        let mut pkg = Package::read(&input)?;
+        let master_part = "ppt/slideMasters/slideMaster1.xml";
+        let master_xml = pkg.text(master_part)?.replace("r:id=\"rId1\"", "r:id=\"swap\"")
+            .replace("r:id=\"rId2\"", "r:id=\"rId1\"").replace("r:id=\"swap\"", "r:id=\"rId2\"");
+        pkg.parts.insert(master_part.into(), master_xml.into_bytes());
+        let layout_part = "ppt/slideLayouts/slideLayout1.xml";
+        let renamed = pkg.text(layout_part)?.replace(" Content ", "Renamed");
+        pkg.parts.insert(layout_part.into(), renamed.into_bytes());
+        let changed = crate::zip_mixed(&[], &pkg.parts.into_iter().collect::<Vec<_>>())?;
+        let changed_inv = inspect(&changed)?;
+        let master = &changed_inv.masters[0];
+        assert_eq!(master.layouts[1].name, "Renamed");
+        assert_eq!(resolve_layout(master, &inv.masters[0].layouts[0].selector)?.part, layout_part);
+        let registry = LayoutRegistry::builtin();
+        let layout = registry.get("framed-section").context("missing test layout")?;
+        let slides = [SlideInput { layout, details: Default::default(), fields: vec![] }];
+        for map in [duplicate_layout_map("part:ppt/slideLayouts/missing.xml"), MasterMap {
+            fallback: Some("part:ppt/slideLayouts/missing.xml".into()), ..Default::default()
+        }] {
+            let err = build_deck_on_master(&changed, &map, "Deck", &slides).err().context("stale selector must be rejected")?;
+            let message = err.to_string();
+            assert!(message.contains("does not exist in slide master 1") && message.contains("available:"), "{message}");
+            assert!(message.contains(&inv.masters[0].layouts[0].selector), "{message}");
+        }
+        // An explicit selector is never resolved outside the chosen master.
+        let only_second = MasterInfo { layouts: vec![master.layouts[0].clone()], ..master.clone() };
+        assert!(resolve_layout(&only_second, &inv.masters[0].layouts[0].selector).is_err());
+        Ok(())
     }
 
     #[test]

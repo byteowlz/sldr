@@ -35,7 +35,7 @@ pub fn run(file: &str, skeleton: bool, json: bool) -> Result<()> {
             m.body_font.as_deref().unwrap_or("")
         );
         for l in &m.layouts {
-            println!("  {}", format!("{:?}", l.name).yellow());
+            println!("  {}  layout = {:?}", format!("{:?}", l.name).yellow(), l.selector);
             for p in &l.placeholders {
                 let bbox = p
                     .bbox
