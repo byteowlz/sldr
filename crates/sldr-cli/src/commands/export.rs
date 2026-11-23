@@ -14,6 +14,7 @@ use sldr_core::slide::Slide;
 use sldr_pptx::ZoneContent;
 
 mod blocks;
+mod fences;
 
 /// A tiny JS snippet injected into the page that expands all slides
 /// for printing (shows all slides, no transitions, no toolbar).
@@ -412,6 +413,7 @@ fn build_native_deck(
     let needs_raster = slides.iter().any(|s| {
         let name = s.metadata.layout.as_deref().unwrap_or("default");
         registry.get(name).is_some_and(|l| !l.pptx_eligible() || has_bake(l) || blocks::needs_browser(s, l, lang, default_lang))
+            || fences::possible(&s.content)
     });
     let raster_layout = sldr_renderer::LayoutDef::from_source(RASTER_LAYOUT, RASTER_LAYOUT_SOURCE);
     // Export-time views of layouts (the layout files are untouched):
@@ -457,7 +459,7 @@ fn build_native_deck(
             Ok(b) => Some(b),
             Err(_) => {
                 println!(
-                    "  {} no browser found — mermaid diagrams export as code text and \
+                    "  {} no browser found — mermaid diagrams and svg/html fences export as code text and \
                      SVG blocks and slides on layouts without PPTX zones can't be pictured. \
                      Install Chrome/Chromium, or set CHROME_BIN.",
                     "note:".yellow()
@@ -489,6 +491,7 @@ fn build_native_deck(
     let mut inputs: Vec<sldr_pptx::SlideInput> = Vec::new();
     let mut rastered: Vec<(usize, String)> = Vec::new();
     let mut region_baked: Vec<(usize, String)> = Vec::new();
+    let mut fence_report = sldr_pptx::Report::default();
     for (si, slide) in slides.iter().enumerate() {
         let layout_name = slide
             .metadata
@@ -574,6 +577,13 @@ fn build_native_deck(
             .map(|l| l.zones.iter().filter(|z| z.rep == sldr_renderer::ZoneRep::Bake && filled(&z.name)).collect())
             .unwrap_or_default();
         let bake_names: Vec<String> = bake_zones.iter().map(|z| z.name.clone()).collect();
+        // A text zone whose whole segment is one ```svg / ```html fence shows a
+        // graphic in HTML. Native text would print its markup, so the zone gets
+        // the region-picture treatment too. Without a browser, or when nothing
+        // visible renders, it stays source text and is reported unsupported.
+        let fence = fences::bake(slide, layout, &lang_sel.content, &raster, inputs.len());
+        fence_report.findings.extend(fence.report.findings);
+        let fence_rendered = fence.fields;
         let mut rendered: Vec<(String, ZoneContent)> = Vec::new();
         if let (false, Some(br)) = (bake_zones.is_empty(), browser.as_deref()) {
             match raster_slide(slide, flavor, lang, default_lang, config, br, RasterView::Regions).and_then(|png| crop_regions(&png, &bake_zones)) {
@@ -718,9 +728,15 @@ fn build_native_deck(
         for name in &rendered_names {
             region_baked.push((inputs.len(), name.clone()));
         }
+        // A fence picture is owned by the render exactly like a baked region:
+        // import must never write it back over the fence.
+        let rendered_names: Vec<String> = rendered_names.into_iter()
+            .chain(fence_rendered.iter().map(|(n, _)| n.clone()))
+            .collect();
         // A rendered region replaces whatever the accounting above left for it.
         fields.retain(|(n, _)| !rendered_names.contains(n));
         fields.extend(rendered);
+        fields.extend(fence_rendered);
         let flavor_owned = if chrome.footer.is_none() && footer.is_some() { vec!["footer".to_string()] } else { Vec::new() };
         inputs.push(sldr_pptx::SlideInput { layout, fields, details: sldr_pptx::SlideDetails {
             source_id: Some(slide.relative_path.clone()), language: Some(lang.unwrap_or(default_lang).into()),
@@ -745,6 +761,7 @@ fn build_native_deck(
         result
     };
     result.report.findings.extend(block_report.findings);
+    result.report.findings.extend(fence_report.findings);
     for (i, input) in inputs.iter().enumerate() {
         for (name, content) in &input.fields {
             if matches!(content, ZoneContent::Picture { fit: Some(_), .. }) {
@@ -788,7 +805,10 @@ const RASTER_LAYOUT_SOURCE: &str =
     "<!-- sldr:zone name=image rep=picture x=0 y=0 w=100 h=100 -->\n<div class=\"sldr-content\">{{image}}</div>\n";
 
 #[derive(Clone, Copy)]
-enum RasterView { Slide(f64), Regions, Block(usize) }
+enum RasterView { Slide(f64), Regions, Block(usize), Fence }
+
+/// Isolated region renders never touch the network: only inlined resources load.
+const OFFLINE_CSP: &str = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data: blob:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; media-src data: blob:; form-action 'none'; base-uri 'none'\">";
 
 /// Render one slide to a 1920×1080 PNG. Region views render it for
 /// cropping `rep=bake` regions: transparent, without the page background,
@@ -830,7 +850,12 @@ fn raster_slide(
         // native content from the crop. No remote assets are fetched by this view.
         let scope = format!("<style>.sldr-block:not([data-block=\"{index}\"]){{visibility:hidden!important}}</style>");
         html = html.replacen("</head>", &format!("{scope}</head>"), 1);
-        html = html.replacen("<head>", "<head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data: blob:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; media-src data: blob:; form-action 'none'; base-uri 'none'\">", 1);
+    }
+    if matches!(view, RasterView::Fence) {
+        html = html.replacen("</head>", &format!("{}</head>", fences::ISOLATE), 1);
+    }
+    if matches!(view, RasterView::Block(_) | RasterView::Fence) {
+        html = html.replacen("<head>", &format!("<head>{OFFLINE_CSP}"), 1);
     }
     let (w, h) = ((1920.0 * scale).round() as u32, (1080.0 * scale).round() as u32);
     let img = super::brand::screenshot(browser, &html, w, h, regions_only)?;

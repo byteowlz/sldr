@@ -122,6 +122,45 @@ the live slide, native `page.pdf()` and CLI PDF export. The explicit 50% logo mu
 paint 800×200 at x=25%, y=60%; an 80px footer logo keeps its size and anchor; a
 tall logo with no width stays capped and centered in its default box.
 
+## SVG and HTML fence pictures (trx-xcn1)
+
+A body segment that is exactly one ` ```svg ` or ` ```html ` fence (the languages
+`sldr_core::media::fence_renders_markup` names; trailing speaker notes ignored)
+is a figure in HTML. Native PPTX export used to print its markup as body text.
+It now places a picture of the real render in that zone (`content`, `heading`,
+`left` or `right`) and keeps every neighboring zone editable text. The fence
+source is never rewritten.
+
+The picture comes from a probe render of the same slide: comment markers around
+the fence body let an injected script tag the fence's nodes, and everything else
+is made invisible, not removed, so the fence keeps its real layout. The cut is
+the zone box grown to everything the fence painted. A fence that stays inside
+its zone lands pixel-exact; one that overflows it is scaled into the zone by the
+writer instead of being clipped; a small figure is never scaled up.
+
+The finding is `region_raster` with disposition `baked`, and the zone is owned by
+the render in the provenance manifest, so `sldr import --apply` leaves it alone.
+Like every baked region, strict export rejects it without publishing;
+`--allow-lossy` is required. The probe render has no network access. A fence
+that names a remote URL (XML namespaces excepted) gets an additional
+`remote_reference` finding (`unsupported`): whatever it would load is missing
+from the picture. Without Chrome/Chromium, on a failed render, or when the
+fence paints nothing, the zone keeps its source text and the existing
+`code_block_structure` finding; no blank picture stands in.
+
+Unchanged: a fence beside other text in the same segment, ` ```mermaid `
+(`diagram_raster`), ordinary code fences (native text) and `rep=bake` layout
+regions.
+
+`cargo test -p sldr-cli --test interchange graphic_fence` drives the public CLI
+with a stand-in browser: package pictures per zone, no markup text, report
+dispositions, strict rejection, an ordinary code fence as text, and an unedited
+`import --apply --dry-run --strict`. `commands::export::fences::tests` covers
+classification, marker placement, the cut geometry and remote-reference
+accounting. Pixel equality with the PNG export, per-language renders, twin
+column fences and the absence of network requests were verified with installed
+Chrome on synthetic slides; that evidence stays outside git.
+
 These are browser/export regressions, not general PowerPoint compatibility or
 pixel equivalence certification across different font/renderer versions. Raw
 HTML, PNG, PDF and logs stay in the private output directory.
