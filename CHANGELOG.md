@@ -9,6 +9,12 @@ All notable changes to this project will be documented in this file.
 - `sldr master <file.pptx> [--skeleton|--json]`: inventory of a master's slide masters, layouts and placeholders; `--skeleton` prints a map to fill in (nothing pre-mapped).
 
 ### Fixed
+- Native PPTX export pictures a text zone whose whole content is one `svg` or `html` fence instead of printing its markup as text. The zone is reported `region_raster: baked` (so it needs `--allow-lossy`, like the diagram layouts), import leaves the fence alone, and the fence render fetches nothing from the network. Other code fences, and a fence next to other text in the same zone, still export as text (trx-xcn1).
+- `sldr media ls --unused` follows what the renderer loads: `href`/`src` inside `svg` and `html` fences count as a use, references inside fences shown as code do not (trx-qsg9).
+- `framed-timeline`: inline markup after the date (`**2001** *A Title*: ...`) stays in one line flow instead of breaking the emphasis onto its own line (trx-62m5).
+- A flavor logo with a chosen `width` is no longer capped at 15% of the slide height; logos without a width keep the cap. An explicit `width = "100px"` equals the default and stays capped (trx-50bb).
+- `--master-map`: a master layout name shared by several layouts is rejected with the candidate selectors instead of silently picking the last one. `sldr master` lists a `part:` selector per layout, usable in `layout` and `fallback`; unique names keep working (trx-7142).
+- `sldr-server --help`, `--version` and unknown arguments exit before any configuration, library, TLS or listener is touched; with no arguments the server starts as before.
 - Native PPTX export retains local SVG-only freeform blocks as transparent pictures of their isolated render, with an explicit `baked` loss requiring `--allow-lossy`. Missing/invalid SVGs remain unsupported pictures rather than falsely converted text; neighboring text stays editable (#6).
 - Language-tagged slide variants emit semantic HTML `lang` as well as navigation `data-lang`, including freeform blocks; language values are attribute-escaped (#5).
 - Overview thumbnails contain a complete, independently fitted slide canvas, including absolute/framed layouts and applicable flavor logos. Resizing preserves the live deck's geometry; preview clones inherit the presentation font instead of the browser's button font (#1).
