@@ -85,7 +85,7 @@ sldr zones my-slide         # what a visual editor sees: regions, bindings, writ
 sldr layouts-for my-slide   # every layout ranked by fit: what it hides, folds, leaves empty
 sldr where my-slide         # which decks reference it, last git touch
 sldr where --layout framed  # which slides use a layout (blast radius before editing it)
-sldr media ls --unused      # media files no slide references
+sldr media ls --unused      # media no slide loads (```svg / ```html fences count, code samples do not)
 sldr media add my-slide ~/Downloads/chart.png   # store beside the slide, print the reference
 sldr skill install          # install the agent skill that matches this binary
 ```

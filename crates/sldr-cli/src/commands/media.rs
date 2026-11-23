@@ -69,3 +69,80 @@ fn human(b: u64) -> String {
         format!("{:.1} MB", b as f64 / (1024.0 * 1024.0))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! The usage scan lives in sldr-core and restates what the renderer
+    //! loads. These tests render for real and fail when the two disagree,
+    //! so the scan cannot drift from the build.
+
+    use anyhow::{bail, ensure, Result};
+    use sldr_core::media::{fence_renders_markup, rendered_references};
+    use sldr_renderer::markdown::{render_markdown, MarkdownOutput, MediaConfig};
+    use sldr_renderer::ImageMode;
+
+    const PNG_1X1: [u8; 68] = [
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x04, 0x00, 0x00, 0x00, 0xb5, 0x1c, 0x0c, 0x02, 0x00, 0x00, 0x00, 0x0b, 0x49,
+        0x44, 0x41, 0x54, 0x78, 0xda, 0x63, 0x64, 0x60, 0x00, 0x00, 0x00, 0x06, 0x00, 0x02, 0x30, 0x81, 0xd0, 0x2f, 0x00,
+        0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ];
+
+    /// Render each body beside a real `media/p.png` and fail unless the
+    /// scan's verdict (`counted`) matches whether the renderer loaded the
+    /// file: the path is gone from the output and a data URI stands in.
+    fn agrees_with_renderer(tag: &str, cases: &[(String, bool)]) -> Result<()> {
+        let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_nanos();
+        let dir = std::env::temp_dir().join(format!("sldr-media-cli-{tag}-{}-{nanos}", std::process::id()));
+        std::fs::create_dir_all(dir.join("media"))?;
+        std::fs::write(dir.join("media/p.png"), PNG_1X1)?;
+        let config = MediaConfig { image_mode: ImageMode::Embed, slide_dir: Some(dir.clone()), assets_dir: None };
+        for (body, counted) in cases {
+            let MarkdownOutput::Single(html) = render_markdown(body, &config) else {
+                bail!("expected a single-content slide for {body:?}");
+            };
+            let loaded = !html.contains("media/p.png") && html.contains("data:image/");
+            ensure!(
+                *counted == loaded,
+                "{body:?}: the usage scan says used = {counted}, the renderer produced {html:?}"
+            );
+        }
+        Ok(std::fs::remove_dir_all(&dir)?)
+    }
+
+    #[test]
+    fn fence_rule_matches_what_the_renderer_passes_through() -> Result<()> {
+        let infos = [
+            "svg", "html", "svg {1}", "html{all|1-3}", "html title", "", "text", "python", "xml", "markdown", "mermaid",
+            "bars", "SVG", "Html", "svgz",
+        ];
+        let fence = |info: &&str| (format!("```{info}\n<image href=\"media/p.png\"/>\n```\n"), fence_renders_markup(info));
+        agrees_with_renderer("fence", &infos.iter().map(fence).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn reference_forms_match_what_the_renderer_loads() -> Result<()> {
+        let bodies = [
+            // Counted and loaded.
+            "![x](media/p.png)\n",
+            "![x](./media/p.png \"title\")\n",
+            "<img src=\"media/p.png\">\n",
+            "<img src='media/p.png'>\n",
+            "<svg><image href=\"media/p.png\"/></svg>\n",
+            "```svg\n<image href=\"media/p.png\"/>\n```\n",
+            "```svg\n<image xlink:href='media/p.png'/>\n```\n",
+            "```html\n<img src=\"./media/p.png\">\n```\n",
+            "~~~html {1}\n<a href=\"media/p.png\">x</a>\n~~~\n",
+            // Neither counted nor loaded.
+            "```svg\n<image href=media/p.png />\n```\n",
+            "```svg\n<image href = \"media/p.png\"/>\n```\n",
+            "```text\n<img src=\"media/p.png\">\n![x](media/p.png)\n```\n",
+            "```python\nprint('<image href=\"media/p.png\"/>')\n```\n",
+            "~~~\n![x](media/p.png)\n~~~\n",
+            "````markdown\n```svg\n<image href=\"media/p.png\"/>\n```\n````\n",
+            "[link](media/p.png)\n",
+        ];
+        let form = |body: &&str| ((*body).to_string(), !rendered_references(body).is_empty());
+        agrees_with_renderer("forms", &bodies.iter().map(form).collect::<Vec<_>>())
+    }
+}

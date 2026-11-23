@@ -7,6 +7,12 @@
 //! reference survives copies, bundles and git moves. The library-level
 //! `media/` folder holds deck-agnostic assets and is listed the same way.
 //! Nothing here is stored beyond the files themselves.
+//!
+//! "Used" means the renderer would load the file: a markdown image, a
+//! `src` / `href` / `xlink:href` in raw markup, or the same attributes in a
+//! ```` ```svg ```` / ```` ```html ```` fence, which renders as a graphic. A
+//! fence shown as code is a code sample and is not a use. See
+//! [`rendered_references`].
 
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
@@ -93,7 +99,7 @@ pub fn list_media(slide_dir: &Path, library_media: &Path, slides: &SlideCollecti
     let mut used: BTreeMap<PathBuf, Vec<String>> = BTreeMap::new();
     for s in &slides.slides {
         let base = s.path.parent().unwrap_or(slide_dir);
-        for r in references(&s.content) {
+        for r in rendered_references(&s.content) {
             let abs = clean(&base.join(&r));
             if files.contains_key(&abs) {
                 let v = used.entry(abs).or_default();
@@ -173,24 +179,13 @@ pub fn resolve_listed(slide_dir: &Path, library_media: &Path, path: &str) -> Opt
 
 /// Local image/video references in a slide body: `![alt](src)`, `<img src>`,
 /// `<video src>`, `<source src>`. URLs and data URIs are skipped.
+///
+/// This is the picture a slide body names, wherever it stands, and is what
+/// `sldr import --apply` rewrites. For "is this file in use" ask
+/// [`rendered_references`], which follows what the renderer loads.
 pub fn references(body: &str) -> Vec<String> {
     let mut out = Vec::new();
-    let mut rest = body;
-    while let Some(i) = rest.find("](") {
-        let after = &rest[i + 2..];
-        if let Some(end) = after.find(')') {
-            let inner = after[..end].trim();
-            let src = inner.split_whitespace().next().unwrap_or("");
-            // Only markdown *images* count: look back for `![`.
-            let before = &rest[..i];
-            if before.rfind("![").is_some_and(|b| !before[b..].contains(']')) {
-                push_local(&mut out, src);
-            }
-            rest = &after[end..];
-        } else {
-            break;
-        }
-    }
+    markdown_images(body, &mut out);
     for needle in ["<img", "<video", "<source"] {
         let mut r = body;
         while let Some(i) = r.find(needle) {
@@ -205,6 +200,131 @@ pub fn references(body: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// Fence languages the renderer passes through as markup (a hand-written
+/// figure) instead of showing as code.
+const MARKUP_FENCES: [&str; 2] = ["svg", "html"];
+
+/// Attributes whose quoted value the renderer runs through the media
+/// pipeline in raw markup. `xlink:href=` is listed for clarity; `href=`
+/// matches inside it either way.
+const MARKUP_ATTRS: [&str; 3] = ["xlink:href=", "href=", "src="];
+
+/// Whether a fenced code block with this info string renders as markup
+/// rather than as code: the language is `svg` or `html`, compared exactly,
+/// after dropping a build annotation (```` ```svg {1} ````, ```` ```html{2} ````).
+///
+/// This restates the renderer's rule (`markdown_to_html` in sldr-renderer)
+/// so the usage scan agrees with what a build shows; the two are pinned
+/// together by a test in sldr-cli.
+pub fn fence_renders_markup(info: &str) -> bool {
+    let info = info.trim();
+    let lang = info.split_once(['{', ' ']).map_or(info, |(base, _)| base);
+    MARKUP_FENCES.contains(&lang)
+}
+
+/// Local media a slide body loads when rendered, in the forms the renderer
+/// resolves:
+///
+/// - markdown images, `![alt](src)`;
+/// - double- or single-quoted `src=`, `href=` and `xlink:href=` values in
+///   raw markup outside fences (`<img>`, `<video>`, `<source>`, an inline
+///   `<svg>` with `<image>`);
+/// - the same attributes inside ```` ```svg ```` and ```` ```html ```` fences,
+///   which render as graphics.
+///
+/// Any other fence is shown as code, so nothing inside it counts. URLs,
+/// data URIs and absolute paths are skipped; nothing is fetched.
+///
+/// The scan reads lines, not a parsed document. It recognises fences that
+/// start within three columns of the margin. A fence nested deeper (in a
+/// list item or a block quote), an indented code block and an inline code
+/// span are read as ordinary text, so a path named there still counts as a
+/// use. That errs toward keeping a file, never toward reporting a rendered
+/// one as unused.
+pub fn rendered_references(body: &str) -> Vec<String> {
+    let mut prose = String::new();
+    let mut markup = String::new();
+    // The open fence: its character, its length, and whether it renders.
+    let mut fence: Option<(char, usize, bool)> = None;
+    for line in body.lines() {
+        match fence {
+            Some((ch, len, _)) if closes_fence(line, ch, len) => fence = None,
+            Some((_, _, true)) => {
+                markup.push_str(line);
+                markup.push('\n');
+            }
+            Some((_, _, false)) => {}
+            None => {
+                if let Some((ch, len, info)) = opens_fence(line) {
+                    fence = Some((ch, len, fence_renders_markup(info)));
+                } else {
+                    prose.push_str(line);
+                    prose.push('\n');
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    markdown_images(&prose, &mut out);
+    markup_attr_values(&prose, &mut out);
+    markup_attr_values(&markup, &mut out);
+    out
+}
+
+/// `![alt](src)` and `![alt](src "title")`; plain links do not count.
+fn markdown_images(body: &str, out: &mut Vec<String>) {
+    let mut rest = body;
+    while let Some(i) = rest.find("](") {
+        let after = &rest[i + 2..];
+        let Some(end) = after.find(')') else { break };
+        let src = after[..end].split_whitespace().next().unwrap_or("");
+        // Only markdown *images* count: look back for `![`.
+        let before = &rest[..i];
+        if before.rfind("![").is_some_and(|b| !before[b..].contains(']')) {
+            push_local(out, src);
+        }
+        rest = &after[end..];
+    }
+}
+
+/// Every quoted `src=` / `href=` / `xlink:href=` value in raw markup, on
+/// any element, as the renderer's media rewrite reads them. An unquoted
+/// value, or one with spaces around `=`, is not picked up there either.
+fn markup_attr_values(markup: &str, out: &mut Vec<String>) {
+    let mut rest = markup;
+    while let Some((at, attr)) =
+        MARKUP_ATTRS.iter().filter_map(|a| rest.find(a).map(|i| (i, *a))).min_by_key(|(i, _)| *i)
+    {
+        rest = &rest[at + attr.len()..];
+        let Some(quote) = rest.chars().next().filter(|c| matches!(c, '"' | '\'')) else { continue };
+        let Some(end) = rest[1..].find(quote) else { continue };
+        push_local(out, &rest[1..=end]);
+        rest = &rest[end + 2..];
+    }
+}
+
+/// A line's fence run: the fence character and how many of it lead the
+/// line (after at most three spaces), plus whatever follows.
+fn fence_run(line: &str) -> Option<(char, usize, &str)> {
+    let indent = line.len() - line.trim_start_matches(' ').len();
+    let rest = &line[indent..];
+    let ch = rest.chars().next().filter(|c| matches!(c, '`' | '~'))?;
+    let len = rest.len() - rest.trim_start_matches(ch).len();
+    (indent <= 3 && len >= 3).then(|| (ch, len, &rest[len..]))
+}
+
+/// An opening fence and its info string. A backtick fence whose info string
+/// holds a backtick is inline code, not a fence.
+fn opens_fence(line: &str) -> Option<(char, usize, &str)> {
+    fence_run(line).filter(|(ch, _, info)| *ch != '`' || !info.contains('`'))
+}
+
+/// A closing fence: the same character, at least as long as the opener,
+/// and nothing after it.
+fn closes_fence(line: &str, ch: char, len: usize) -> bool {
+    fence_run(line).is_some_and(|(c, n, tail)| c == ch && n >= len && tail.trim().is_empty())
 }
 
 fn push_local(out: &mut Vec<String>, src: &str) {
