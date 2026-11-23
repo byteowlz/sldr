@@ -144,7 +144,7 @@ sldr is built in Rust using:
 
 ## Verification
 
-- New Rust tests should return `anyhow::Result<()>` and use `?`/explicit assertions. Workspace Clippy denies `unwrap` and `expect`, including tests; older tests are not a pattern to copy for those calls.
+- New Rust tests should return `anyhow::Result<()>` and use `?` with `anyhow::ensure!`/`bail!`. Workspace Clippy denies `unwrap`, `expect` and `panic_in_result_fn`, including tests, so `assert!` inside a `Result`-returning test is also flagged; older tests are not a pattern to copy for those calls.
 - `just check-rendering OUTPUT FONT_DIR` runs the opt-in installed-Chrome regression lane with synthetic fixtures and open DejaVu Sans regular/bold faces. Use a new output directory outside git. See `docs/rendering-regressions.md`; `just check-print` covers the existing print matrix.
 
 ## Issue Tracking with trx
