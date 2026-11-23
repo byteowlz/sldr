@@ -1510,6 +1510,12 @@ tr:hover td {
   object-fit: contain;
   transition: opacity 0.3s ease;
 }
+/* The height cap is the default for a logo without a chosen size. A width set
+ * in the flavor is the logo's size (e.g. a 4:1 mark at width 50% is 22% tall),
+ * so it is not capped. `:where` keeps `.sldr-logo` specificity for flavor CSS. */
+.sldr-logo:where(.sldr-logo-sized) {
+  max-height: none;
+}
 
 
 /* =========================================================================

@@ -35,6 +35,11 @@ fn sanitize_valign(v: Option<&str>) -> Option<&'static str> {
     }
 }
 
+/// The `[[logos]]` width a flavor gets when it sets none (`sldr-core`'s serde
+/// default). The field is not optional, so this value is the only sign that a
+/// logo has no chosen size; an explicit `width = "100px"` reads the same.
+const DEFAULT_LOGO_WIDTH: &str = "100px";
+
 /// Base CSS embedded at compile time from assets/base.css
 const BASE_CSS: &str = include_str!("../assets/base.css");
 
@@ -716,9 +721,16 @@ impl HtmlRenderer {
             } else {
                 logo.file.clone()
             };
+            // A width the flavor chose is the logo's size; only a logo left at
+            // the default width keeps base.css's height cap.
+            let class = if logo.width.trim() == DEFAULT_LOGO_WIDTH {
+                "sldr-logo"
+            } else {
+                "sldr-logo sldr-logo-sized"
+            };
             let _ = writeln!(
                 out,
-                "    <img class=\"sldr-logo\" src=\"{}\" alt=\"\" data-logo-layouts=\"{}\" style=\"{}\">",
+                "    <img class=\"{class}\" src=\"{}\" alt=\"\" data-logo-layouts=\"{}\" style=\"{}\">",
                 logo_src,
                 html_escape_attr(&logo.layouts.join(" ")),
                 logo.to_css_position()
@@ -932,6 +944,34 @@ mod tests {
         assert!(!html.contains("sldr-source-url"));
         let shown = render_source("NPR", Some("https://npr.org"), "Source:", true);
         assert!(shown.contains("<span class=\"sldr-source-url\">(https://npr.org)</span>"));
+    }
+
+    /// Painted bounds are measured in Chrome by `just check-rendering` (logo
+    /// case); this pins which logos are exempt from the default height cap.
+    #[test]
+    fn test_logo_with_chosen_width_is_marked_sized() -> Result<()> {
+        let flavor: Flavor = toml::from_str(
+            "name = 'sized'\n\
+             [[logos]]\nfile = 'wide.svg'\nx = '25%'\ny = '60%'\nwidth = '50%'\n\
+             [[logos]]\nfile = 'small.svg'\nwidth = '80px'\n\
+             [[logos]]\nfile = 'tall.svg'\n",
+        )?;
+        // The renderer's notion of "no chosen size" must follow sldr-core's default.
+        let unsized_logo = flavor.logos.get(2).context("three logos")?;
+        assert_eq!(unsized_logo.width, DEFAULT_LOGO_WIDTH);
+        let html = HtmlRenderer::new(RenderConfig::default()).add_flavor(flavor).render()?;
+        for (file, class) in [
+            ("wide.svg", "sldr-logo sldr-logo-sized"),
+            ("small.svg", "sldr-logo sldr-logo-sized"),
+            ("tall.svg", "sldr-logo"),
+        ] {
+            assert!(
+                html.contains(&format!("<img class=\"{class}\" src=\"{file}\"")),
+                "{file} should be class=\"{class}\""
+            );
+        }
+        assert!(html.contains(".sldr-logo:where(.sldr-logo-sized) {\n  max-height: none;\n}"));
+        Ok(())
     }
 
     #[test]

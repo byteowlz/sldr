@@ -17,12 +17,18 @@ import zipfile
 import posixpath
 import xml.etree.ElementTree as ET
 
-from PIL import Image
+from PIL import Image, ImageChops
 import fitz
 from playwright.sync_api import sync_playwright
 
 sys.dont_write_bytecode = True
-from rendering_fixture import Fixture, prepare, prepare_timeline
+from rendering_fixture import (
+    LOGOS,
+    Fixture,
+    prepare,
+    prepare_logo,
+    prepare_timeline,
+)
 
 
 def corners(image):
@@ -467,6 +473,104 @@ def svg_block(f):
     }
 
 
+def painted(image, fill):
+    """Pixel bounds [left, top, right, bottom] of one solid synthetic logo."""
+    image = image.convert("RGB")
+    wanted = bytes.fromhex(fill.lstrip("#"))
+    mask = None
+    for band, value in zip(image.split(), wanted):
+        near = band.point(lambda v, value=value: 255 if abs(v - value) <= 8 else 0)
+        mask = near if mask is None else ImageChops.darker(mask, near)
+    bounds = mask.getbbox()
+    assert bounds, ("logo is not painted", fill)
+    return list(bounds)
+
+
+def logo_bounds(image, width_px, name):
+    """Painted and expected bounds on a 1600x900 raster of the slide.
+
+    `width_px` is the slide width in CSS px: pixel lengths shrink with it,
+    percentages do not.
+    """
+    px = 1600 / width_px
+    cap = 0.15 * 900
+    expected = {
+        # 400x100 at x=25%, y=60%, width=50%: the explicit width wins.
+        "wide": [400, 540, 1200, 740],
+        # 100x40 at x=3%, y=92%, width=80px: far below any cap.
+        "small": [48, 828, 48 + 80 * px, 828 + 32 * px],
+        # 100x400, no size: default 100px box, height capped at 15%, the mark
+        # contained and centered in it.
+        "tall": [
+            48 + (100 * px - cap / 4) / 2,
+            27,
+            48 + (100 * px + cap / 4) / 2,
+            27 + cap,
+        ],
+    }[name]
+    return {
+        "painted": painted(image, LOGOS[name][2]),
+        "expected": [round(v, 2) for v in expected],
+    }
+
+
+def logo(f):
+    prepare_logo(f.root)
+    f.run("build-logo", "build", "logo", "--single-file")
+    report = {}
+    with sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=str(f.browser), headless=True)
+        page = browser.new_page(viewport={"width": 1600, "height": 900})
+        page.goto((f.root / "out/logo/index.html").as_uri())
+        page.wait_for_function(
+            "document.querySelectorAll('.sldr-deck > .sldr-logos .sldr-logo-on').length === 3"
+        )
+        page.evaluate("Promise.all([...document.images].map(image => image.decode()))")
+        slide = page.locator(".sldr-deck > .sldr-slide.active").bounding_box()
+        assert slide == {"x": 0, "y": 0, "width": 1600, "height": 900}, slide
+        page.screenshot(path=str(f.root / "logo-screen.png"))
+        # Native print without pre-emulated print media, as in print_fit.
+        page.pdf(
+            path=str(f.root / "logo-print.pdf"),
+            prefer_css_page_size=True,
+            print_background=True,
+        )
+        browser.close()
+    f.run(
+        "logo-cli-pdf",
+        "export",
+        "logo",
+        "--format",
+        "pdf",
+        "-o",
+        f.root / "logo-cli.pdf",
+    )
+    with Image.open(f.root / "logo-screen.png") as image:
+        assert image.size == (1600, 900), image.size
+        report["screen"] = {name: logo_bounds(image, 1600, name) for name in LOGOS}
+    for surface in ["logo-print", "logo-cli"]:
+        with fitz.open(f.root / f"{surface}.pdf") as pdf:
+            assert len(pdf) == 1, (surface, len(pdf))
+            sheet = pdf[0]
+            assert abs(sheet.rect.width - 1440) < 1 and abs(sheet.rect.height - 810) < 1
+            pixels = sheet.get_pixmap(matrix=fitz.Matrix(1600 / 1440, 1600 / 1440))
+            image = Image.frombytes(
+                "RGB", (pixels.width, pixels.height), pixels.samples
+            )
+            assert image.size == (1600, 900), image.size
+            image.save(f.root / f"{surface}.png")
+            # Print lays the slide out on a fixed 1920x1080 canvas.
+            report[surface] = {name: logo_bounds(image, 1920, name) for name in LOGOS}
+    # Keep every measurement as evidence before judging any of them.
+    (f.root / "logo.json").write_text(json.dumps(report, indent=2))
+    for surface, logos in report.items():
+        for name, row in logos.items():
+            assert all(
+                abs(a - e) <= 1.5 for a, e in zip(row["painted"], row["expected"])
+            ), (surface, name, row)
+    return report
+
+
 def check_selected(f, selected):
     report = {}
     if selected in ("all", "capture"):
@@ -481,6 +585,8 @@ def check_selected(f, selected):
         report["svg"] = svg_block(f)
     if selected in ("all", "timeline"):
         report["timeline"] = timeline(f)
+    if selected in ("all", "logo"):
+        report["logo"] = logo(f)
     return report
 
 
@@ -536,6 +642,7 @@ def main():
             "overview",
             "svg",
             "timeline",
+            "logo",
         ],
         default="all",
     )

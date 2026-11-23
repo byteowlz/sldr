@@ -31,6 +31,37 @@ MARKERS = """<!-- sldr:chrome none -->
 <div class="qa" style="left:0;bottom:0;background:#0000ff"></div>
 <div class="qa" style="right:0;bottom:0;background:#ffff00"></div>
 """
+# Solid rectangles filling their viewBox, so the painted bounds are the mark.
+# One explicit width above the default height cap, one small footer logo and
+# one tall logo with no size, which keeps the default width and cap.
+LOGOS = {
+    "wide": (400, 100, "#d81b60"),
+    "small": (100, 40, "#1e88e5"),
+    "tall": (100, 400, "#43a047"),
+}
+SIZED = """name="sized"
+[colors]
+background="#ffffff"
+text="#17232b"
+[decoration]
+intensity=0.0
+[[logos]]
+file="wide.svg"
+x="25%"
+y="60%"
+width="50%"
+layouts=["cover"]
+[[logos]]
+file="small.svg"
+x="3%"
+y="92%"
+width="80px"
+layouts=["cover"]
+[[logos]]
+file="tall.svg"
+position="top-left"
+layouts=["cover"]
+"""
 
 
 def prepare(root: Path, font_dir: Path):
@@ -113,6 +144,18 @@ def add_deck(root: Path, name, flavor, text):
 
 def prepare_timeline(root: Path):
     add_deck(root, "timeline", "probe", TIMELINE)
+
+
+def prepare_logo(root: Path):
+    assets = root / "library/flavors/sized/assets"
+    assets.mkdir(parents=True)
+    for name, (width, height, fill) in LOGOS.items():
+        (assets / f"{name}.svg").write_text(
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+            f'viewBox="0 0 {width} {height}"><rect width="{width}" height="{height}" fill="{fill}"/></svg>'
+        )
+    (assets.parent / "flavor.toml").write_text(SIZED)
+    add_deck(root, "logo", "sized", "---\nlayout: cover\n---\n")
 
 
 class Fixture:

@@ -107,6 +107,21 @@ text node after it share one line with the colon continuing where the italics en
 for an item below and an item above the axis. The plain neighbors must keep the
 lead on its own line and stay against the axis.
 
+## Logo size (trx-50bb)
+
+`.sldr-logo` caps a logo's height at 15% of the slide. With an explicit width that
+cap shrank the painted mark inside a box that still reported the requested width:
+a 400×100 logo at `width = "50%"` on a 1600×900 slide painted 540×135, not 800×200.
+A logo whose flavor sets a `width` is now emitted as `sldr-logo sldr-logo-sized`
+and is not capped; a logo left at the default width keeps the cap. `sldr-core`
+stores the width as a plain string with a `100px` default, so an explicit
+`width = "100px"` cannot be told apart from an unset one and keeps the cap too.
+
+The `logo` case measures painted pixels, not the `img` box, on a 1600×900 cover:
+the live slide, native `page.pdf()` and CLI PDF export. The explicit 50% logo must
+paint 800×200 at x=25%, y=60%; an 80px footer logo keeps its size and anchor; a
+tall logo with no width stays capped and centered in its default box.
+
 These are browser/export regressions, not general PowerPoint compatibility or
 pixel equivalence certification across different font/renderer versions. Raw
 HTML, PNG, PDF and logs stay in the private output directory.
