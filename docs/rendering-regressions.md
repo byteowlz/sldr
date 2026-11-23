@@ -91,6 +91,22 @@ headline/neighbor must not leak into the PNG. A malformed SVG is the negative
 control. Fast tests cover local/single-image classification, absent browser and a
 successful browser exit without decode evidence.
 
+## Timeline inline markup (trx-62m5)
+
+In `framed-timeline` an item such as `- **2001** *A Title In Italics*: and the rest`
+used to render the emphasis as its own block, with the remainder on a new line.
+Each item was a flex column, where every element child is a separate flex item.
+An item with inline markup after the lead is now a plain block held against the
+axis by block-level `align-content` (Chrome 123, Firefox 125, Safari 17.4). Items
+without inline markup keep the flex column, so older browsers render them as before;
+there an item with inline markup above the axis reads in one flow but starts at the
+top of its half.
+
+The `timeline` case measures, at 1920×1080 and 1280×720, that the `<em>` and the
+text node after it share one line with the colon continuing where the italics end,
+for an item below and an item above the axis. The plain neighbors must keep the
+lead on its own line and stay against the axis.
+
 These are browser/export regressions, not general PowerPoint compatibility or
 pixel equivalence certification across different font/renderer versions. Raw
 HTML, PNG, PDF and logs stay in the private output directory.

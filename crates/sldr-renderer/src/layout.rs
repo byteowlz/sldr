@@ -1386,6 +1386,31 @@ mod tests {
         assert!(!html.contains("placeholder-text"));
     }
 
+    /// The geometry is measured in Chrome by `just check-rendering` (timeline
+    /// case). This pins, without a browser, what that result depends on: the
+    /// emphasis is a direct child of a tight list item, and the layout takes
+    /// such an item out of the flex column that made each element a block.
+    #[test]
+    fn test_framed_timeline_keeps_inline_markup_after_lead_in_one_flow() -> Result<()> {
+        let slide = sldr_core::slide::Slide::from_str(
+            "timeline",
+            "timeline.md",
+            "---\nlayout: framed-timeline\n---\n- **1999** Plain\n- **2001** *A Title In Italics*: and the rest of the sentence\n",
+        );
+        let mut renderer = crate::HtmlRenderer::new(crate::RenderConfig::default());
+        renderer.add_slide(&slide)?;
+        let html = renderer.render()?;
+        assert!(
+            html.contains("<li><strong>2001</strong> <em>A Title In Italics</em>: and the rest of the sentence</li>"),
+            "item markup changed"
+        );
+        let inline = "> li:has(> :not(p, ul, ol, strong:first-of-type)) {\n  display: block;";
+        let above = "> li:nth-child(odd):has(> :not(p, ul, ol, strong:first-of-type)) {\n  align-content: end;";
+        assert!(html.contains(inline), "inline-flow rule missing");
+        assert!(html.contains(above), "above-axis alignment missing");
+        Ok(())
+    }
+
     #[test]
     fn test_user_layout_overrides_builtin() {
         let dir = std::env::temp_dir().join("sldr-layout-override-test");

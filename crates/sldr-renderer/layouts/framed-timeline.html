@@ -93,6 +93,18 @@
   justify-content: flex-start;
   padding-top: calc(var(--sldr-uh) * 3.2);
 }
+/* Inline markup after the lead (`**2001** *A Title*: and the rest`) must stay
+   one inline flow. In the flex column every element child is its own flex
+   item, so the emphasis became a block and the sentence restarted below it.
+   Such an item is a plain block instead, held against the axis by block-level
+   `align-content` (Chrome 123, Firefox 125, Safari 17.4). Items without inline
+   markup keep the flex column and render as before in older browsers too. */
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:has(> :not(p, ul, ol, strong:first-of-type)) {
+  display: block;
+}
+.sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li:nth-child(odd):has(> :not(p, ul, ol, strong:first-of-type)) {
+  align-content: end;
+}
 /* Marker dot on the axis. */
 .sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > :is(ul, ol) > li::before {
   content: '';

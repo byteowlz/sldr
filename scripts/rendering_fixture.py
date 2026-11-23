@@ -11,6 +11,17 @@ LONG = (
     "Complete and predictable rendering preserves every word in this deliberately oversized synthetic declaration. "
     * 5
 )
+# Emphasis directly after the date lead, below (2nd) and above (3rd) the axis;
+# the outer items are the plain reference whose geometry must not move.
+TIMELINE = """---
+title: Timeline fixture
+layout: framed-timeline
+---
+- **1999** Plain milestone sentinel
+- **2001** *A Title In Italics*: and the rest of the sentence
+- **2003** *Another Italic Title*: with a following remainder
+- **2005** Closing plain sentinel
+"""
 MARKERS = """<!-- sldr:chrome none -->
 <!-- sldr:zone name=content rep=bake x=0 y=0 w=100 h=100 -->
 <style>.sldr-slide[data-layout="markers"]{padding:0}.qa{position:absolute;width:5%;height:5%;z-index:100}</style>
@@ -87,6 +98,21 @@ slide_dir={json.dumps(str(lib / "slides"))}
 playlist_dir={json.dumps(str(lib / "playlists"))}
 output_dir={json.dumps(str(root / "out"))}
 """)
+
+
+def add_deck(root: Path, name, flavor, text):
+    """One more single-slide deck. It stays out of "all", whose slide count and
+    logo scope are asserted."""
+    lib = root / "library"
+    (lib / f"slides/{name}.md").write_text(text)
+    (lib / f"playlists/{name}.toml").write_text(
+        f'name="{name}"\nflavor="{flavor}"\nslides={json.dumps([name])}\n'
+        '[render]\ntransition="none"\naspect_ratio="16/9"\n'
+    )
+
+
+def prepare_timeline(root: Path):
+    add_deck(root, "timeline", "probe", TIMELINE)
 
 
 class Fixture:

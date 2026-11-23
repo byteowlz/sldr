@@ -22,7 +22,7 @@ import fitz
 from playwright.sync_api import sync_playwright
 
 sys.dont_write_bytecode = True
-from rendering_fixture import Fixture, prepare
+from rendering_fixture import Fixture, prepare, prepare_timeline
 
 
 def corners(image):
@@ -261,6 +261,62 @@ def overview(f):
     return rows
 
 
+def timeline(f):
+    prepare_timeline(f.root)
+    f.run("build-timeline", "build", "timeline", "--single-file")
+    rows = []
+    with sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=str(f.browser), headless=True)
+        for width, height in [(1920, 1080), (1280, 720)]:
+            page = browser.new_page(viewport={"width": width, "height": height})
+            page.goto((f.root / "out/timeline/index.html").as_uri())
+            page.evaluate("document.fonts.ready")
+            items = page.locator(
+                '.sldr-deck > .sldr-slide[data-layout="framed-timeline"] .sldr-frame-body > ul > li'
+            ).evaluate_all("""es => es.map((li, index) => {
+                const box = r => [r.left, r.top, r.right, r.bottom];
+                const boxes = n => [...n.getClientRects()].map(box);
+                const style = getComputedStyle(li), outer = li.getBoundingClientRect();
+                const lead = li.querySelector(':scope > strong'), em = li.querySelector(':scope > em');
+                const flow = document.createRange();
+                flow.setStartAfter(lead); flow.setEndAfter(li.lastChild);
+                const row = {above: index % 2 === 0, font: parseFloat(style.fontSize),
+                    inner: [outer.top + parseFloat(style.paddingTop), outer.bottom - parseFloat(style.paddingBottom)],
+                    lead: box(lead.getBoundingClientRect()), flow: box(flow.getBoundingClientRect())};
+                if (em) {
+                    const rest = document.createRange(); rest.selectNode(em.nextSibling);
+                    Object.assign(row, {em: boxes(em), rest: boxes(rest), text: em.nextSibling.textContent});
+                }
+                return row;
+            })""")
+            page.screenshot(path=str(f.root / f"timeline-{width}.png"))
+            (f.root / f"timeline-{width}.json").write_text(json.dumps(items, indent=2))
+            assert [row["above"] for row in items] == [True, False, True, False], items
+            assert ["em" in row for row in items] == [False, True, True, False], items
+            for row in items:
+                # The lead keeps its own line; the event text hangs off the axis side.
+                assert row["lead"][3] <= row["flow"][1] + 0.5, row
+                if row["above"]:
+                    assert 0 <= row["inner"][1] - row["flow"][3] <= 0.2 * row["font"], (
+                        row
+                    )
+                else:
+                    assert abs(row["lead"][1] - row["inner"][0]) <= 0.5, row
+                if "em" not in row:
+                    continue
+                # Emphasis and the text after it are one inline flow: with room on
+                # the line, the colon continues where the italic span ends.
+                assert row["text"].startswith(":"), row
+                assert len(row["em"]) == 1 and len(row["rest"]) == 1, row
+                em, rest = row["em"][0], row["rest"][0]
+                assert abs(rest[1] - em[1]) <= 1 and abs(rest[3] - em[3]) <= 1, row
+                assert abs(rest[0] - em[2]) <= 1, row
+            rows.append({"viewport": [width, height], "items": items})
+            page.close()
+        browser.close()
+    return rows
+
+
 def svg_block(f):
     source = f.root / "library/slides/svg.md"
     source.write_text(
@@ -423,6 +479,8 @@ def check_selected(f, selected):
         report["overview"] = overview(f)
     if selected in ("all", "svg"):
         report["svg"] = svg_block(f)
+    if selected in ("all", "timeline"):
+        report["timeline"] = timeline(f)
     return report
 
 
@@ -470,7 +528,15 @@ def main():
     parser.add_argument("--browser", type=Path, default=None)
     parser.add_argument(
         "--case",
-        choices=["all", "capture", "screen-fit", "print-fit", "overview", "svg"],
+        choices=[
+            "all",
+            "capture",
+            "screen-fit",
+            "print-fit",
+            "overview",
+            "svg",
+            "timeline",
+        ],
         default="all",
     )
     args = parser.parse_args()
