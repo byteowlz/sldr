@@ -46,3 +46,7 @@ input/
 # Local dev artifacts
 .preview/
 .oqto/
+
+# Python bytecode
+__pycache__/
+*.pyc
